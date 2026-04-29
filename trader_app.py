@@ -27,7 +27,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
     handlers=[
-        logging.FileHandler("trader.log"),
+        logging.FileHandler("trader.log", encoding="utf-8"),
         logging.StreamHandler(),
     ],
 )
@@ -37,15 +37,79 @@ logger = logging.getLogger(__name__)
 INITIAL_CAPITAL = 100_000.0          # 仮想資本 $100,000
 DB_PATH = os.path.join(os.path.dirname(__file__), "trader.db")
 ET = ZoneInfo("America/New_York")
+JST = ZoneInfo("Asia/Tokyo")
 
-WATCHLIST = [
+# 米国株（50銘柄）
+US_STOCKS = [
     "AAPL", "MSFT", "GOOGL", "AMZN", "META",
-    "NVDA", "TSLA", "JPM", "JNJ", "KO",
-    "AMD",  "PLTR", "SPY",  "QQQ",  "NFLX",
-    "XOM",  "UNH",  "WMT",  "SOFI", "RIVN",
+    "NVDA", "TSLA", "JPM",   "JNJ",  "KO",
+    "AMD",  "PLTR", "SPY",   "QQQ",  "NFLX",
+    "XOM",  "UNH",  "WMT",   "SOFI", "RIVN",
+    "ORCL", "CSCO", "INTC",  "CRM",  "ADBE",
+    "PYPL", "UBER", "COIN",  "RBLX", "SNAP",
+    "BA",   "GE",   "CAT",   "HON",  "PG",
+    "PFE",  "MRK",  "ABBV",  "T",    "VZ",
+    "DIS",  "GS",   "MS",    "BAC",  "V",
+    "MA",   "BRK-B","COST",  "MCD",  "SBUX",
 ]
 
-MAX_POSITION_PCT = 0.15   # 1銘柄への最大投資割合
+# 日経銘柄（50銘柄）
+JP_STOCKS = [
+    "7203.T",  # トヨタ自動車
+    "6758.T",  # ソニーグループ
+    "9984.T",  # ソフトバンクグループ
+    "8306.T",  # 三菱UFJフィナンシャル
+    "7974.T",  # 任天堂
+    "6861.T",  # キーエンス
+    "4063.T",  # 信越化学工業
+    "9432.T",  # NTT
+    "4502.T",  # 武田薬品工業
+    "7267.T",  # 本田技研工業
+    "6954.T",  # ファナック
+    "8035.T",  # 東京エレクトロン
+    "4519.T",  # 中外製薬
+    "9983.T",  # ファーストリテイリング
+    "6367.T",  # ダイキン工業
+    "8766.T",  # 東京海上HD
+    "7751.T",  # キヤノン
+    "6326.T",  # クボタ
+    "4543.T",  # テルモ
+    "6981.T",  # 村田製作所
+    "9022.T",  # JR東海
+    "8058.T",  # 三菱商事
+    "5108.T",  # ブリヂストン
+    "4661.T",  # オリエンタルランド
+    "6098.T",  # リクルートHD
+    "6645.T",  # オムロン
+    "4901.T",  # 富士フイルムHD
+    "6501.T",  # 日立製作所
+    "4568.T",  # 第一三共
+    "8001.T",  # 伊藤忠商事
+    "3382.T",  # セブン&アイHD
+    "6702.T",  # 富士通
+    "9020.T",  # JR東日本
+    "8802.T",  # 三菱地所
+    "7011.T",  # 三菱重工業
+    "2914.T",  # JT
+    "8031.T",  # 三井物産
+    "9613.T",  # NTTデータ
+    "4452.T",  # 花王
+    "8053.T",  # 住友商事
+    "6471.T",  # 日本精工
+    "5401.T",  # 日本製鉄
+    "7270.T",  # SUBARU
+    "6503.T",  # 三菱電機
+    "8309.T",  # 三井住友トラスト
+    "7201.T",  # 日産自動車
+    "4507.T",  # 塩野義製薬
+    "8725.T",  # MS&ADインシュアランス
+    "6762.T",  # TDK
+    "9735.T",  # セコム
+]
+
+WATCHLIST = US_STOCKS + JP_STOCKS   # 合計100銘柄
+
+MAX_POSITION_PCT = 0.10   # 1銘柄への最大投資割合（100銘柄なので少し下げる）
 TRADE_INTERVAL_MIN = 30   # 取引間隔（分）
 scheduler = BackgroundScheduler(daemon=True)
 
@@ -278,7 +342,7 @@ def fetch_daily_changes(symbols):
     return changes
 
 
-def is_market_open():
+def is_us_market_open():
     now = datetime.now(ET)
     if now.weekday() >= 5:
         return False
@@ -287,12 +351,26 @@ def is_market_open():
     return market_open <= now <= market_close
 
 
+def is_jp_market_open():
+    now = datetime.now(JST)
+    if now.weekday() >= 5:
+        return False
+    am_open  = now.replace(hour=9,  minute=0,  second=0, microsecond=0)
+    am_close = now.replace(hour=11, minute=30, second=0, microsecond=0)
+    pm_open  = now.replace(hour=12, minute=30, second=0, microsecond=0)
+    pm_close = now.replace(hour=15, minute=30, second=0, microsecond=0)
+    return (am_open <= now <= am_close) or (pm_open <= now <= pm_close)
+
+
+def is_market_open():
+    return is_us_market_open() or is_jp_market_open()
+
+
 # ── AI 取引エンジン ────────────────────────────────────────────────────────────
 def ai_trading_session(force=False):
-    """Claude AI による取引セッション"""
-    if not force and not is_market_open():
-        logger.info("市場クローズ中 - 取引スキップ")
-        return {"status": "market_closed"}
+    """Claude AI による取引セッション（シミュレーションは常時実行）"""
+    # シミュレーションなので市場クローズでも実行（forceまたは常時）
+    logger.info("AI取引セッション開始...")
 
     logger.info("AI取引セッション開始...")
 
@@ -625,6 +703,51 @@ def api_force_trade():
 @app.route("/api/watchlist")
 def api_watchlist():
     return jsonify(WATCHLIST)
+
+
+@app.route("/api/stock_chart/<symbol>")
+def api_stock_chart(symbol):
+    """銘柄の過去チャートデータを返す"""
+    symbol = symbol.upper()
+    period = request.args.get("period", "1mo")   # 1d, 5d, 1mo, 3mo, 6mo, 1y
+    interval_map = {
+        "1d":  "5m",
+        "5d":  "30m",
+        "1mo": "1d",
+        "3mo": "1d",
+        "6mo": "1wk",
+        "1y":  "1wk",
+    }
+    interval = interval_map.get(period, "1d")
+    try:
+        data = yf.download(
+            symbol, period=period, interval=interval,
+            auto_adjust=True, progress=False,
+        )
+        if data.empty:
+            return jsonify({"error": "データなし"}), 404
+
+        # 単一銘柄なのでシンプルなカラム
+        closes = data["Close"].dropna()
+        result = [
+            {"t": str(idx)[:16], "v": round(float(v), 2)}
+            for idx, v in closes.items()
+        ]
+        # 現在価格・騰落率
+        latest = result[-1]["v"] if result else 0
+        prev   = result[-2]["v"] if len(result) >= 2 else latest
+        change_pct = (latest / prev - 1) * 100 if prev else 0
+
+        return jsonify({
+            "symbol": symbol,
+            "period": period,
+            "data": result,
+            "latest_price": latest,
+            "change_pct": round(change_pct, 2),
+        })
+    except Exception as e:
+        logger.error(f"チャートデータ取得エラー {symbol}: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 # ── スケジューラー起動 ─────────────────────────────────────────────────────────

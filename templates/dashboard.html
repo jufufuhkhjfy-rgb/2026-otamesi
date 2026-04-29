@@ -20,181 +20,105 @@
       --muted:    #64748b;
     }
     * { box-sizing: border-box; }
-    body {
-      background: var(--bg-main);
-      color: var(--text);
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      min-height: 100vh;
-    }
-    /* ── ヘッダー ── */
+    body { background: var(--bg-main); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; }
+    /* ── トップバー ── */
     .topbar {
       background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
       border-bottom: 1px solid var(--border);
-      padding: 12px 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 8px;
+      padding: 10px 20px;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
     }
-    .topbar h1 { font-size: 1.2rem; margin: 0; letter-spacing: 1px; color: var(--blue); }
+    .topbar h1 { font-size: 1.1rem; margin: 0; letter-spacing: 1px; color: var(--blue); }
     .topbar h1 span { color: var(--green); }
-    .market-badge {
-      font-size: .75rem;
-      padding: 3px 10px;
-      border-radius: 20px;
-      font-weight: 600;
-      letter-spacing: .5px;
-    }
-    .market-open  { background: rgba(0,230,118,.15); color: var(--green); border: 1px solid var(--green); }
-    .market-close { background: rgba(255,82,82,.15);  color: var(--red);   border: 1px solid var(--red); }
+    .market-badge { font-size:.72rem; padding:3px 10px; border-radius:20px; font-weight:600; }
+    .market-open  { background:rgba(0,230,118,.15); color:var(--green); border:1px solid var(--green); }
+    .market-close { background:rgba(255,82,82,.15);  color:var(--red);   border:1px solid var(--red); }
     /* ── カード ── */
-    .stat-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 16px 20px;
-      transition: border-color .2s;
-    }
-    .stat-card:hover { border-color: #334155; }
-    .stat-card .label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
-    .stat-card .value { font-size: 1.5rem; font-weight: 700; margin-top: 2px; }
-    .stat-card .sub   { font-size: .8rem; margin-top: 2px; }
-    .pos { color: var(--green); }
-    .neg { color: var(--red); }
-    .neu { color: var(--yellow); }
+    .stat-card { background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:14px 18px; }
+    .stat-card .label { font-size:.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
+    .stat-card .value { font-size:1.4rem; font-weight:700; margin-top:2px; }
+    .stat-card .sub   { font-size:.78rem; margin-top:2px; }
+    .pos { color:var(--green); } .neg { color:var(--red); } .neu { color:var(--yellow); }
     /* ── チャートカード ── */
-    .chart-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 16px;
-    }
-    .chart-card h6 { font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+    .chart-card { background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:14px; }
+    .chart-card h6 { font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; }
     /* ── AIコメント ── */
-    .ai-card {
-      background: linear-gradient(135deg, #0f172a 0%, #1a1a2e 100%);
-      border: 1px solid #3730a3;
-      border-radius: 12px;
-      padding: 18px 20px;
-    }
-    .ai-card h6 { color: #818cf8; font-size: .8rem; text-transform: uppercase; letter-spacing: 1px; }
-    .ai-badge {
-      display: inline-block;
-      font-size: .7rem;
-      padding: 2px 8px;
-      border-radius: 10px;
-      margin-right: 6px;
-      font-weight: 600;
-    }
-    .badge-bull { background: rgba(0,230,118,.2); color: var(--green); }
-    .badge-bear { background: rgba(255,82,82,.2);  color: var(--red); }
-    .badge-neu  { background: rgba(255,215,64,.2); color: var(--yellow); }
+    .ai-card { background:linear-gradient(135deg,#0f172a,#1a1a2e); border:1px solid #3730a3; border-radius:10px; padding:16px 18px; }
+    .ai-card h6 { color:#818cf8; font-size:.72rem; text-transform:uppercase; letter-spacing:1px; }
     /* ── テーブル ── */
-    .trading-table {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-    }
-    .trading-table table { margin: 0; font-size: .82rem; }
-    .trading-table thead th {
-      background: var(--bg-card2);
-      color: var(--muted);
-      font-size: .72rem;
-      text-transform: uppercase;
-      letter-spacing: .8px;
-      padding: 10px 14px;
-      border-color: var(--border);
-    }
-    .trading-table tbody td {
-      padding: 8px 14px;
-      border-color: var(--border);
-      vertical-align: middle;
-    }
-    .trading-table tbody tr:hover td { background: rgba(255,255,255,.02); }
-    .action-buy  { background: rgba(0,230,118,.15); color: var(--green); padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: .72rem; }
-    .action-sell { background: rgba(255,82,82,.15);  color: var(--red);   padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: .72rem; }
+    .trading-table { background:var(--bg-card); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+    .trading-table table { margin:0; font-size:.8rem; }
+    .trading-table thead th { background:var(--bg-card2); color:var(--muted); font-size:.7rem; text-transform:uppercase; letter-spacing:.8px; padding:9px 12px; border-color:var(--border); }
+    .trading-table tbody td { padding:7px 12px; border-color:var(--border); vertical-align:middle; }
+    .trading-table tbody tr:hover td { background:rgba(255,255,255,.02); }
+    .action-buy  { background:rgba(0,230,118,.15); color:var(--green); padding:2px 6px; border-radius:3px; font-weight:700; font-size:.7rem; }
+    .action-sell { background:rgba(255,82,82,.15);  color:var(--red);   padding:2px 6px; border-radius:3px; font-weight:700; font-size:.7rem; }
     /* ── ウォッチリスト ── */
-    .ticker-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-      gap: 8px;
-    }
+    .watchlist-wrap { max-height: 320px; overflow-y: auto; }
+    .ticker-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:6px; }
     .ticker-item {
-      background: var(--bg-card2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 8px 10px;
-      text-align: center;
-      transition: border-color .2s;
+      background:var(--bg-card2); border:1px solid var(--border); border-radius:7px;
+      padding:7px 8px; text-align:center; cursor:pointer; transition:border-color .15s, transform .1s;
     }
-    .ticker-item:hover { border-color: #334155; }
-    .ticker-item .sym { font-size: .8rem; font-weight: 700; color: var(--blue); }
-    .ticker-item .price { font-size: .92rem; font-weight: 600; margin: 2px 0; }
-    .ticker-item .chg  { font-size: .7rem; }
+    .ticker-item:hover { border-color:#40c4ff; transform:scale(1.03); }
+    .ticker-item .sym  { font-size:.75rem; font-weight:700; color:var(--blue); }
+    .ticker-item .price{ font-size:.85rem; font-weight:600; margin:2px 0; }
+    .ticker-item .chg  { font-size:.68rem; }
+    /* ── 検索バー ── */
+    .search-box { background:var(--bg-card2); border:1px solid var(--border); border-radius:6px;
+      color:var(--text); padding:5px 10px; font-size:.82rem; width:100%; outline:none; }
+    .search-box:focus { border-color:var(--blue); }
     /* ── ボタン ── */
-    .btn-trade {
-      background: linear-gradient(135deg, #4f46e5, #7c3aed);
-      border: none;
-      color: #fff;
-      padding: 8px 20px;
-      border-radius: 8px;
-      font-weight: 600;
-      font-size: .85rem;
-      cursor: pointer;
-      transition: opacity .2s;
-    }
-    .btn-trade:hover { opacity: .85; }
-    .btn-trade:disabled { opacity: .4; cursor: not-allowed; }
-    /* ── セクションタイトル ── */
-    .section-title {
-      font-size: .75rem;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 1.2px;
-      padding: 0 4px 8px;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 12px;
-    }
-    /* ── スクロールバー ── */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: var(--bg-main); }
-    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
-    /* ── ローダー ── */
-    .spinner { display: inline-block; width: 14px; height: 14px;
-      border: 2px solid rgba(255,255,255,.2); border-top-color: var(--blue);
-      border-radius: 50%; animation: spin .6s linear infinite; margin-right: 6px; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    #refresh-indicator { font-size: .72rem; color: var(--muted); }
-    /* ── 最新取引フラッシュ ── */
+    .btn-trade { background:linear-gradient(135deg,#4f46e5,#7c3aed); border:none; color:#fff;
+      padding:7px 18px; border-radius:7px; font-weight:600; font-size:.82rem; cursor:pointer; transition:opacity .2s; }
+    .btn-trade:hover { opacity:.85; } .btn-trade:disabled { opacity:.4; cursor:not-allowed; }
+    .section-title { font-size:.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:1.2px;
+      padding:0 4px 6px; border-bottom:1px solid var(--border); margin-bottom:10px; }
+    /* ── モーダル（銘柄チャート） ── */
+    .modal-content { background:#0f172a; border:1px solid var(--border); border-radius:12px; color:var(--text); }
+    .modal-header { border-bottom:1px solid var(--border); padding:12px 18px; }
+    .modal-body   { padding:14px 18px; }
+    .period-btn   { background:var(--bg-card2); border:1px solid var(--border); color:var(--muted);
+      padding:3px 10px; border-radius:5px; font-size:.75rem; cursor:pointer; transition:all .15s; }
+    .period-btn.active, .period-btn:hover { background:#1e40af; border-color:#3b82f6; color:#fff; }
+    /* ── スクロール ── */
+    ::-webkit-scrollbar { width:5px; height:5px; }
+    ::-webkit-scrollbar-track { background:var(--bg-main); }
+    ::-webkit-scrollbar-thumb { background:#334155; border-radius:3px; }
+    /* ── スピナー ── */
+    .spinner { display:inline-block; width:13px; height:13px; border:2px solid rgba(255,255,255,.2);
+      border-top-color:var(--blue); border-radius:50%; animation:spin .6s linear infinite; margin-right:5px; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    #refresh-indicator { font-size:.7rem; color:var(--muted); }
     @keyframes flash { 0%{background:rgba(0,230,118,.15)} 100%{background:transparent} }
-    .new-row td { animation: flash 1.5s ease; }
+    .new-row td { animation:flash 1.5s ease; }
+    /* ── タブ切り替え（US/JP）── */
+    .market-tab { background:none; border:none; color:var(--muted); padding:4px 12px; font-size:.78rem;
+      border-bottom:2px solid transparent; cursor:pointer; transition:all .15s; }
+    .market-tab.active { color:var(--blue); border-bottom-color:var(--blue); }
   </style>
 </head>
 <body>
 
-<!-- ── トップバー ───────────────────────────────────────── -->
+<!-- トップバー -->
 <div class="topbar">
   <h1>&#9883; AI <span>デイトレーダー</span> シミュレーター</h1>
   <div class="d-flex align-items-center gap-3 flex-wrap">
-    <span id="market-status" class="market-badge market-close">マーケット確認中...</span>
+    <span id="market-status" class="market-badge market-close">確認中...</span>
     <span id="refresh-indicator">更新中...</span>
-    <button class="btn-trade" id="force-trade-btn" onclick="forceTrade()">
-      ⚡ 今すぐAIトレード
-    </button>
+    <button class="btn-trade" id="force-trade-btn" onclick="forceTrade()">⚡ 今すぐAIトレード</button>
   </div>
 </div>
 
-<div class="container-fluid px-3 py-3" style="max-width: 1600px;">
+<div class="container-fluid px-3 py-3" style="max-width:1600px;">
 
-  <!-- ── サマリーカード ────────────────────────────────── -->
+  <!-- サマリーカード -->
   <div class="row g-2 mb-3">
     <div class="col-6 col-md-3 col-xl">
       <div class="stat-card">
         <div class="label">総資産</div>
         <div class="value" id="total-value">--</div>
-        <div class="sub text-muted" id="initial-cap">初期資本 $100,000</div>
+        <div class="sub text-muted">初期資本 $100,000</div>
       </div>
     </div>
     <div class="col-6 col-md-3 col-xl">
@@ -221,57 +145,48 @@
     <div class="col-12 col-md col-xl">
       <div class="stat-card">
         <div class="label">AI 市場判断</div>
-        <div class="value" id="market-assessment" style="font-size:1.1rem;">--</div>
-        <div class="sub text-muted" id="session-time">--</div>
+        <div class="value" id="market-assessment" style="font-size:1rem;">--</div>
+        <div class="sub text-muted" id="session-time">自動トレード: 30分ごと</div>
       </div>
     </div>
   </div>
 
-  <!-- ── チャート行 ─────────────────────────────────────── -->
+  <!-- チャート行 -->
   <div class="row g-2 mb-3">
     <div class="col-12 col-xl-8">
-      <div class="chart-card" style="height:280px;">
+      <div class="chart-card" style="height:260px;">
         <h6>&#128200; ポートフォリオ価値推移</h6>
         <canvas id="portfolio-chart"></canvas>
       </div>
     </div>
     <div class="col-12 col-xl-4">
-      <div class="chart-card" style="height:280px;">
+      <div class="chart-card" style="height:260px;">
         <h6>&#127959; 保有銘柄構成</h6>
         <canvas id="holdings-chart"></canvas>
       </div>
     </div>
   </div>
 
-  <!-- ── AIコメント ──────────────────────────────────────── -->
-  <div class="ai-card mb-3" id="ai-section">
+  <!-- AIコメント -->
+  <div class="ai-card mb-3">
     <div class="d-flex justify-content-between align-items-start mb-2 flex-wrap gap-2">
       <h6 class="mb-0">&#129302; AI トレーダーコメント</h6>
-      <span id="ai-time" class="text-muted" style="font-size:.72rem;"></span>
+      <span id="ai-time" class="text-muted" style="font-size:.7rem;"></span>
     </div>
-    <div id="ai-commentary" class="mb-2" style="font-size:.9rem; line-height:1.7;">
-      <span class="text-muted">読み込み中...</span>
-    </div>
-    <div id="ai-reflection" style="font-size:.82rem; color:#94a3b8; border-top:1px solid #1e2844; padding-top:8px; margin-top:8px; display:none;">
-      <strong style="color:#818cf8;">&#128221; 反省・改善点: </strong><span id="ai-reflection-text"></span>
+    <div id="ai-commentary" style="font-size:.88rem; line-height:1.7;"><span class="text-muted">読み込み中...</span></div>
+    <div id="ai-reflection" style="font-size:.8rem; color:#94a3b8; border-top:1px solid #1e2844; padding-top:7px; margin-top:7px; display:none;">
+      <strong style="color:#818cf8;">&#128221; 反省: </strong><span id="ai-reflection-text"></span>
     </div>
   </div>
 
-  <!-- ── 保有銘柄 + 取引履歴 ─────────────────────────────── -->
+  <!-- 保有銘柄 + 取引履歴 -->
   <div class="row g-2 mb-3">
-    <!-- 保有銘柄 -->
     <div class="col-12 col-lg-5">
       <div class="section-title">&#128200; 保有銘柄</div>
       <div class="trading-table">
         <table class="table table-dark table-hover mb-0">
           <thead>
-            <tr>
-              <th>銘柄</th>
-              <th class="text-end">株数</th>
-              <th class="text-end">現在値</th>
-              <th class="text-end">評価額</th>
-              <th class="text-end">損益</th>
-            </tr>
+            <tr><th>銘柄</th><th class="text-end">株数</th><th class="text-end">現在値</th><th class="text-end">評価額</th><th class="text-end">損益</th></tr>
           </thead>
           <tbody id="portfolio-tbody">
             <tr><td colspan="5" class="text-center text-muted py-3">読み込み中...</td></tr>
@@ -279,21 +194,12 @@
         </table>
       </div>
     </div>
-    <!-- 取引履歴 -->
     <div class="col-12 col-lg-7">
       <div class="section-title">&#128203; 取引履歴（直近）</div>
-      <div class="trading-table" style="max-height:320px; overflow-y:auto;">
+      <div class="trading-table" style="max-height:300px; overflow-y:auto;">
         <table class="table table-dark table-hover mb-0">
           <thead>
-            <tr>
-              <th>時刻</th>
-              <th>銘柄</th>
-              <th>売買</th>
-              <th class="text-end">株数</th>
-              <th class="text-end">価格</th>
-              <th class="text-end">金額</th>
-              <th>理由</th>
-            </tr>
+            <tr><th>時刻</th><th>銘柄</th><th>売買</th><th class="text-end">株数</th><th class="text-end">価格</th><th class="text-end">金額</th><th>理由</th></tr>
           </thead>
           <tbody id="trades-tbody">
             <tr><td colspan="7" class="text-center text-muted py-3">取引履歴なし</td></tr>
@@ -303,307 +209,307 @@
     </div>
   </div>
 
-  <!-- ── ウォッチリスト ──────────────────────────────────── -->
-  <div class="section-title">&#128308; ウォッチリスト（リアルタイム価格）</div>
-  <div class="ticker-grid mb-4" id="watchlist-grid">
-    <div class="text-muted" style="font-size:.8rem;">読み込み中...</div>
+  <!-- ウォッチリスト（100銘柄） -->
+  <div class="section-title">&#128308; ウォッチリスト（クリックでチャート表示）</div>
+  <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+    <div>
+      <button class="market-tab active" onclick="filterMarket('ALL', this)">全銘柄</button>
+      <button class="market-tab" onclick="filterMarket('US', this)">米国株</button>
+      <button class="market-tab" onclick="filterMarket('JP', this)">日経</button>
+    </div>
+    <input class="search-box" style="max-width:180px;" type="text" placeholder="銘柄を検索..." oninput="filterSearch(this.value)">
+    <span class="text-muted" style="font-size:.72rem;" id="ticker-count"></span>
+  </div>
+  <div class="watchlist-wrap mb-4">
+    <div class="ticker-grid" id="watchlist-grid">
+      <div class="text-muted" style="font-size:.8rem;">読み込み中...</div>
+    </div>
   </div>
 
-  <!-- ── フッター ── -->
-  <div class="text-center text-muted mt-3 pb-3" style="font-size:.72rem;">
-    このアプリはシミュレーションです。実際の投資ではありません。
-    バックグラウンドで30分ごとに自動トレードが実行されます。
+  <div class="text-center text-muted pb-3" style="font-size:.7rem;">
+    シミュレーションです。実際の投資ではありません。30分ごとにAIが自動トレードを実行します。
   </div>
+</div>
 
-</div><!-- /container -->
+<!-- 銘柄チャートモーダル -->
+<div class="modal fade" id="stockModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-0" id="modal-symbol">--</h5>
+          <small class="text-muted" id="modal-price-info">--</small>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex gap-1 mb-3 flex-wrap">
+          <button class="period-btn active" onclick="loadChart(currentSymbol,'1d',this)">1日</button>
+          <button class="period-btn" onclick="loadChart(currentSymbol,'5d',this)">5日</button>
+          <button class="period-btn" onclick="loadChart(currentSymbol,'1mo',this)">1ヶ月</button>
+          <button class="period-btn" onclick="loadChart(currentSymbol,'3mo',this)">3ヶ月</button>
+          <button class="period-btn" onclick="loadChart(currentSymbol,'6mo',this)">6ヶ月</button>
+          <button class="period-btn" onclick="loadChart(currentSymbol,'1y',this)">1年</button>
+        </div>
+        <div style="position:relative; height:300px;">
+          <canvas id="stock-chart"></canvas>
+          <div id="chart-loading" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:none;">
+            <span class="spinner"></span>読み込み中...
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-// ── グローバル変数 ─────────────────────────────────────────────
+// ── グローバル ────────────────────────────────────────────────
 let portfolioChart = null;
 let holdingsChart  = null;
+let stockChart     = null;
+let currentSymbol  = '';
+let allTickers     = [];
+let allPrices      = {};
+let marketFilter   = 'ALL';
 let lastTradeId    = 0;
-let refreshTimer   = null;
 const REFRESH_SEC  = 30;
 
 // ── ユーティリティ ────────────────────────────────────────────
-const fmt  = (n, d=2) => '$' + Number(n).toLocaleString('en-US', {minimumFractionDigits:d, maximumFractionDigits:d});
-const fmtN = (n, d=2) => Number(n).toLocaleString('en-US', {minimumFractionDigits:d, maximumFractionDigits:d});
-const pct  = (n) => (n >= 0 ? '+' : '') + Number(n).toFixed(2) + '%';
-const cls  = (n) => n > 0 ? 'pos' : n < 0 ? 'neg' : '';
-const ts   = (s) => {
-  if (!s) return '';
-  const d = new Date(s);
-  return d.toLocaleDateString('ja-JP') + ' ' + d.toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'});
-};
+const fmt  = (n,d=2) => '$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const fmtN = (n,d=2) => Number(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const pct  = n => (n>=0?'+':'')+Number(n).toFixed(2)+'%';
+const cls  = n => n>0?'pos':n<0?'neg':'';
+const ts   = s => { if(!s)return''; const d=new Date(s); return d.toLocaleDateString('ja-JP')+' '+d.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}); };
 
-// ── ポートフォリオ時系列チャート ──────────────────────────────
+// ── チャート初期化 ────────────────────────────────────────────
+const CHART_COLORS = ['#40c4ff','#00e676','#ffd740','#ff6e40','#ea80fc','#64ffda','#ff5252','#69f0ae','#ff4081','#e040fb'];
+
 function initPortfolioChart() {
   const ctx = document.getElementById('portfolio-chart').getContext('2d');
   portfolioChart = new Chart(ctx, {
-    type: 'line',
-    data: { labels: [], datasets: [{
-      label: '総資産',
-      data: [],
-      borderColor: '#40c4ff',
-      backgroundColor: 'rgba(64,196,255,.08)',
-      borderWidth: 2,
-      pointRadius: 0,
-      pointHoverRadius: 4,
-      fill: true,
-      tension: 0.3,
-    }]},
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: ctx => fmt(ctx.parsed.y),
-          }
-        }
-      },
-      scales: {
-        x: { ticks: { color:'#64748b', maxTicksLimit:8, font:{size:10} }, grid: { color:'rgba(255,255,255,.05)' } },
-        y: { ticks: { color:'#64748b', callback: v => '$'+fmtN(v,0), font:{size:10} }, grid: { color:'rgba(255,255,255,.05)' } }
-      }
-    }
+    type:'line', data:{labels:[],datasets:[{label:'総資産',data:[],borderColor:'#40c4ff',backgroundColor:'rgba(64,196,255,.08)',borderWidth:2,pointRadius:0,fill:true,tension:.3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.parsed.y)}}},
+      scales:{x:{ticks:{color:'#64748b',maxTicksLimit:8,font:{size:10}},grid:{color:'rgba(255,255,255,.05)'}},
+              y:{ticks:{color:'#64748b',callback:v=>'$'+fmtN(v,0),font:{size:10}},grid:{color:'rgba(255,255,255,.05)'}}}}
   });
 }
 
-// ── 保有銘柄ドーナツチャート ──────────────────────────────────
-const CHART_COLORS = [
-  '#40c4ff','#00e676','#ffd740','#ff6e40','#ea80fc',
-  '#64ffda','#ff5252','#69f0ae','#ff4081','#e040fb',
-];
 function initHoldingsChart() {
   const ctx = document.getElementById('holdings-chart').getContext('2d');
   holdingsChart = new Chart(ctx, {
-    type: 'doughnut',
-    data: { labels: [], datasets: [{ data: [], backgroundColor: CHART_COLORS, borderWidth: 1, borderColor:'#111827' }]},
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { position:'right', labels: { color:'#e2e8f0', font:{size:11}, padding:12, boxWidth:12 } },
-        tooltip: {
-          callbacks: {
-            label: ctx => ctx.label + ': ' + fmt(ctx.parsed),
-          }
-        }
-      }
-    }
+    type:'doughnut', data:{labels:[],datasets:[{data:[],backgroundColor:CHART_COLORS,borderWidth:1,borderColor:'#111827'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#e2e8f0',font:{size:10},padding:10,boxWidth:10}},tooltip:{callbacks:{label:c=>c.label+': '+fmt(c.parsed)}}}}
   });
+}
+
+// ── 銘柄チャートモーダル ──────────────────────────────────────
+function openStockModal(symbol) {
+  currentSymbol = symbol;
+  document.getElementById('modal-symbol').textContent = symbol;
+  document.getElementById('modal-price-info').textContent = '読み込み中...';
+  // period-btn を 1d に戻す
+  document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.period-btn')[0].classList.add('active');
+  loadChart(symbol, '1d', null);
+  new bootstrap.Modal(document.getElementById('stockModal')).show();
+}
+
+async function loadChart(symbol, period, btn) {
+  if(btn){ document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
+  document.getElementById('chart-loading').style.display = 'block';
+  try {
+    const res  = await fetch(`/api/stock_chart/${symbol}?period=${period}`);
+    const data = await res.json();
+    if(data.error){ throw new Error(data.error); }
+
+    // モーダル価格情報
+    const chgCls = data.change_pct>=0?'pos':'neg';
+    document.getElementById('modal-price-info').innerHTML =
+      `<span style="font-size:1rem;font-weight:700;">${fmt(data.latest_price)}</span> &nbsp;
+       <span class="${chgCls}">${pct(data.change_pct)}</span>`;
+
+    const labels = data.data.map(d=>d.t);
+    const values = data.data.map(d=>d.v);
+    const color  = data.change_pct >= 0 ? '#00e676' : '#ff5252';
+
+    if(stockChart){ stockChart.destroy(); }
+    const ctx = document.getElementById('stock-chart').getContext('2d');
+    stockChart = new Chart(ctx, {
+      type:'line',
+      data:{labels,datasets:[{label:symbol,data:values,borderColor:color,backgroundColor:color.replace(')',', .08)').replace('rgb','rgba'),borderWidth:2,pointRadius:0,fill:true,tension:.3}]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.parsed.y)}}},
+        scales:{x:{ticks:{color:'#64748b',maxTicksLimit:10,font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}},
+                y:{ticks:{color:'#64748b',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}}}}
+    });
+  } catch(e) {
+    document.getElementById('modal-price-info').textContent = 'データ取得エラー: '+e.message;
+  }
+  document.getElementById('chart-loading').style.display = 'none';
 }
 
 // ── データ更新: サマリー ───────────────────────────────────────
 async function updateStats() {
-  const res = await fetch('/api/stats');
-  const d   = await res.json();
-
-  document.getElementById('total-value').textContent = fmt(d.total_value, 0);
-  document.getElementById('total-value').className = 'value ' + cls(d.pnl);
-
-  const pnlEl  = document.getElementById('pnl');
-  const pctEl  = document.getElementById('pnl-pct');
-  pnlEl.textContent  = (d.pnl >= 0 ? '+' : '') + fmt(d.pnl, 0);
-  pnlEl.className    = 'value ' + cls(d.pnl);
-  pctEl.textContent  = pct(d.pnl_pct);
-  pctEl.className    = 'sub ' + cls(d.pnl);
-
-  document.getElementById('cash').textContent        = fmt(d.cash, 0);
-  document.getElementById('cash-pct').textContent   = '総資産の ' + fmtN(d.cash / d.total_value * 100, 1) + '%';
-  document.getElementById('holdings-value').textContent = fmt(d.holdings_value, 0);
-  document.getElementById('positions-count').textContent = d.positions + ' 銘柄保有中';
-
-  const mStatus = document.getElementById('market-status');
-  if (d.market_open) {
-    mStatus.textContent = '● マーケット開場中';
-    mStatus.className   = 'market-badge market-open';
-  } else {
-    mStatus.textContent = '● マーケット閉場中';
-    mStatus.className   = 'market-badge market-close';
-  }
-
-  const assEl = document.getElementById('market-assessment');
-  assEl.textContent = d.market_status || '中立';
-  assEl.className   = 'value ' + (d.market_status === '強気' ? 'pos' : d.market_status === '弱気' ? 'neg' : 'neu');
+  const d = await fetch('/api/stats').then(r=>r.json());
+  document.getElementById('total-value').textContent = fmt(d.total_value,0);
+  document.getElementById('total-value').className   = 'value '+cls(d.pnl);
+  document.getElementById('pnl').textContent  = (d.pnl>=0?'+':'')+fmt(d.pnl,0);
+  document.getElementById('pnl').className    = 'value '+cls(d.pnl);
+  document.getElementById('pnl-pct').textContent  = pct(d.pnl_pct);
+  document.getElementById('pnl-pct').className    = 'sub '+cls(d.pnl);
+  document.getElementById('cash').textContent = fmt(d.cash,0);
+  document.getElementById('cash-pct').textContent = '総資産の '+fmtN(d.cash/d.total_value*100,1)+'%';
+  document.getElementById('holdings-value').textContent = fmt(d.holdings_value,0);
+  document.getElementById('positions-count').textContent = d.positions+' 銘柄保有中';
+  const ms = document.getElementById('market-status');
+  if(d.market_open){ ms.textContent='● マーケット開場中'; ms.className='market-badge market-open'; }
+  else             { ms.textContent='● マーケット閉場中'; ms.className='market-badge market-close'; }
+  const ae = document.getElementById('market-assessment');
+  ae.textContent = d.market_status||'中立';
+  ae.className = 'value '+(d.market_status==='強気'?'pos':d.market_status==='弱気'?'neg':'neu');
 }
 
 // ── データ更新: AIコメント ─────────────────────────────────────
 async function updateAI() {
-  const res  = await fetch('/api/ai_sessions');
-  const sess = await res.json();
-  if (!sess.length) return;
+  const sess = await fetch('/api/ai_sessions').then(r=>r.json());
+  if(!sess.length) return;
   const s = sess[0];
-
-  document.getElementById('ai-commentary').innerHTML = s.commentary
-    ? s.commentary.replace(/\n/g, '<br>')
-    : '<span class="text-muted">まだ分析なし</span>';
-
-  const refEl   = document.getElementById('ai-reflection');
-  const refText = document.getElementById('ai-reflection-text');
-  if (s.reflection) {
-    refText.textContent = s.reflection;
-    refEl.style.display = '';
-  } else {
-    refEl.style.display = 'none';
-  }
+  document.getElementById('ai-commentary').innerHTML = s.commentary?s.commentary.replace(/\n/g,'<br>'):'<span class="text-muted">まだ分析なし</span>';
   document.getElementById('ai-time').textContent = ts(s.timestamp);
+  const refEl = document.getElementById('ai-reflection');
+  if(s.reflection){ document.getElementById('ai-reflection-text').textContent=s.reflection; refEl.style.display=''; }
+  else { refEl.style.display='none'; }
 }
 
 // ── データ更新: 保有銘柄 ──────────────────────────────────────
 async function updatePortfolio() {
-  const res = await fetch('/api/portfolio');
-  const pos = await res.json();
+  const pos = await fetch('/api/portfolio').then(r=>r.json());
   const tbody = document.getElementById('portfolio-tbody');
-
-  if (!pos.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">保有銘柄なし</td></tr>';
-    if (holdingsChart) {
-      holdingsChart.data.labels   = ['現金'];
-      holdingsChart.data.datasets[0].data = [1];
-      holdingsChart.data.datasets[0].backgroundColor = ['#334155'];
-      holdingsChart.update('none');
-    }
+  if(!pos.length){
+    tbody.innerHTML='<tr><td colspan="5" class="text-center text-muted py-3">保有銘柄なし</td></tr>';
+    if(holdingsChart){ holdingsChart.data.labels=['現金']; holdingsChart.data.datasets[0].data=[1]; holdingsChart.data.datasets[0].backgroundColor=['#334155']; holdingsChart.update('none'); }
     return;
   }
-
-  tbody.innerHTML = pos.map(p => `
+  tbody.innerHTML = pos.map(p=>`
     <tr>
-      <td><strong style="color:#40c4ff">${p.symbol}</strong></td>
-      <td class="text-end">${fmtN(p.shares, 0)}</td>
+      <td><a href="#" style="color:#40c4ff;text-decoration:none;font-weight:700;" onclick="openStockModal('${p.symbol}');return false;">${p.symbol}</a></td>
+      <td class="text-end">${fmtN(p.shares,0)}</td>
       <td class="text-end">${fmt(p.last_price)}</td>
-      <td class="text-end">${fmt(p.value, 0)}</td>
+      <td class="text-end">${fmt(p.value,0)}</td>
       <td class="text-end ${cls(p.pnl)}">${(p.pnl>=0?'+':'')}${fmt(p.pnl,0)}<br><small>${pct(p.pnl_pct)}</small></td>
     </tr>`).join('');
-
-  // ドーナツチャート更新
-  if (holdingsChart) {
-    holdingsChart.data.labels   = pos.map(p => p.symbol);
-    holdingsChart.data.datasets[0].data = pos.map(p => p.value);
-    holdingsChart.data.datasets[0].backgroundColor = pos.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]);
+  if(holdingsChart){
+    holdingsChart.data.labels=pos.map(p=>p.symbol);
+    holdingsChart.data.datasets[0].data=pos.map(p=>p.value);
+    holdingsChart.data.datasets[0].backgroundColor=pos.map((_,i)=>CHART_COLORS[i%CHART_COLORS.length]);
     holdingsChart.update('none');
   }
 }
 
 // ── データ更新: 取引履歴 ──────────────────────────────────────
 async function updateTrades() {
-  const res    = await fetch('/api/trades');
-  const trades = await res.json();
+  const trades = await fetch('/api/trades').then(r=>r.json());
   const tbody  = document.getElementById('trades-tbody');
-
-  if (!trades.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">取引履歴なし</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = trades.map((t, i) => `
-    <tr class="${t.id > lastTradeId && lastTradeId > 0 ? 'new-row' : ''}">
-      <td style="white-space:nowrap; color:#64748b; font-size:.75rem;">${ts(t.timestamp)}</td>
-      <td><strong style="color:#40c4ff">${t.symbol}</strong></td>
+  if(!trades.length){ tbody.innerHTML='<tr><td colspan="7" class="text-center text-muted py-3">取引履歴なし</td></tr>'; return; }
+  tbody.innerHTML = trades.map(t=>`
+    <tr class="${t.id>lastTradeId&&lastTradeId>0?'new-row':''}">
+      <td style="white-space:nowrap;color:#64748b;font-size:.72rem;">${ts(t.timestamp)}</td>
+      <td><a href="#" style="color:#40c4ff;text-decoration:none;font-weight:700;" onclick="openStockModal('${t.symbol}');return false;">${t.symbol}</a></td>
       <td><span class="action-${t.action.toLowerCase()}">${t.action}</span></td>
-      <td class="text-end">${fmtN(t.shares, 0)}</td>
+      <td class="text-end">${fmtN(t.shares,0)}</td>
       <td class="text-end">${fmt(t.price)}</td>
-      <td class="text-end">${fmt(t.total_value, 0)}</td>
-      <td style="font-size:.75rem; color:#94a3b8; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${t.reason||''}">${t.reason||''}</td>
+      <td class="text-end">${fmt(t.total_value,0)}</td>
+      <td style="font-size:.72rem;color:#94a3b8;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${t.reason||''}">${t.reason||''}</td>
     </tr>`).join('');
-
-  if (trades.length) lastTradeId = Math.max(...trades.map(t=>t.id));
+  if(trades.length) lastTradeId=Math.max(...trades.map(t=>t.id));
 }
 
-// ── データ更新: 時系列チャート ────────────────────────────────
+// ── データ更新: 時系列チャート ─────────────────────────────────
 async function updateHistory() {
-  const res  = await fetch('/api/history');
-  const hist = await res.json();
-  if (!hist.length || !portfolioChart) return;
-
-  const labels = hist.map(h => {
-    const d = new Date(h.timestamp);
-    return d.toLocaleDateString('ja-JP', {month:'numeric', day:'numeric'}) + ' '
-         + d.toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'});
-  });
-  const values = hist.map(h => h.total_value);
-
-  portfolioChart.data.labels = labels;
-  portfolioChart.data.datasets[0].data = values;
+  const hist = await fetch('/api/history').then(r=>r.json());
+  if(!hist.length||!portfolioChart) return;
+  portfolioChart.data.labels = hist.map(h=>{const d=new Date(h.timestamp); return d.toLocaleDateString('ja-JP',{month:'numeric',day:'numeric'})+' '+d.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});});
+  portfolioChart.data.datasets[0].data = hist.map(h=>h.total_value);
   portfolioChart.update('none');
 }
 
-// ── データ更新: ウォッチリスト ─────────────────────────────────
-async function updateWatchlist() {
-  const wRes  = await fetch('/api/watchlist');
-  const syms  = await wRes.json();
-  const pRes  = await fetch('/api/prices?symbols=' + syms.join(','));
-  const prices = await pRes.json();
-
+// ── ウォッチリスト描画 ─────────────────────────────────────────
+function renderTickers(filterMarketVal, searchVal) {
   const grid = document.getElementById('watchlist-grid');
-  grid.innerHTML = syms.map(sym => {
-    const info = prices[sym] || {};
-    const chg  = info.change_pct || 0;
-    const pr   = info.price || 0;
-    return `
-      <div class="ticker-item">
-        <div class="sym">${sym}</div>
-        <div class="price">${pr ? '$'+fmtN(pr) : '--'}</div>
-        <div class="chg ${cls(chg)}">${chg ? pct(chg) : '--'}</div>
-      </div>`;
+  let items = allTickers.filter(sym => {
+    const isJP = sym.endsWith('.T');
+    if(filterMarketVal==='US' && isJP) return false;
+    if(filterMarketVal==='JP' && !isJP) return false;
+    if(searchVal && !sym.toLowerCase().includes(searchVal.toLowerCase())) return false;
+    return true;
+  });
+  document.getElementById('ticker-count').textContent = items.length+'銘柄表示中';
+  if(!items.length){ grid.innerHTML='<div class="text-muted" style="font-size:.8rem;">該当銘柄なし</div>'; return; }
+  grid.innerHTML = items.map(sym => {
+    const info = allPrices[sym]||{};
+    const chg  = info.change_pct||0;
+    const pr   = info.price||0;
+    return `<div class="ticker-item" onclick="openStockModal('${sym}')">
+      <div class="sym">${sym.replace('.T','')}</div>
+      <div class="price">${pr?fmt(pr):'--'}</div>
+      <div class="chg ${cls(chg)}">${chg?pct(chg):'--'}</div>
+    </div>`;
   }).join('');
+}
+
+function filterMarket(val, btn) {
+  marketFilter = val;
+  document.querySelectorAll('.market-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTickers(val, document.querySelector('.search-box').value);
+}
+function filterSearch(val) {
+  renderTickers(marketFilter, val);
+}
+
+// ── ウォッチリスト価格更新 ────────────────────────────────────
+async function updateWatchlist() {
+  if(!allTickers.length){
+    allTickers = await fetch('/api/watchlist').then(r=>r.json());
+  }
+  // 重い処理なので US と JP に分けて取得
+  const us = allTickers.filter(s=>!s.endsWith('.T'));
+  const jp = allTickers.filter(s=>s.endsWith('.T'));
+  const [resUS, resJP] = await Promise.all([
+    fetch('/api/prices?symbols='+us.join(',')).then(r=>r.json()),
+    fetch('/api/prices?symbols='+jp.join(',')).then(r=>r.json()),
+  ]);
+  allPrices = {...resUS, ...resJP};
+  renderTickers(marketFilter, document.querySelector('.search-box').value);
 }
 
 // ── 全データ更新 ───────────────────────────────────────────────
 let isRefreshing = false;
 async function refreshAll() {
-  if (isRefreshing) return;
+  if(isRefreshing) return;
   isRefreshing = true;
   const ind = document.getElementById('refresh-indicator');
   ind.innerHTML = '<span class="spinner"></span>更新中...';
-
   try {
-    await Promise.all([
-      updateStats(),
-      updateAI(),
-      updatePortfolio(),
-      updateTrades(),
-      updateHistory(),
-    ]);
-    // ウォッチリストは別途（重い）
+    await Promise.all([updateStats(), updateAI(), updatePortfolio(), updateTrades(), updateHistory()]);
     updateWatchlist();
-  } catch(e) {
-    console.error('更新エラー:', e);
-  }
-
-  ind.textContent = '最終更新: ' + new Date().toLocaleTimeString('ja-JP');
+  } catch(e) { console.error('更新エラー:', e); }
+  ind.textContent = '最終更新: '+new Date().toLocaleTimeString('ja-JP');
   isRefreshing = false;
-
-  // 次回更新タイマー
-  if (refreshTimer) clearTimeout(refreshTimer);
-  refreshTimer = setTimeout(refreshAll, REFRESH_SEC * 1000);
+  setTimeout(refreshAll, REFRESH_SEC*1000);
 }
 
-// ── 強制AI取引 ─────────────────────────────────────────────────
+// ── 強制AIトレード ─────────────────────────────────────────────
 async function forceTrade() {
   const btn = document.getElementById('force-trade-btn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>トレード中...';
-
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span>トレード中...';
   try {
-    const res  = await fetch('/api/force_trade', { method: 'POST' });
-    const data = await res.json();
+    const d = await fetch('/api/force_trade',{method:'POST'}).then(r=>r.json());
     await refreshAll();
-
-    if (data.trades > 0) {
-      alert(`✅ AIトレード完了！\n${data.trades}件の取引が実行されました。\n\n${data.commentary || ''}`);
-    } else {
-      alert(`ℹ️ AIトレード完了\n今回は取引なし。\n\n${data.commentary || 'ポジション維持'}`);
-    }
-  } catch(e) {
-    alert('エラーが発生しました: ' + e.message);
-  }
-
-  btn.disabled = false;
-  btn.innerHTML = '⚡ 今すぐAIトレード';
+    alert(d.trades>0?`✅ ${d.trades}件の取引が実行されました！\n\n${d.commentary||''}`:`ℹ️ 今回は取引なし\n\n${d.commentary||'ポジション維持'}`);
+  } catch(e) { alert('エラー: '+e.message); }
+  btn.disabled=false; btn.innerHTML='⚡ 今すぐAIトレード';
 }
 
 // ── 初期化 ─────────────────────────────────────────────────────
