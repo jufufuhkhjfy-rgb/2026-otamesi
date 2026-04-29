@@ -283,12 +283,41 @@ def record_snapshot(total_value, cash, holdings_value):
         conn.commit()
 
 
+# ── 価格キャッシュ（yfinanceの呼びすぎを防ぐ）─────────────────────────────────
+_price_cache = {}
+_change_cache = {}
+_cache_ts = {}
+CACHE_TTL = 90  # 90秒キャッシュ
+
+
+def _cached(cache, key):
+    if key in cache and (datetime.now().timestamp() - _cache_ts.get(key, 0)) < CACHE_TTL:
+        return cache[key]
+    return None
+
+
 # ── 株価取得 ──────────────────────────────────────────────────────────────────
 def fetch_prices(symbols):
-    """指定銘柄の最新価格を取得"""
+    """指定銘柄の最新価格を取得（キャッシュ付き）"""
     prices = {}
     if not symbols:
         return prices
+    # キャッシュに残っているものは除外
+    uncached = [s for s in symbols if _cached(_price_cache, s) is None]
+    for s in symbols:
+        cached = _cached(_price_cache, s)
+        if cached is not None:
+            prices[s] = cached
+    if not uncached:
+        return prices
+    # 一度に取得しすぎないよう30銘柄ずつに分割
+    for i in range(0, len(uncached), 30):
+        batch = uncached[i:i+30]
+        _fetch_prices_batch(batch, prices)
+    return prices
+
+
+def _fetch_prices_batch(symbols, prices):
     try:
         sym_str = " ".join(symbols)
         data = yf.download(
@@ -296,12 +325,15 @@ def fetch_prices(symbols):
             auto_adjust=True, progress=False, threads=True,
             group_by="ticker",
         )
+        now_ts = datetime.now().timestamp()
         if len(symbols) == 1:
             sym = symbols[0]
             try:
                 close = data["Close"].dropna()
                 if not close.empty:
                     prices[sym] = float(close.iloc[-1])
+                    _price_cache[sym] = prices[sym]
+                    _cache_ts[sym] = now_ts
             except Exception:
                 pass
         else:
@@ -310,18 +342,34 @@ def fetch_prices(symbols):
                     close = data[sym]["Close"].dropna()
                     if not close.empty:
                         prices[sym] = float(close.iloc[-1])
+                        _price_cache[sym] = prices[sym]
+                        _cache_ts[sym] = now_ts
                 except Exception:
                     pass
     except Exception as e:
         logger.error(f"価格取得エラー: {e}")
-    return prices
 
 
 def fetch_daily_changes(symbols):
-    """当日の騰落率を計算"""
+    """当日の騰落率を計算（キャッシュ付き）"""
     changes = {}
     if not symbols:
         return changes
+    # キャッシュ済みを返す
+    uncached = [s for s in symbols if _cached(_change_cache, s) is None]
+    for s in symbols:
+        v = _cached(_change_cache, s)
+        if v is not None:
+            changes[s] = v
+    if not uncached:
+        return changes
+    # 30銘柄ずつ取得
+    for i in range(0, len(uncached), 30):
+        _fetch_changes_batch(uncached[i:i+30], changes)
+    return changes
+
+
+def _fetch_changes_batch(symbols, changes):
     try:
         sym_str = " ".join(symbols)
         data = yf.download(
@@ -342,12 +390,14 @@ def fetch_daily_changes(symbols):
                 try:
                     closes = data[sym]["Close"].dropna()
                     if len(closes) >= 2:
-                        changes[sym] = float((closes.iloc[-1] / closes.iloc[-2] - 1) * 100)
+                        v = float((closes.iloc[-1] / closes.iloc[-2] - 1) * 100)
+                        changes[sym] = v
+                        _change_cache[sym] = v
+                        _cache_ts[sym] = datetime.now().timestamp()
                 except Exception:
                     pass
     except Exception as e:
         logger.error(f"騰落率取得エラー: {e}")
-    return changes
 
 
 def is_us_market_open():
@@ -704,8 +754,10 @@ def api_prices():
 
 @app.route("/api/force_trade", methods=["POST"])
 def api_force_trade():
-    result = ai_trading_session(force=True)
-    return jsonify(result)
+    # バックグラウンドで実行してすぐ返す（タイムアウト防止）
+    t = threading.Thread(target=lambda: ai_trading_session(force=True), daemon=True)
+    t.start()
+    return jsonify({"status": "started", "trades": 0, "commentary": "トレード開始しました。30秒後に自動で更新されます。"})
 
 
 @app.route("/api/watchlist")

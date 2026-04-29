@@ -503,13 +503,17 @@ async function refreshAll() {
 // ── 強制AIトレード ─────────────────────────────────────────────
 async function forceTrade() {
   const btn = document.getElementById('force-trade-btn');
-  btn.disabled=true; btn.innerHTML='<span class="spinner"></span>トレード中...';
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span>実行中...';
   try {
-    const d = await fetch('/api/force_trade',{method:'POST'}).then(r=>r.json());
+    await fetch('/api/force_trade', {method:'POST'});
+  } catch(e) { /* 無視 */ }
+  // 30秒後に自動リフレッシュ（バックグラウンドでトレード処理中）
+  btn.innerHTML = '<span class="spinner"></span>30秒後に更新...';
+  setTimeout(async () => {
     await refreshAll();
-    alert(d.trades>0?`✅ ${d.trades}件の取引が実行されました！\n\n${d.commentary||''}`:`ℹ️ 今回は取引なし\n\n${d.commentary||'ポジション維持'}`);
-  } catch(e) { alert('エラー: '+e.message); }
-  btn.disabled=false; btn.innerHTML='⚡ 今すぐAIトレード';
+    btn.disabled=false;
+    btn.innerHTML='⚡ 今すぐAIトレード';
+  }, 30000);
 }
 
 // ── 初期化 ─────────────────────────────────────────────────────
