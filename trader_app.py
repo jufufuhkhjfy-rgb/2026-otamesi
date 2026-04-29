@@ -9,6 +9,8 @@ import json
 import sqlite3
 import logging
 import re
+import threading
+import webbrowser
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -778,9 +780,11 @@ if __name__ == "__main__":
     logger.info("=" * 60)
     logger.info("AI株式デイトレードシミュレーター起動")
     logger.info(f"仮想資本: ${INITIAL_CAPITAL:,.0f}")
-    logger.info(f"ウォッチリスト: {', '.join(WATCHLIST)}")
+    logger.info(f"ウォッチリスト: {len(WATCHLIST)}銘柄")
     logger.info("ダッシュボード: http://localhost:5001")
     if not os.environ.get("ANTHROPIC_API_KEY"):
-        logger.warning("⚠️  ANTHROPIC_API_KEY が未設定 - ルールベース取引を使用")
+        logger.warning("ANTHROPIC_API_KEY が未設定 - ルールベース取引を使用")
     logger.info("=" * 60)
+    # 1.5秒後にブラウザを自動で開く
+    threading.Timer(1.5, lambda: webbrowser.open("http://localhost:5001")).start()
     app.run(host="0.0.0.0", port=5001, debug=False)
