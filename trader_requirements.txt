@@ -1,0 +1,4 @@
+flask
+apscheduler
+yfinance
+anthropic

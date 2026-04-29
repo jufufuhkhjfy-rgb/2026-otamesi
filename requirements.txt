@@ -1,0 +1,10 @@
+flask
+requests
+curl_cffi
+cryptography
+pystray
+Pillow
+pyinstaller
+pyautogui
+numpy
+mss
