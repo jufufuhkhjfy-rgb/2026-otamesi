@@ -5,6 +5,7 @@ yfinance でリアル株価取得 + Claude AI が日本語で売買判断
 """
 
 import os
+import sys
 import json
 import sqlite3
 import logging
@@ -13,6 +14,11 @@ import threading
 import webbrowser
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
+
+# Windows で日本語ログが文字化けしないようにする
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 from flask import Flask, render_template, jsonify, request
 from apscheduler.schedulers.background import BackgroundScheduler
