@@ -700,32 +700,101 @@ def ai_trading_session(force=False):
             logger.error(f"Claude API エラー: {e}")
             commentary = f"AI取引エラー: {str(e)[:200]}"
     else:
-        # フォールバック: ルールベース取引
-        commentary = "⚠️ ANTHROPIC_API_KEY が未設定のため、ルールベース取引を実行中"
-        logger.warning("ANTHROPIC_API_KEY 未設定 - ルールベースで取引")
+        # 無料テクニカル分析トレード
+        logger.info("テクニカル分析トレード実行中（無料モード）")
+        buy_signals = []
+        sell_signals = []
+        cash = get_account()["cash_balance"]
 
-        for sym, chg in changes.items():
+        # ── 保有銘柄の損切り・利確チェック ──
+        for p in portfolio:
+            price = prices.get(p["symbol"], p["last_price"])
+            if not price:
+                continue
+            pnl_pct = (price - p["avg_cost"]) / p["avg_cost"] * 100
+            tech = technicals.get(p["symbol"], {})
+            rsi  = tech.get("rsi", 50)
+            trend = tech.get("trend", "")
+
+            if pnl_pct <= -5.0:
+                # 損切り: -5%以下は全売り
+                reason = f"損切り: 含み損{pnl_pct:.1f}%、リスク管理のため全売却"
+                sell_signals.append((p["symbol"], int(p["shares"]), price, reason, 100))
+            elif pnl_pct >= 8.0 and rsi > 65:
+                # 利確: +8%以上かつRSI高い
+                shares = max(1, int(p["shares"] / 2))
+                reason = f"利確: 含み益{pnl_pct:.1f}%・RSI={rsi}で半分利確"
+                sell_signals.append((p["symbol"], shares, price, reason, 80))
+            elif trend == "下降中" and rsi > 60 and pnl_pct > 2:
+                # トレンド転換で利確
+                shares = max(1, int(p["shares"] / 2))
+                reason = f"トレンド下降転換・RSI={rsi}で利確"
+                sell_signals.append((p["symbol"], shares, price, reason, 60))
+
+        # ── ウォッチリストから買いシグナル ──
+        held_syms = {p["symbol"] for p in portfolio}
+        for sym, tech in technicals.items():
+            if sym in held_syms:
+                continue
             price = prices.get(sym, 0)
             if not price:
                 continue
-            held = next((p for p in portfolio if p["symbol"] == sym), None)
+            rsi   = tech.get("rsi", 50)
+            trend = tech.get("trend", "")
+            chg   = changes.get(sym, 0)
+            score = 0
+            reasons = []
 
-            if chg < -1.0 and not held:
-                # 1%以上下落 -> 少量購入（平均回帰）
-                cash = get_account()["cash_balance"]
-                invest = min(cash * 0.05, total_value * MAX_POSITION_PCT)
+            if rsi < 30:
+                score += 40
+                reasons.append(f"RSI={rsi}(売られすぎ)")
+            elif rsi < 40:
+                score += 20
+                reasons.append(f"RSI={rsi}(低め)")
+
+            if trend == "上昇中":
+                score += 30
+                reasons.append("上昇トレンド")
+
+            if -3 < chg < -1:
+                score += 20
+                reasons.append(f"本日{chg:.1f}%押し目")
+            elif chg < -3:
+                score += 10
+                reasons.append(f"本日{chg:.1f}%急落(慎重)")
+
+            if score >= 50:
+                invest = min(cash * 0.06, total_value * MAX_POSITION_PCT)
                 shares = int(invest / price)
                 if shares > 0:
-                    reason = f"本日{chg:.1f}%下落、反発期待で購入"
-                    if execute_trade(sym, "BUY", shares, price, reason):
-                        decisions_made.append({"action": "BUY", "symbol": sym, "shares": shares, "reason": reason})
-            elif chg > 2.0 and held:
-                # 2%以上上昇 -> 半分利確
-                shares = int(held["shares"] / 2)
-                if shares > 0:
-                    reason = f"本日{chg:.1f}%上昇、半分利確"
-                    if execute_trade(sym, "SELL", shares, price, reason):
-                        decisions_made.append({"action": "SELL", "symbol": sym, "shares": shares, "reason": reason})
+                    reason = "買いシグナル: " + "・".join(reasons)
+                    buy_signals.append((sym, shares, price, reason, score))
+
+        # スコア順に並べて上位5銘柄のみ買う
+        buy_signals.sort(key=lambda x: x[4], reverse=True)
+        for sym, shares, price, reason, _ in sell_signals:
+            if execute_trade(sym, "SELL", shares, price, reason):
+                decisions_made.append({"action": "SELL", "symbol": sym, "shares": shares, "reason": reason})
+
+        for sym, shares, price, reason, score in buy_signals[:5]:
+            cash = get_account()["cash_balance"]
+            if cash < price:
+                break
+            if execute_trade(sym, "BUY", shares, price, reason):
+                decisions_made.append({"action": "BUY", "symbol": sym, "shares": shares, "reason": reason})
+
+        # 分析サマリーをコメントとして生成
+        buy_count  = len([d for d in decisions_made if d["action"] == "BUY"])
+        sell_count = len([d for d in decisions_made if d["action"] == "SELL"])
+        top_rsi_low = [(s, t["rsi"]) for s, t in technicals.items() if t.get("rsi", 50) < 35]
+        top_rsi_low.sort(key=lambda x: x[1])
+        commentary = (
+            f"【テクニカル分析トレード】買い{buy_count}件・売り{sell_count}件を実行。"
+            f"RSI売られすぎ銘柄: {', '.join(f'{s}({r})' for s,r in top_rsi_low[:3]) or 'なし'}。"
+            f"損切り・利確ルール適用中（損切り-5%、利確+8%）。"
+            f"上昇トレンド×RSI低水準の銘柄を優先購入。"
+        )
+        market_status = "強気" if len(buy_signals) > len(sell_signals) else "弱気" if sell_count > buy_count else "中立"
 
     # セッション記録
     with get_db() as conn:
