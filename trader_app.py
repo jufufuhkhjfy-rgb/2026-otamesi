@@ -424,12 +424,91 @@ def is_market_open():
     return is_us_market_open() or is_jp_market_open()
 
 
+# ── テクニカル指標 ─────────────────────────────────────────────────────────────
+def calculate_rsi(closes, period=14):
+    if len(closes) < period + 1:
+        return 50.0
+    deltas = [closes[i] - closes[i-1] for i in range(1, len(closes))]
+    gains  = [d if d > 0 else 0 for d in deltas[-period:]]
+    losses = [-d if d < 0 else 0 for d in deltas[-period:]]
+    ag = sum(gains) / period
+    al = sum(losses) / period
+    if al == 0:
+        return 100.0
+    return round(100 - (100 / (1 + ag / al)), 1)
+
+
+def fetch_technicals(symbols):
+    """MA5・MA20・RSI・トレンドを計算"""
+    result = {}
+    if not symbols:
+        return result
+    try:
+        batch = symbols[:40]   # 重いので最大40銘柄
+        sym_str = " ".join(batch)
+        data = yf.download(sym_str, period="30d", interval="1d",
+                           auto_adjust=True, progress=False, group_by="ticker")
+        for sym in batch:
+            try:
+                if len(batch) == 1:
+                    closes = data["Close"].dropna().tolist()
+                else:
+                    col = data[sym]["Close"]
+                    if hasattr(col, "columns"):
+                        col = col.iloc[:, 0]
+                    closes = col.dropna().tolist()
+                if len(closes) < 5:
+                    continue
+                ma5  = round(sum(closes[-5:]) / 5, 2)
+                ma20 = round(sum(closes[-min(20, len(closes)):]) / min(20, len(closes)), 2)
+                rsi  = calculate_rsi(closes)
+                result[sym] = {
+                    "ma5": ma5, "ma20": ma20, "rsi": rsi,
+                    "trend": "上昇中" if ma5 > ma20 else "下降中",
+                    "rsi_signal": "売られすぎ" if rsi < 30 else "買われすぎ" if rsi > 70 else "中立",
+                }
+            except Exception:
+                pass
+    except Exception as e:
+        logger.error(f"テクニカル取得エラー: {e}")
+    return result
+
+
+def fetch_market_news():
+    """主要銘柄のニュースヘッドラインを取得"""
+    headlines = []
+    for sym in ["SPY", "QQQ", "NVDA", "AAPL", "TSLA"]:
+        try:
+            news = yf.Ticker(sym).news or []
+            for n in news[:2]:
+                title = n.get("title", "")
+                if title:
+                    headlines.append(f"[{sym}] {title}")
+        except Exception:
+            pass
+    return headlines[:8]
+
+
+def get_recent_trade_performance():
+    """直近20取引の損益を分析"""
+    trades = get_recent_trades(20)
+    summary = []
+    for t in trades:
+        summary.append({
+            "time": t["timestamp"][:16],
+            "symbol": t["symbol"],
+            "action": t["action"],
+            "shares": t["shares"],
+            "price": t["price"],
+            "total": t["total_value"],
+            "reason": t["reason"],
+        })
+    return summary
+
+
 # ── AI 取引エンジン ────────────────────────────────────────────────────────────
 def ai_trading_session(force=False):
     """Claude AI による取引セッション（シミュレーションは常時実行）"""
-    # シミュレーションなので市場クローズでも実行（forceまたは常時）
-    logger.info("AI取引セッション開始...")
-
     logger.info("AI取引セッション開始...")
 
     acct = get_account()
@@ -476,51 +555,88 @@ def ai_trading_session(force=False):
             "today_change_pct": round(changes.get(p["symbol"], 0), 2),
         })
 
+    # テクニカル指標・ニュース・取引履歴を取得
+    held_syms = [p["symbol"] for p in portfolio]
+    top_movers = sorted(changes.items(), key=lambda x: abs(x[1]), reverse=True)[:20]
+    top_mover_syms = [s for s, _ in top_movers]
+    technicals = fetch_technicals(list(set(held_syms + top_mover_syms))[:40])
+    news       = fetch_market_news()
+    past_trades = get_recent_trade_performance()
+
     watchlist_detail = {}
     for sym in WATCHLIST:
-        if sym not in [p["symbol"] for p in portfolio]:
+        if sym not in held_syms:
+            tech = technicals.get(sym, {})
             watchlist_detail[sym] = {
                 "price": round(prices.get(sym, 0), 2),
                 "today_change_pct": round(changes.get(sym, 0), 2),
+                "rsi": tech.get("rsi", ""),
+                "trend": tech.get("trend", ""),
+                "rsi_signal": tech.get("rsi_signal", ""),
             }
 
-    now_et = datetime.now(ET)
-    prompt = f"""あなたはプロのデイトレーダーAIです。以下の市場情報を分析し、最適な取引判断を行ってください。
+    # 保有銘柄にもテクニカルを付与
+    for p in portfolio_detail:
+        tech = technicals.get(p["symbol"], {})
+        p["rsi"] = tech.get("rsi", "")
+        p["trend"] = tech.get("trend", "")
+        p["rsi_signal"] = tech.get("rsi_signal", "")
 
-## 現在時刻（米国東部時間）
-{now_et.strftime('%Y-%m-%d %H:%M')}
+    now_et = datetime.now(ET)
+    now_jst = datetime.now(JST)
+
+    prompt = f"""あなたは超攻撃的なプロのデイトレーダーAIです。
+勝つことに貪欲になってください。損切りを恐れず、利益を追求してください。
+世界情勢・マクロ経済・テクニカルを総合判断して最適な売買をしてください。
+
+## 現在時刻
+- 米国東部時間: {now_et.strftime('%Y-%m-%d %H:%M (%a)')}
+- 日本時間: {now_jst.strftime('%Y-%m-%d %H:%M')}
 
 ## 口座状況
 - 現金残高: ${acct['cash_balance']:,.2f}
 - 株式評価額: ${holdings_value:,.2f}
-- 総資産: ${total_value:,.2f}
-- 初期資本: ${INITIAL_CAPITAL:,.2f}
+- 総資産: ${total_value:,.2f}（初期 ${INITIAL_CAPITAL:,.0f}）
 - 累計損益: ${pnl:+,.2f}（{pnl_pct:+.2f}%）
 
-## 保有銘柄（現在）
+## 保有銘柄（RSI・トレンド付き）
 {json.dumps(portfolio_detail, ensure_ascii=False, indent=2)}
 
-## ウォッチリスト（未保有）
-{json.dumps(watchlist_detail, ensure_ascii=False, indent=2)}
+## ウォッチリスト上位（騰落率・RSI・トレンド付き）
+{json.dumps(dict(list(watchlist_detail.items())[:30]), ensure_ascii=False, indent=2)}
 
-## 取引ルール
-- 1銘柄への最大投資額: 総資産の{MAX_POSITION_PCT*100:.0f}%（= ${total_value*MAX_POSITION_PCT:,.0f}）
-- 現金残高を超える購入は不可
+## 最新マーケットニュース
+{chr(10).join(news) if news else '取得なし'}
+
+## 直近取引履歴（反省材料）
+{json.dumps(past_trades[:10], ensure_ascii=False, indent=2)}
+
+## 取引戦略の指針
+1. **損切り**: 含み損が-5%超の銘柄は即座に損切りを検討すること
+2. **利確**: 含み益+8%以上なら一部利確を検討
+3. **RSI**: 30以下は売られすぎで買いチャンス、70以上は買われすぎで売りシグナル
+4. **トレンド**: MA5がMA20を上回っている銘柄（上昇トレンド）を優先買い
+5. **ニュース**: 悪材料のある銘柄は保有していれば売り、良材料は買い
+6. **集中投資**: 確信度の高い銘柄に集中して投資せよ。分散しすぎるな
+7. **反省**: 過去の損失取引を分析し、同じ失敗を繰り返すな
+
+## 制約
+- 1銘柄への最大投資: 総資産の{MAX_POSITION_PCT*100:.0f}%（= ${total_value*MAX_POSITION_PCT:,.0f}）
+- 現金残高を超える購入不可
 - 株数は整数のみ
 
-## 指示
-以下のJSON形式のみで回答してください（余分なテキスト不要）:
+## 回答形式（このJSONのみ、余計なテキスト不要）
 {{
   "decisions": [
     {{
       "action": "BUY" または "SELL",
       "symbol": "銘柄コード",
       "shares": 株数（整数）,
-      "reason": "判断理由（日本語）"
+      "reason": "具体的な判断理由（テクニカル・ニュース・世界情勢を踏まえて日本語で）"
     }}
   ],
-  "commentary": "今日の市場分析・取引戦略・感想（日本語200文字程度）",
-  "reflection": "前回からの反省点・改善点（日本語、なければ空文字）",
+  "commentary": "今日の市場環境・世界情勢・取引戦略の詳細分析（日本語300文字程度）",
+  "reflection": "前回の損失・失敗の分析と今回どう改善したか（日本語、なければ空文字）",
   "market_assessment": "強気" または "弱気" または "中立"
 }}"""
 
@@ -847,7 +963,18 @@ def start_scheduler():
     logger.info(f"スケジューラー起動 - 取引間隔{TRADE_INTERVAL_MIN}分")
 
 
+def load_api_key():
+    """api_key.txt からAPIキーを読み込む"""
+    key_file = os.path.join(os.path.dirname(__file__), "api_key.txt")
+    if os.path.exists(key_file):
+        key = open(key_file, encoding="utf-8").read().strip()
+        if key and key.startswith("sk-"):
+            os.environ["ANTHROPIC_API_KEY"] = key
+            logger.info("api_key.txt からAPIキーを読み込みました")
+
+
 if __name__ == "__main__":
+    load_api_key()
     init_db()
     start_scheduler()
     logger.info("=" * 60)
