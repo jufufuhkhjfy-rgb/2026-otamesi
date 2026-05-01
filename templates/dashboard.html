@@ -107,7 +107,6 @@
     <span id="market-status" class="market-badge market-close">確認中...</span>
     <span id="next-trade" style="font-size:.72rem;color:#818cf8;">次回自動トレード: --</span>
     <span id="refresh-indicator">更新中...</span>
-    <button class="btn-trade" id="force-trade-btn" onclick="forceTrade()">⚡ 今すぐトレード</button>
   </div>
 </div>
 
@@ -265,6 +264,23 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+// ── 日本株会社名マップ ────────────────────────────────────────
+const JP_NAMES = {
+  '7203.T':'トヨタ','6758.T':'ソニー','9984.T':'ソフトバンクG','8306.T':'三菱UFJ',
+  '7974.T':'任天堂','6861.T':'キーエンス','4063.T':'信越化学','9432.T':'NTT',
+  '4502.T':'武田薬品','7267.T':'ホンダ','6954.T':'ファナック','8035.T':'東京エレクトロン',
+  '4519.T':'中外製薬','9983.T':'ファーストリテイリング','6367.T':'ダイキン',
+  '8766.T':'東京海上','7751.T':'キヤノン','6326.T':'クボタ','4543.T':'テルモ',
+  '6981.T':'村田製作所','9022.T':'JR東海','8058.T':'三菱商事','5108.T':'ブリヂストン',
+  '4661.T':'オリエンタルランド','6098.T':'リクルート','6645.T':'オムロン',
+  '4901.T':'富士フイルム','6501.T':'日立','4568.T':'第一三共','8001.T':'伊藤忠',
+  '3382.T':'セブン＆アイ','6702.T':'富士通','9020.T':'JR東日本','8802.T':'三菱地所',
+  '7011.T':'三菱重工','2914.T':'JT','8031.T':'三井物産','9613.T':'NTTデータ',
+  '4452.T':'花王','8053.T':'住友商事','6471.T':'NSK','5401.T':'日本製鉄',
+  '7270.T':'SUBARU','6503.T':'三菱電機','8309.T':'三井住友トラスト',
+  '7201.T':'日産','4507.T':'塩野義製薬','8725.T':'MS＆AD','9735.T':'セコム','6762.T':'TDK'
+};
+
 // ── グローバル ────────────────────────────────────────────────
 let portfolioChart = null;
 let holdingsChart  = null;
@@ -373,8 +389,6 @@ async function updateStats() {
   ae.textContent = d.market_status||'中立';
   ae.className = 'value '+(d.market_status==='強気'?'pos':d.market_status==='弱気'?'neg':'neu');
   if(d.next_trade) document.getElementById('next-trade').textContent = '次回自動トレード: '+d.next_trade;
-  const tradeBtn = document.getElementById('force-trade-btn');
-  if(!tradeBtn.disabled) tradeBtn.innerHTML = d.ai_mode ? '⚡ 今すぐAIトレード' : '⚡ 今すぐトレード';
 }
 
 // ── データ更新: AIコメント ─────────────────────────────────────
@@ -458,7 +472,7 @@ function renderTickers(filterMarketVal, searchVal) {
     const chg  = info.change_pct||0;
     const pr   = info.price||0;
     return `<div class="ticker-item" onclick="openStockModal('${sym}')">
-      <div class="sym">${sym.endsWith('.T') ? sym.replace('.T','')+'<span style="font-size:.5rem;color:#94a3b8;vertical-align:super;">JP</span>' : sym}</div>
+      <div class="sym" style="font-size:${sym.endsWith('.T')?'.65rem':'.75rem'}">${sym.endsWith('.T') ? (JP_NAMES[sym]||sym.replace('.T','')) : sym}</div>
       <div class="price">${pr?fmt(pr):'--'}</div>
       <div class="chg ${cls(chg)}">${chg?pct(chg):'--'}</div>
     </div>`;
