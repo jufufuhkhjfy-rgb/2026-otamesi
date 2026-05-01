@@ -594,8 +594,8 @@ def ai_trading_session(force=False):
                 continue
             held = next((p for p in portfolio if p["symbol"] == sym), None)
 
-            if chg < -2.0 and not held:
-                # 2%以上下落 -> 少量購入（平均回帰）
+            if chg < -1.0 and not held:
+                # 1%以上下落 -> 少量購入（平均回帰）
                 cash = get_account()["cash_balance"]
                 invest = min(cash * 0.05, total_value * MAX_POSITION_PCT)
                 shares = int(invest / price)
@@ -603,8 +603,8 @@ def ai_trading_session(force=False):
                     reason = f"本日{chg:.1f}%下落、反発期待で購入"
                     if execute_trade(sym, "BUY", shares, price, reason):
                         decisions_made.append({"action": "BUY", "symbol": sym, "shares": shares, "reason": reason})
-            elif chg > 3.0 and held:
-                # 3%以上上昇 -> 半分利確
+            elif chg > 2.0 and held:
+                # 2%以上上昇 -> 半分利確
                 shares = int(held["shares"] / 2)
                 if shares > 0:
                     reason = f"本日{chg:.1f}%上昇、半分利確"
@@ -690,7 +690,19 @@ def api_stats():
         "latest_commentary": latest_session["commentary"] if latest_session else "",
         "latest_reflection": latest_session["reflection"] if latest_session else "",
         "market_status": latest_session["market_status"] if latest_session else "中立",
+        "next_trade": _get_next_trade_time(),
     })
+
+
+def _get_next_trade_time():
+    try:
+        job = scheduler.get_job("ai_trading")
+        if job and job.next_run_time:
+            local = job.next_run_time.astimezone()
+            return local.strftime("%H:%M:%S")
+    except Exception:
+        pass
+    return "--"
 
 
 @app.route("/api/portfolio")
@@ -787,8 +799,11 @@ def api_stock_chart(symbol):
         if data.empty:
             return jsonify({"error": "データなし"}), 404
 
-        # 単一銘柄なのでシンプルなカラム
-        closes = data["Close"].dropna()
+        # yfinanceバージョンによりDataFrame/Seriesどちらでも動くよう対応
+        closes = data["Close"]
+        if hasattr(closes, "columns"):   # DataFrameの場合は最初の列を使う
+            closes = closes.iloc[:, 0]
+        closes = closes.dropna()
         result = [
             {"t": str(idx)[:16], "v": round(float(v), 2)}
             for idx, v in closes.items()

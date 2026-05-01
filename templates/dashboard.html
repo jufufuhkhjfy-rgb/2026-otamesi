@@ -105,6 +105,7 @@
   <h1>&#9883; AI <span>デイトレーダー</span> シミュレーター</h1>
   <div class="d-flex align-items-center gap-3 flex-wrap">
     <span id="market-status" class="market-badge market-close">確認中...</span>
+    <span id="next-trade" style="font-size:.72rem;color:#818cf8;">次回自動トレード: --</span>
     <span id="refresh-indicator">更新中...</span>
     <button class="btn-trade" id="force-trade-btn" onclick="forceTrade()">⚡ 今すぐAIトレード</button>
   </div>
@@ -368,6 +369,7 @@ async function updateStats() {
   const ae = document.getElementById('market-assessment');
   ae.textContent = d.market_status||'中立';
   ae.className = 'value '+(d.market_status==='強気'?'pos':d.market_status==='弱気'?'neg':'neu');
+  if(d.next_trade) document.getElementById('next-trade').textContent = '次回自動トレード: '+d.next_trade;
 }
 
 // ── データ更新: AIコメント ─────────────────────────────────────
