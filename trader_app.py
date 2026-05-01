@@ -876,6 +876,7 @@ def api_stats():
         "latest_reflection": latest_session["reflection"] if latest_session else "",
         "market_status": latest_session["market_status"] if latest_session else "中立",
         "next_trade": _get_next_trade_time(),
+        "ai_mode": bool(ANTHROPIC_AVAILABLE and os.environ.get("ANTHROPIC_API_KEY")),
     })
 
 

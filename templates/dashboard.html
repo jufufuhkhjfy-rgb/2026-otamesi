@@ -107,7 +107,7 @@
     <span id="market-status" class="market-badge market-close">確認中...</span>
     <span id="next-trade" style="font-size:.72rem;color:#818cf8;">次回自動トレード: --</span>
     <span id="refresh-indicator">更新中...</span>
-    <button class="btn-trade" id="force-trade-btn" onclick="forceTrade()">⚡ 今すぐAIトレード</button>
+    <button class="btn-trade" id="force-trade-btn" onclick="forceTrade()">⚡ 今すぐトレード</button>
   </div>
 </div>
 
@@ -290,7 +290,9 @@ function initPortfolioChart() {
   const ctx = document.getElementById('portfolio-chart').getContext('2d');
   portfolioChart = new Chart(ctx, {
     type:'line', data:{labels:[],datasets:[{label:'総資産',data:[],borderColor:'#40c4ff',backgroundColor:'rgba(64,196,255,.08)',borderWidth:2,pointRadius:0,fill:true,tension:.3}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.parsed.y)}}},
+    options:{responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},tooltip:{callbacks:{title:i=>i[0].label,label:c=>'総資産: '+fmt(c.parsed.y,0)}}},
       scales:{x:{ticks:{color:'#64748b',maxTicksLimit:8,font:{size:10}},grid:{color:'rgba(255,255,255,.05)'}},
               y:{ticks:{color:'#64748b',callback:v=>'$'+fmtN(v,0),font:{size:10}},grid:{color:'rgba(255,255,255,.05)'}}}}
   });
@@ -340,7 +342,8 @@ async function loadChart(symbol, period, btn) {
       type:'line',
       data:{labels,datasets:[{label:symbol,data:values,borderColor:color,backgroundColor:color.replace(')',', .08)').replace('rgb','rgba'),borderWidth:2,pointRadius:0,fill:true,tension:.3}]},
       options:{responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.parsed.y)}}},
+        interaction:{mode:'index',intersect:false},
+        plugins:{legend:{display:false},tooltip:{callbacks:{title:i=>i[0].label,label:c=>'価格: '+fmt(c.parsed.y)}}},
         scales:{x:{ticks:{color:'#64748b',maxTicksLimit:10,font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}},
                 y:{ticks:{color:'#64748b',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}}}}
     });
@@ -370,6 +373,8 @@ async function updateStats() {
   ae.textContent = d.market_status||'中立';
   ae.className = 'value '+(d.market_status==='強気'?'pos':d.market_status==='弱気'?'neg':'neu');
   if(d.next_trade) document.getElementById('next-trade').textContent = '次回自動トレード: '+d.next_trade;
+  const tradeBtn = document.getElementById('force-trade-btn');
+  if(!tradeBtn.disabled) tradeBtn.innerHTML = d.ai_mode ? '⚡ 今すぐAIトレード' : '⚡ 今すぐトレード';
 }
 
 // ── データ更新: AIコメント ─────────────────────────────────────
@@ -453,7 +458,7 @@ function renderTickers(filterMarketVal, searchVal) {
     const chg  = info.change_pct||0;
     const pr   = info.price||0;
     return `<div class="ticker-item" onclick="openStockModal('${sym}')">
-      <div class="sym">${sym.replace('.T','')}</div>
+      <div class="sym">${sym.endsWith('.T') ? sym.replace('.T','')+'<span style="font-size:.5rem;color:#94a3b8;vertical-align:super;">JP</span>' : sym}</div>
       <div class="price">${pr?fmt(pr):'--'}</div>
       <div class="chg ${cls(chg)}">${chg?pct(chg):'--'}</div>
     </div>`;
@@ -514,7 +519,7 @@ async function forceTrade() {
   setTimeout(async () => {
     await refreshAll();
     btn.disabled=false;
-    btn.innerHTML='⚡ 今すぐAIトレード';
+    btn.innerHTML='⚡ 今すぐトレード';
   }, 30000);
 }
 
