@@ -15,7 +15,7 @@ import urllib.request
 from datetime import datetime
 from pathlib import Path
 
-from PIL import Image, ImageTk, ImageEnhance, ImageFilter, ImageDraw, ImageFont
+from PIL import Image, ImageTk, ImageEnhance, ImageFilter, ImageDraw
 import mss
 import pyautogui
 
@@ -33,9 +33,6 @@ except ImportError:
 
 pyautogui.FAILSAFE = True
 
-# ═══════════════════════════════════════════
-# 色定数
-# ═══════════════════════════════════════════
 BG      = '#0a0a0a'
 BG2     = '#111111'
 BG3     = '#0d1a0d'
@@ -54,114 +51,242 @@ FONT_TITLE = ('Courier New', 11, 'bold')
 FONT_SMALL = ('Courier New', 7)
 
 RARITY_COLOR = {
-    'アンコモン':    '#1eff00',
-    'レア':          '#0070dd',
-    'エピック':      '#a335ee',
-    'レジェンダリー':'#ff8000',
-    'ミシック':      '#ff3333',
-    'Brainrot God':  '#ffee00',
-    'シークレット':  '#cccccc',
-    'エターナル':    '#00ffff',
-    'GOAT':          '#ff006e',
+    'アンコモン':     '#1eff00',
+    'レア':           '#0070dd',
+    'エピック':       '#a335ee',
+    'レジェンダリー': '#ff8000',
+    'ミシック':       '#ff3333',
+    'Brainrot God':   '#ffee00',
+    'シークレット':   '#cccccc',
+    'エターナル':     '#00ffff',
+    'GOAT':           '#ff006e',
 }
 
-IMG_BASE = 'https://brainrot.fnjpnews.com/wp-content/uploads/2025/10/'
-IMG_DIR  = Path('images')
+IMG_BASE  = 'https://brainrot.fnjpnews.com/wp-content/uploads/2025/10/'
+IMG_DIR   = Path('images')
 SAVE_FILE = 'fortnite_bot_config.json'
 
 # ═══════════════════════════════════════════
-# キャラクターデータベース
+# キャラクターデータベース (name, rarity, img)
 # ═══════════════════════════════════════════
 CHARACTERS = [
-    # アンコモン
-    {"name": "Fishini Bossini",          "rarity": "アンコモン"},
-    {"name": "Lirili Larilla",           "rarity": "アンコモン"},
-    {"name": "Tim Cheese",               "rarity": "アンコモン"},
-    {"name": "Fluriflura",               "rarity": "アンコモン"},
-    {"name": "Penguino Cocosino",        "rarity": "アンコモン"},
-    {"name": "Svinina Bombardino",       "rarity": "アンコモン"},
-    {"name": "Pipi Kiwi",                "rarity": "アンコモン"},
-    {"name": "Pipi Avocado",             "rarity": "アンコモン"},
-    # レア
-    {"name": "Trippi Troppi",            "rarity": "レア"},
-    {"name": "Tung Sahur",               "rarity": "レア"},
-    {"name": "Grangster Footera",        "rarity": "レア"},
-    {"name": "Boneca Ambalabu",          "rarity": "レア"},
-    {"name": "Pipi Corni",               "rarity": "レア"},
-    {"name": "Ta Ta Ta Ta Sahur",        "rarity": "レア"},
-    {"name": "Burballoni Watermeloni",   "rarity": "レア"},
-    {"name": "Pipi Potato",              "rarity": "レア"},
-    # エピック
-    {"name": "Cappuccino Assassino",     "rarity": "エピック"},
-    {"name": "Brr Brr Patapim",          "rarity": "エピック"},
-    {"name": "Trulimero Trulicina",      "rarity": "エピック"},
-    {"name": "Bananita Dolphinita",      "rarity": "エピック"},
-    {"name": "Los Lirilitos",            "rarity": "エピック"},
-    {"name": "Salamino Pinguino",        "rarity": "エピック"},
-    {"name": "Tric Trac Baraboom",       "rarity": "エピック"},
-    {"name": "Los Tung TungCitos",       "rarity": "エピック"},
-    {"name": "Tukanno Bananno",          "rarity": "エピック"},
-    {"name": "Blueberrinni Octopussini", "rarity": "エピック"},
-    {"name": "Spijiniro Golubiro",       "rarity": "エピック"},
-    {"name": "Penguini Zucchini",        "rarity": "エピック"},
-    {"name": "Blueberrini Tatticini",    "rarity": "エピック"},
-    {"name": "Gingobalo Gingobali",      "rarity": "エピック"},
-    # レジェンダリー
-    {"name": "Burbaloni Loliloli",       "rarity": "レジェンダリー"},
-    {"name": "Chimpanzini Bananini",     "rarity": "レジェンダリー"},
-    {"name": "Ballerina Cappuccina",     "rarity": "レジェンダリー"},
-    {"name": "Chef Crabracadabra",       "rarity": "レジェンダリー"},
-    {"name": "Glorbo Fruttodillo",       "rarity": "レジェンダリー"},
-    {"name": "Cacto Hipopotamo",         "rarity": "レジェンダリー"},
-    {"name": "Ballerino Lololo",         "rarity": "レジェンダリー"},
-    {"name": "Lerulerulerule",           "rarity": "レジェンダリー"},
-    {"name": "Bambini Crostini",         "rarity": "レジェンダリー"},
-    {"name": "Francescoo",               "rarity": "レジェンダリー"},
-    {"name": "Zibra Zubra Zibralini",    "rarity": "レジェンダリー"},
-    {"name": "Bambu Di Miale",           "rarity": "レジェンダリー"},
-    {"name": "Mangolini Parrocini",      "rarity": "レジェンダリー"},
-    {"name": "Lampu Lampu Sahur",        "rarity": "レジェンダリー"},
-    {"name": "Octopuss Coconuss",        "rarity": "レジェンダリー"},
-    {"name": "Leonelli Cactuselli",      "rarity": "レジェンダリー"},
-    {"name": "Elefantucci Bananucci",    "rarity": "レジェンダリー"},
-    {"name": "Avocadini Antilopini",     "rarity": "レジェンダリー"},
-    {"name": "Dragonini Ananasini",      "rarity": "レジェンダリー"},
-    # ミシック
-    {"name": "Frigo Camelo",             "rarity": "ミシック"},
-    {"name": "Orangutini Annassini",     "rarity": "ミシック"},
-    {"name": "Bombardiro Crocodilo",     "rarity": "ミシック"},
-    {"name": "Bombombini Gusini",        "rarity": "ミシック"},
-    {"name": "Gorillo Watermellondrillo","rarity": "ミシック"},
-    {"name": "Sigma Boy",                "rarity": "ミシック"},
-    {"name": "Matteo",                   "rarity": "ミシック"},
-    # Brainrot God
-    {"name": "Cocofanto Elefanto",       "rarity": "Brainrot God"},
-    {"name": "Tob Tobi Tob",             "rarity": "Brainrot God"},
-    {"name": "Tralalero Tralala",        "rarity": "Brainrot God"},
-    {"name": "Odin Din Din Dun",         "rarity": "Brainrot God"},
-    {"name": "Akulini Cactusini",        "rarity": "Brainrot God"},
-    # シークレット
-    {"name": "Los Tralaleritos",         "rarity": "シークレット"},
-    {"name": "Trenostruzzo Turbo",       "rarity": "シークレット"},
-    {"name": "Los Orcaleritos",          "rarity": "シークレット"},
-    {"name": "Pakrahmatmamat",           "rarity": "シークレット"},
-    {"name": "Frogino Assassino",        "rarity": "シークレット"},
-    {"name": "Ketchuru and Musturu",     "rarity": "シークレット"},
-    # エターナル
-    {"name": "Gigalitraktos Spidorobos", "rarity": "エターナル"},
-    {"name": "Burguro dan Fryuro",       "rarity": "エターナル"},
-    {"name": "Bearini Plammini Guardini","rarity": "エターナル"},
-    # GOAT
-    {"name": "SKIBIDI TOILET",           "rarity": "GOAT"},
+    # ── アンコモン ──
+    {"name": "Fishini Bossini",           "rarity": "アンコモン",     "img": "Fishini-Bossini.png"},
+    {"name": "Lirili Larilla",            "rarity": "アンコモン",     "img": "Lirili-Larilla.png"},
+    {"name": "Tim Cheese",                "rarity": "アンコモン",     "img": "Tim-Cheese.png"},
+    {"name": "Fluriflura",                "rarity": "アンコモン",     "img": "Fluriflura.png"},
+    {"name": "Penguino Cocosino",         "rarity": "アンコモン",     "img": "Penguino-Cocosino.png"},
+    {"name": "Svinina Bombardino",        "rarity": "アンコモン",     "img": "Svinina-Bombardino.png"},
+    {"name": "Pipi Kiwi",                 "rarity": "アンコモン",     "img": "Default_5_6.webp"},
+    {"name": "Pipi Avocado",              "rarity": "アンコモン",     "img": "Default_9_4.webp"},
+    # ── レア ──
+    {"name": "Trippi Troppi",             "rarity": "レア",           "img": "Default_1_6.webp"},
+    {"name": "Tung Tung Tung Sahur",      "rarity": "レア",           "img": "Tung-Sahur.webp"},
+    {"name": "Grangster Footera",         "rarity": "レア",           "img": "Grangster-Footera.webp"},
+    {"name": "Boneca Ambalabu",           "rarity": "レア",           "img": "Default_1_9.webp"},
+    {"name": "Pipi Corni",                "rarity": "レア",           "img": "Pipi-Corni.webp"},
+    {"name": "Ta Ta Ta Ta Sahur",         "rarity": "レア",           "img": "Ta-Ta-Ta-Ta-Sahur.webp"},
+    {"name": "Burballoni Watermeloni",    "rarity": "レア",           "img": "Burballoni-Watermeloni.webp"},
+    {"name": "Pipi Potato",               "rarity": "レア",           "img": "Pipi-Potato.webp"},
+    # ── エピック ──
+    {"name": "Cappuccino Assassino",      "rarity": "エピック",       "img": "Cappuccino-Assassino.webp"},
+    {"name": "Brr Brr Patapim",           "rarity": "エピック",       "img": "Brr-Brr-Patapim.webp"},
+    {"name": "Trulimero Trulicina",       "rarity": "エピック",       "img": "Trulimero-Trulicina.webp"},
+    {"name": "Bananita Dolphinita",       "rarity": "エピック",       "img": "Bananita-Dolphinita.webp"},
+    {"name": "Los Lirilitos",             "rarity": "エピック",       "img": "Los-Lirilitos.webp"},
+    {"name": "Salamino Pinguino",         "rarity": "エピック",       "img": "Salamino-Pinguino.webp"},
+    {"name": "Tric Trac Baraboom",        "rarity": "エピック",       "img": "Tric-Trac-Baraboom.webp"},
+    {"name": "Los Tung TungCitos",        "rarity": "エピック",       "img": "Los-Tung-TungCitos.webp"},
+    {"name": "Tukanno Bananno",           "rarity": "エピック",       "img": "Tukanno-Bananno.webp"},
+    {"name": "Blueberrinni Octopussini",  "rarity": "エピック",       "img": "Blueberrinni-Octopussini.webp"},
+    {"name": "Spijiniro Golubiro",        "rarity": "エピック",       "img": "Spijiniro-Golubiro.webp"},
+    {"name": "Penguini Zucchini",         "rarity": "エピック",       "img": "Penguini-Zucchini.webp"},
+    {"name": "Blueberrini Tatticini",     "rarity": "エピック",       "img": "Blueberrini-Tatticini.webp"},
+    {"name": "Gingobalo Gingobali",       "rarity": "エピック",       "img": "Gingobalo-Gingobali.webp"},
+    # ── レジェンダリー ──
+    {"name": "Burbaloni Loliloli",        "rarity": "レジェンダリー", "img": "Burbaloni-Loliloli.webp"},
+    {"name": "Chimpanzini Bananini",      "rarity": "レジェンダリー", "img": "Chimpanzini-Bananini.webp"},
+    {"name": "Ballerina Cappuccina",      "rarity": "レジェンダリー", "img": "Ballerina-Cappuccina.webp"},
+    {"name": "Chef Crabracadabra",        "rarity": "レジェンダリー", "img": "Chef-Crabracadabra.webp"},
+    {"name": "Glorbo Fruttodillo",        "rarity": "レジェンダリー", "img": "Glorbo-Fruttodillo.webp"},
+    {"name": "Cacto Hipopotamo",          "rarity": "レジェンダリー", "img": "Cacto-Hipopotamo.webp"},
+    {"name": "Ballerino Lololo",          "rarity": "レジェンダリー", "img": "Ballerino-Lololo.webp"},
+    {"name": "Lerulerulerule",            "rarity": "レジェンダリー", "img": "Lerulerulerule.webp"},
+    {"name": "Bambini Crostini",          "rarity": "レジェンダリー", "img": "Bambini-Crostini.webp"},
+    {"name": "Francescoo",                "rarity": "レジェンダリー", "img": "Francescoo.webp"},
+    {"name": "Zibra Zubra Zibralini",     "rarity": "レジェンダリー", "img": "Zibra-Zubra-Zibralini.webp"},
+    {"name": "Bambu Di Miale",            "rarity": "レジェンダリー", "img": "Bambu-Di-Miale.webp"},
+    {"name": "Mangolini Parrocini",       "rarity": "レジェンダリー", "img": "Mangolini-Parrocini.webp"},
+    {"name": "Lampu Lampu Sahur",         "rarity": "レジェンダリー", "img": "Lampu-Lampu-Sahur.webp"},
+    {"name": "Octopuss Coconuss",         "rarity": "レジェンダリー", "img": "Octopuss-Coconuss.webp"},
+    {"name": "Leonelli Cactuselli",       "rarity": "レジェンダリー", "img": "Leonelli-Cactuselli.webp"},
+    {"name": "Elefantucci Bananucci",     "rarity": "レジェンダリー", "img": "Elefantucci-Bananucci.webp"},
+    {"name": "Avocadini Antilopini",      "rarity": "レジェンダリー", "img": "Avocadini-Antilopini.webp"},
+    {"name": "Dragonini Ananasini",       "rarity": "レジェンダリー", "img": "Dragonini-Ananasini.webp"},
+    # ── ミシック ──
+    {"name": "Frigo Camelo",              "rarity": "ミシック",       "img": "Frigo-Camelo.webp"},
+    {"name": "Orangutini Annassini",      "rarity": "ミシック",       "img": "Orangutini-Annassini.webp"},
+    {"name": "Bombardiro Crocodilo",      "rarity": "ミシック",       "img": "Bombardiro-Crocodilo.webp"},
+    {"name": "Bombombini Gusini",         "rarity": "ミシック",       "img": "Bombombini-Gusini.webp"},
+    {"name": "Gorillo Watermellondrillo", "rarity": "ミシック",       "img": "Gorillo-Watermellondrillo.webp"},
+    {"name": "Sigma Boy",                 "rarity": "ミシック",       "img": "Sigma-Boy.webp"},
+    {"name": "Matteo",                    "rarity": "ミシック",       "img": "Matteo.webp"},
+    {"name": "Los Spijuniritos",          "rarity": "ミシック",       "img": "Los-Spijuniritos.webp"},
+    {"name": "Rhino Toasterino",          "rarity": "ミシック",       "img": "Rhino-Toasterino.webp"},
+    {"name": "Ganganzelli Trulala",       "rarity": "ミシック",       "img": "Ganganzelli-Trulala.webp"},
+    {"name": "Te Te Te Sahur",            "rarity": "ミシック",       "img": "Te-Te-Te-Sahur.webp"},
+    {"name": "Fireworkito Explodito",     "rarity": "ミシック",       "img": "Fireworkito-Explodito.webp"},
+    {"name": "Strawberrelli Flamingelli", "rarity": "ミシック",       "img": "Strawberrelli-Flamingelli.webp"},
+    {"name": "Elefantino Frigorifero",    "rarity": "ミシック",       "img": "Elefantino-Frigorifero.webp"},
+    {"name": "To To To Sahur",            "rarity": "ミシック",       "img": "To-To-To-Sahur.webp"},
+    {"name": "Elefante Cafettino",        "rarity": "ミシック",       "img": "Elefante-Cafettino.webp"},
+    {"name": "Antoniooo",                 "rarity": "ミシック",       "img": "Antoniooo.webp"},
+    {"name": "Kudanile Astronaute",       "rarity": "ミシック",       "img": "Kudanile-Astronaute.webp"},
+    {"name": "Girafa Celeste",            "rarity": "ミシック",       "img": "Girafa-Celeste.webp"},
+    {"name": "Mr Peppermint",             "rarity": "ミシック",       "img": "Mr-Peppermint.webp"},
+    {"name": "Perochello Lemonchello",    "rarity": "ミシック",       "img": "Perochello-Lemonchello.webp"},
+    {"name": "Tang Tang Kelentang",       "rarity": "ミシック",       "img": "Tang-Tang-Kelentang.webp"},
+    {"name": "Avocadorilla",              "rarity": "ミシック",       "img": "Avocadorilla.webp"},
+    {"name": "Patapimus Maximus",         "rarity": "ミシック",       "img": "Patapimus-Maximus.webp"},
+    {"name": "Tirilikalika Tirilikaliko", "rarity": "ミシック",       "img": "Tirilikalika-Tirilikaliko.webp"},
+    {"name": "Santoniooo",                "rarity": "ミシック",       "img": "Santoniooo.webp"},
+    {"name": "Los Matteos",               "rarity": "ミシック",       "img": "Los-Matteos.webp"},
+    {"name": "Los Sigma Boys",            "rarity": "ミシック",       "img": "Los_Sigma_Boys.webp"},
+    {"name": "Eaglucci Cocosucci",        "rarity": "ミシック",       "img": "Eaglucci-Cocosucci.webp"},
+    {"name": "Ti Ti Ti Sahur",            "rarity": "ミシック",       "img": "Ti-Ti-Ti-Sahur.webp"},
+    {"name": "Fishinis Santinis",         "rarity": "ミシック",       "img": "Fishinis-Santinis.webp"},
+    # ── Brainrot God ──
+    {"name": "Cocofanto Elefanto",            "rarity": "Brainrot God", "img": "Cocofanto-Elefanto.webp"},
+    {"name": "Tob Tobi Tob",                  "rarity": "Brainrot God", "img": "Tob-Tobi-Tob.webp"},
+    {"name": "Tralalero Tralala",             "rarity": "Brainrot God", "img": "Tralalero-Tralala.webp"},
+    {"name": "Odin Din Din Dun",              "rarity": "Brainrot God", "img": "Odin-Din-Din-Dun.webp"},
+    {"name": "Akulini Cactusini",             "rarity": "Brainrot God", "img": "Akulini-Cactusini.webp"},
+    {"name": "Chachechicha",                  "rarity": "Brainrot God", "img": "Chachechicha.webp"},
+    {"name": "Espressona Signora",            "rarity": "Brainrot God", "img": "Espressona-Signora.webp"},
+    {"name": "La Vaca Saturno Saturnita",     "rarity": "Brainrot God", "img": "La-Vaca-Saturno-Saturnita.webp"},
+    {"name": "Centralucci Nuclearucci",       "rarity": "Brainrot God", "img": "Centralucci-Nuclearucci.webp"},
+    {"name": "Ecco Cavallo Virtuoso",         "rarity": "Brainrot God", "img": "Ecco-Cavallo-Virtuoso.webp"},
+    {"name": "Los Vaguitas Saturnitas",       "rarity": "Brainrot God", "img": "Los-Vaguitas-Saturnitas.webp"},
+    {"name": "Bulbito Bandito Traktorito",    "rarity": "Brainrot God", "img": "Bulbito-Traktorito.webp"},
+    {"name": "Bananananito Bandito",          "rarity": "Brainrot God", "img": "Bananananito-Bandito.webp"},
+    {"name": "Chillin Chili",                 "rarity": "Brainrot God", "img": "Chillin-Chili.webp"},
+    {"name": "Trippi Troppi Troppa Trippa",   "rarity": "Brainrot God", "img": "Trippi-Troppi-Troppa-Trippa.webp"},
+    {"name": "Brri Bicus Dicus",              "rarity": "Brainrot God", "img": "Brri-Bicus-Dicus.webp"},
+    {"name": "Cioccolatini Pancioncioni",     "rarity": "Brainrot God", "img": "Cioccolatini-Pancioncioni.webp"},
+    {"name": "Brr Es Teh Patipum",            "rarity": "Brainrot God", "img": "Brr-Es-Teh-Patipum.webp"},
+    {"name": "Torrtuginni Dragonfrutinni",    "rarity": "Brainrot God", "img": "Torrtuginni-Dragonfrutinni.webp"},
+    {"name": "Los Bros",                      "rarity": "Brainrot God", "img": "Los-Bros.webp"},
+    {"name": "Bim Bim Bim Sadim",             "rarity": "Brainrot God", "img": "Bim-Bim-Bim-Sadim.webp"},
+    {"name": "Bambini Tankini",               "rarity": "Brainrot God", "img": "Bambini-Tankini.webp"},
+    {"name": "Hotti Coccolli",                "rarity": "Brainrot God", "img": "Hotti-Coccolli.webp"},
+    {"name": "Jiqi Jiqi Shizhon",             "rarity": "Brainrot God", "img": "Default2_7_9.webp"},
+    {"name": "Los Crocodillitos",             "rarity": "Brainrot God", "img": "Los-Crocodillitos.webp"},
+    {"name": "Agarrini La Palini",            "rarity": "Brainrot God", "img": "Default2_6_4.webp"},
+    {"name": "Alessiooooooo",                 "rarity": "Brainrot God", "img": "Alessiooooooo.webp"},
+    {"name": "Dig Torto Dolf",                "rarity": "Brainrot God", "img": "Dig_Torto_Dolf.webp"},
+    {"name": "Karkerkar Kurkur",              "rarity": "Brainrot God", "img": "Karkerkar-Kurkur.webp"},
+    {"name": "Il Costruttore Di Pomodori",    "rarity": "Brainrot God", "img": "Il-Costruttore-Di-Pomodori.webp"},
+    {"name": "Piccionetta Machina",           "rarity": "Brainrot God", "img": "Piccionetta-Machina.webp"},
+    {"name": "Pipoqueira Motoqueira",         "rarity": "Brainrot God", "img": "Pipoqueira-Motoqueira.webp"},
+    {"name": "Il Piccione Musculone",         "rarity": "Brainrot God", "img": "Il-Piccione-Musculone.webp"},
+    {"name": "Job Job Job Sahur",             "rarity": "Brainrot God", "img": "Job-Job-Job-Sahur.webp"},
+    {"name": "Las Sis",                       "rarity": "Brainrot God", "img": "Las-Sis.webp"},
+    {"name": "La Matcha Assassino",           "rarity": "Brainrot God", "img": "La-Matcha-Assassino.webp"},
+    {"name": "Il Mastodontico Telepiedone",   "rarity": "Brainrot God", "img": "Il-Mastodontico-Telepiedone.webp"},
+    {"name": "Los Christmas Bros",            "rarity": "Brainrot God", "img": "Los-Christmas-Bros.webp"},
+    {"name": "Il Bisonte Giuppitere",         "rarity": "Brainrot God", "img": "Il-Bisonte-Giuppitere.webp"},
+    {"name": "Malame Amarale",                "rarity": "Brainrot God", "img": "Malame-Amarale.webp"},
+    {"name": "Linguicine Serpentine",         "rarity": "Brainrot God", "img": "Linguicine_Serpentine.webp"},
+    {"name": "Belugelo Beluga",               "rarity": "Brainrot God", "img": "Belugelo-Beluga.webp"},
+    {"name": "Bella Pancasita",               "rarity": "Brainrot God", "img": "Bella-Pancasita.webp"},
+    {"name": "Rhino Helicopterino",           "rarity": "Brainrot God", "img": "Rhino-Helicopterino.webp"},
+    {"name": "Missilpython Turbozzo",         "rarity": "Brainrot God", "img": "Missilpython-Turbozzo.webp"},
+    {"name": "Auglurini Arbuzini",            "rarity": "Brainrot God", "img": "Auglurini-Arbuzini.webp"},
+    # ── シークレット ──
+    {"name": "Los Tralaleritos",              "rarity": "シークレット", "img": "Los-Orcaleritos.webp"},
+    {"name": "Los Tralaleritas",              "rarity": "シークレット", "img": "Los-Tralaleritas.webp"},
+    {"name": "Trenostruzzo Turbo",            "rarity": "シークレット", "img": "Trenostruzzo-Turbo.webp"},
+    {"name": "Kravilino Cekicino",            "rarity": "シークレット", "img": "Kravilino-Cekicino.webp"},
+    {"name": "Los Orcaleritos",               "rarity": "シークレット", "img": "Los-Orcaleritos-1.webp"},
+    {"name": "Las Agarrinis",                 "rarity": "シークレット", "img": "Las-Agarrinis.webp"},
+    {"name": "Los Couples",                   "rarity": "シークレット", "img": "Los-Couples.webp"},
+    {"name": "Piccione Macchina",             "rarity": "シークレット", "img": "Piccione-Macchina.webp"},
+    {"name": "Peeling Peely",                 "rarity": "シークレット", "img": "Peeling-Peely.webp"},
+    {"name": "Pakrahmatmamat",                "rarity": "シークレット", "img": "Pakrah-matmamat.webp"},
+    {"name": "Pakrahmatmamatcita",            "rarity": "シークレット", "img": "Pakrahmatmamatcita.webp"},
+    {"name": "Pickolini Malakini",            "rarity": "シークレット", "img": "Pickolini-Malakini.webp"},
+    {"name": "Los Job Jobsitos",              "rarity": "シークレット", "img": "Los-Job-Jobsitos.webp"},
+    {"name": "TrenoStruzzo Turbo 4000",       "rarity": "シークレット", "img": "TrenoStruzzo-Turbo-4000.webp"},
+    {"name": "Anpali Babel",                  "rarity": "シークレット", "img": "Anpali-Babel.webp"},
+    {"name": "Los Karkeritos",                "rarity": "シークレット", "img": "Los-Karkeritos.webp"},
+    {"name": "Orcalero Orcala",               "rarity": "シークレット", "img": "Orcalero-Orcala.webp"},
+    {"name": "Frogino Assassino",             "rarity": "シークレット", "img": "Frogino-Assassino.webp"},
+    {"name": "Ketchuru and Musturu",          "rarity": "シークレット", "img": "Ketchuru-and-Musturu.webp"},
+    {"name": "Pot Hotspot",                   "rarity": "シークレット", "img": "Pot-Hotspot.webp"},
+    {"name": "Tatoruman",                     "rarity": "シークレット", "img": "Tatoruman.webp"},
+    {"name": "Fragola La La La",              "rarity": "シークレット", "img": "Fragola-La-La-La.webp"},
+    {"name": "21",                            "rarity": "シークレット", "img": "21.webp"},
+    {"name": "Los Mobilis",                   "rarity": "シークレット", "img": "Los-Mobilis.webp"},
+    {"name": "Frogatto Piratto",              "rarity": "シークレット", "img": "Frogatto-Piratto.webp"},
+    {"name": "Garamaramadungdung",            "rarity": "シークレット", "img": "Garamaramadungdung.webp"},
+    {"name": "Papero Aspiratorino",           "rarity": "シークレット", "img": "Papero-Aspiratorino.webp"},
+    {"name": "Bun Din Din Dun",               "rarity": "シークレット", "img": "Bun-Din-Din-Dun.webp"},
+    {"name": "Pirulitoita Bicicleteira",      "rarity": "シークレット", "img": "Pirulitoita-Bicicleteira.webp"},
+    {"name": "Chachechi Sahur",               "rarity": "シークレット", "img": "Chachechi-Sahur.webp"},
+    {"name": "Il Sacro Cabrospaghetti",       "rarity": "シークレット", "img": "Il-Sacro-Cabrospaghetti.webp"},
+    {"name": "Owlito Tactito",                "rarity": "シークレット", "img": "Owlito-Tactito.webp"},
+    {"name": "La Grande Combinacion",         "rarity": "シークレット", "img": "La-Grande-Combinacion.webp"},
+    {"name": "Rosalero",                      "rarity": "シークレット", "img": "Rosalero.webp"},
+    {"name": "Clove Clove Clove Sahur",       "rarity": "シークレット", "img": "Clove-Clove-Clove-Sahur.webp"},
+    {"name": "Los Santacitos",                "rarity": "シークレット", "img": "Los-Santacitos.webp"},
+    {"name": "Paquito El Taquito",            "rarity": "シークレット", "img": "Paquito-El-Taquito.webp"},
+    {"name": "Cornball Sahur",                "rarity": "シークレット", "img": "Cornball-Sahur.webp"},
+    {"name": "Nuclearo Dinossauro",           "rarity": "シークレット", "img": "Nuclearo-Dinossauro.webp"},
+    {"name": "67",                            "rarity": "シークレット", "img": "67.webp"},
+    {"name": "Los Esok Sekolitos",            "rarity": "シークレット", "img": "Los-Esok-Sekolitos.webp"},
+    {"name": "Roobinha Acerolinha",           "rarity": "シークレット", "img": "Roobinha-Acerolinha.webp"},
+    {"name": "Coccoblade",                    "rarity": "シークレット", "img": "Coccoblade.webp"},
+    {"name": "Cacasito Satelito",             "rarity": "シークレット", "img": "Cacasito-Satelito.webp"},
+    {"name": "Dilly Pickle",                  "rarity": "シークレット", "img": "Dilly_Pickle.webp"},
+    {"name": "Chop Chop Chop Sahur",          "rarity": "シークレット", "img": "Chop-Chop-Chop-Sahur.webp"},
+    {"name": "Crocodila Bicicleteira",        "rarity": "シークレット", "img": "Crocodila-Bicicleteira.webp"},
+    {"name": "Pingus Kingus",                 "rarity": "シークレット", "img": "Pingus-Kingus.webp"},
+    {"name": "Ketupat Kepat Prekupat",        "rarity": "シークレット", "img": "Ketupat-Kepat-Prekupat.webp"},
+    {"name": "Lovey Lovey Bear",              "rarity": "シークレット", "img": "Lovey-Lovey-Bear.webp"},
+    {"name": "Coccobladina",                  "rarity": "シークレット", "img": "Coccobladina.webp"},
+    {"name": "Carrot Carrot Sahur",           "rarity": "シークレット", "img": "Carrot-Carrot-Sahur.webp"},
+    {"name": "Rang Reng Kelerang",            "rarity": "シークレット", "img": "Rang-Reng-Kelerang.webp"},
+    {"name": "Cobracadabra",                  "rarity": "シークレット", "img": "Cobracadabra.webp"},
+    {"name": "Los Garamadungcitos",           "rarity": "シークレット", "img": "Los-Garamadungcitos.webp"},
+    {"name": "Aquanaut",                      "rarity": "シークレット", "img": "Aquanaut.webp"},
+    {"name": "Re Delle Carte",                "rarity": "シークレット", "img": "Re-Delle-Carte.webp"},
+    {"name": "Tung Ballerina Sahur",          "rarity": "シークレット", "img": "Tung-Ballerina-Sahur.webp"},
+    {"name": "Baskuru And Egguru",            "rarity": "シークレット", "img": "Baskuru-And-Egguru.webp"},
+    {"name": "Pitiata Baem",                  "rarity": "シークレット", "img": "Pitiata-Baem.webp"},
+    {"name": "Los 67",                        "rarity": "シークレット", "img": "Los-67.webp"},
+    {"name": "Tralalero Kingala",             "rarity": "シークレット", "img": "Tralalero-Kingala.webp"},
+    {"name": "Penguini Armorini Kingini",     "rarity": "シークレット", "img": "Penguini-Armorini-Kingini.webp"},
+    {"name": "Chimpanzini Kingini",           "rarity": "シークレット", "img": "Chimpanzini-Kingini.webp"},
+    {"name": "Tictac Tictac Sahur",           "rarity": "シークレット", "img": "Tictac-Tictac-Sahur.webp"},
+    {"name": "La Royals",                     "rarity": "シークレット", "img": "La-Royals.webp"},
+    {"name": "Alligarto Alligarto",           "rarity": "シークレット", "img": "Alligarto-Alligarto.webp"},
+    {"name": "Cannelloni Dragoni",            "rarity": "シークレット", "img": "Cannelloni-Dragoni.webp"},
+    {"name": "Vulturino Skeletono",           "rarity": "シークレット", "img": "Vulturino-Skeletono.webp"},
+    {"name": "Chocone Dragone",               "rarity": "シークレット", "img": "Chocone-Dragone.webp"},
+    # ── エターナル ──
+    {"name": "Gigalitraktos Spidorobos",  "rarity": "エターナル",   "img": "Gigalitraktos-Spidorobos.webp"},
+    {"name": "Burguro dan Fryuro",        "rarity": "エターナル",   "img": "Burguro-dan-Fryuro.webp"},
+    {"name": "Bearini Plammini Guardini", "rarity": "エターナル",   "img": "Bearini-Plammini-Guardini.webp"},
+    {"name": "Tiramisubmarini",           "rarity": "エターナル",   "img": "Tiramisubmarini.webp"},
+    {"name": "Tralaledon",                "rarity": "エターナル",   "img": "Tralaledon.webp"},
+    {"name": "Garbagzilla",               "rarity": "エターナル",   "img": "Garbagzilla.webp"},
+    {"name": "Fishini Mechinini",         "rarity": "エターナル",   "img": "Fishini-Mechinini.webp"},
+    {"name": "Cannone Maledettone",       "rarity": "エターナル",   "img": "Cannone-Maledettone.webp"},
+    {"name": "La Superior Combinacion",   "rarity": "エターナル",   "img": "La-Superior-Combinacion.webp"},
+    {"name": "Il Maledettones",           "rarity": "エターナル",   "img": "Il-Maledettones.webp"},
+    # ── GOAT ──
+    {"name": "SKIBIDI TOILET",            "rarity": "GOAT",         "img": "SKIBIDI-TOILET.webp"},
 ]
-
-
-def img_url(name: str) -> str:
-    return IMG_BASE + name.replace(' ', '-') + '.png'
-
-
-def img_path(name: str) -> Path:
-    return IMG_DIR / (name.replace(' ', '-') + '.png')
 
 
 def make_placeholder(size=80) -> Image.Image:
@@ -171,9 +296,6 @@ def make_placeholder(size=80) -> Image.Image:
     return img
 
 
-# ═══════════════════════════════════════════
-# カスタムボタン
-# ═══════════════════════════════════════════
 class CyberpunkButton(tk.Canvas):
     def __init__(self, parent, text, command=None, color=CYAN,
                  width=160, height=36, **kw):
@@ -203,9 +325,6 @@ class CyberpunkButton(tk.Canvas):
     def set_color(self, c): self.color = c; self._draw()
 
 
-# ═══════════════════════════════════════════
-# メインアプリ
-# ═══════════════════════════════════════════
 class FortniteBot:
 
     def __init__(self):
@@ -213,14 +332,13 @@ class FortniteBot:
         self.buying      = False
         self.buying_char: str | None = None
         self.buy_pos     = None
-        self.selected: set[str] = set()   # クリックで選択したキャラ名
+        self.selected: set[str] = set()
         self.log_q: queue.Queue = queue.Queue()
         self._photos: dict[str, ImageTk.PhotoImage] = {}
         self._cells:  dict[str, tk.Frame] = {}
         self._preview_photo = None
 
         IMG_DIR.mkdir(exist_ok=True)
-
         self.root = tk.Tk()
         self.root.title('NEURAL LINK // INTERFACE_V.2.0')
         self.root.configure(bg=BG)
@@ -231,39 +349,28 @@ class FortniteBot:
         self.root.after(150, self._poll_log)
         self._refresh_windows()
         self._log('[SYSTEM] NEURAL LINK v2.0 起動完了')
-        self._log(f'[SYSTEM] Tesseract: {"OK" if HAS_TESS else "未検出 — pip install pytesseract 後 Tesseract本体も必要"}')
-
-        # 画像を非同期でダウンロード
+        self._log(f'[TESS] {"OK" if HAS_TESS else "未検出 — pip install pytesseract 後 Tesseract本体も必要"}')
         threading.Thread(target=self._download_all_images, daemon=True).start()
-
         self.root.mainloop()
 
-    # ─────────────────────────────────────────
-    # UI 構築
-    # ─────────────────────────────────────────
     def _build_ui(self):
-        # タイトルバー
         bar = tk.Frame(self.root, bg=BG)
         bar.pack(fill='x')
         tk.Label(bar, text='▶  NEURAL LINK // INTERFACE_V.2.0',
                  font=FONT_TITLE, fg=CYAN, bg=BG).pack(side='left', padx=12, pady=7)
-        for txt, col, cmd in [('X', RED, self.root.destroy),
-                               ('—', WHITE, self.root.iconify)]:
+        for txt, col, cmd in [('X', RED, self.root.destroy), ('—', WHITE, self.root.iconify)]:
             lbl = tk.Label(bar, text=txt, font=FONT_BOLD, fg=BG, bg=col,
                            width=3, cursor='hand2', padx=2, pady=5)
             lbl.pack(side='right', padx=1, pady=4)
             lbl.bind('<Button-1>', lambda _, c=cmd: c())
         tk.Frame(self.root, bg=CYAN, height=1).pack(fill='x')
 
-        # ボディ (左右分割)
         body = tk.Frame(self.root, bg=BG)
         body.pack(fill='both', expand=True)
-
         self._build_left(body)
         tk.Frame(body, bg=GRAY, width=1).pack(side='left', fill='y')
         self._build_right(body)
 
-        # ステータスバー
         sb = tk.Frame(self.root, bg='#0d0d0d', height=22)
         sb.pack(fill='x', side='bottom')
         self._status_var = tk.StringVar(value='SYSTEM IDLE')
@@ -271,57 +378,46 @@ class FortniteBot:
                  fg=CYAN2, bg='#0d0d0d').pack(side='left', padx=8)
 
     def _build_left(self, parent):
-        left = tk.Frame(parent, bg=BG, width=560)
+        left = tk.Frame(parent, bg=BG, width=580)
         left.pack(side='left', fill='both', expand=True)
         left.pack_propagate(False)
 
-        # ── 上部コントロール ──
         ctrl = tk.Frame(left, bg=BG2)
         ctrl.pack(fill='x', padx=8, pady=6)
 
-        # ウィンドウ選択
         tk.Label(ctrl, text='ウィンドウ', font=FONT_MONO, fg=CYAN, bg=BG2).grid(
             row=0, column=0, sticky='w', padx=4)
         self._window_var = tk.StringVar()
         self._window_cb = ttk.Combobox(ctrl, textvariable=self._window_var,
-                                        width=22, state='readonly', font=FONT_MONO)
+                                        width=24, state='readonly', font=FONT_MONO)
         self._window_cb.grid(row=0, column=1, padx=4, pady=2)
         tk.Button(ctrl, text='↺', font=('Courier New', 11), fg=CYAN, bg=BG2,
-                  bd=0, cursor='hand2', command=self._refresh_windows).grid(
-                  row=0, column=2, padx=2)
+                  bd=0, cursor='hand2', command=self._refresh_windows).grid(row=0, column=2, padx=2)
 
-        # 購入ボタン位置
         tk.Label(ctrl, text='購入ボタン位置', font=FONT_MONO, fg=CYAN, bg=BG2).grid(
             row=1, column=0, sticky='w', padx=4, pady=2)
-        self._cal_label = tk.Label(ctrl, text='未設定', font=FONT_MONO,
-                                    fg=RED, bg=BG2)
+        self._cal_label = tk.Label(ctrl, text='未設定', font=FONT_MONO, fg=RED, bg=BG2)
         self._cal_label.grid(row=1, column=1, sticky='w', padx=4)
-        tk.Button(ctrl, text='設定 (3秒)', font=FONT_SMALL, fg=BG, bg=YELLOW,
-                  bd=0, cursor='hand2', command=self._start_calibrate).grid(
-                  row=1, column=2, padx=2)
+        tk.Button(ctrl, text='設定(3秒)', font=FONT_SMALL, fg=BG, bg=YELLOW,
+                  bd=0, cursor='hand2', command=self._start_calibrate).grid(row=1, column=2, padx=2)
 
-        # 選択中キャラ表示
         sel_f = tk.Frame(left, bg='#0d0d0d')
         sel_f.pack(fill='x', padx=8, pady=2)
         tk.Label(sel_f, text='選択中: ', font=FONT_BOLD, fg=CYAN, bg='#0d0d0d').pack(side='left')
         self._sel_label = tk.Label(sel_f, text='なし', font=FONT_MONO,
-                                    fg=YELLOW, bg='#0d0d0d', wraplength=400, justify='left')
+                                    fg=YELLOW, bg='#0d0d0d', wraplength=420, justify='left')
         self._sel_label.pack(side='left')
 
-        # ── スキャンボタン ──
         self._scan_btn = CyberpunkButton(left, '▶ スキャン開始',
                                           command=self._toggle_scan,
-                                          color=CYAN, width=540, height=42)
+                                          color=CYAN, width=560, height=42)
         self._scan_btn.pack(padx=8, pady=6)
 
-        # ── キャラグリッド (スクロール) ──
-        grid_label = tk.Label(left, text='キャラクター一覧  (クリックで選択)',
-                               font=FONT_BOLD, fg=CYAN, bg=BG)
-        grid_label.pack(anchor='w', padx=10)
+        tk.Label(left, text='キャラクター一覧  (クリックで選択/解除)',
+                 font=FONT_BOLD, fg=CYAN, bg=BG).pack(anchor='w', padx=10)
 
         wrapper = tk.Frame(left, bg=BG)
         wrapper.pack(fill='both', expand=True, padx=8, pady=4)
-
         self._grid_canvas = tk.Canvas(wrapper, bg=BG, highlightthickness=0)
         vsb = ttk.Scrollbar(wrapper, orient='vertical', command=self._grid_canvas.yview)
         self._grid_inner = tk.Frame(self._grid_canvas, bg=BG)
@@ -338,12 +434,12 @@ class FortniteBot:
         self._build_char_grid()
 
     def _build_right(self, parent):
-        right = tk.Frame(parent, bg=BG2, width=420)
+        right = tk.Frame(parent, bg=BG2, width=400)
         right.pack(side='right', fill='both')
         right.pack_propagate(False)
 
         hdr = tk.Frame(right, bg=BG2)
-        hdr.pack(fill='x', padx=8, pady=(6, 0))
+        hdr.pack(fill='x', padx=8, pady=(6,0))
         tk.Label(hdr, text='REC ●', font=FONT_BOLD, fg=RED, bg=BG2).pack(side='left')
         tk.Label(hdr, text='  LIVE FEED // OCR_PROCESSOR',
                  font=('Courier New', 10, 'bold'), fg=RED, bg=BG2).pack(side='left')
@@ -356,9 +452,9 @@ class FortniteBot:
         self._preview_lbl.pack(fill='both', expand=True)
 
         lf = tk.Frame(right, bg=BG2)
-        lf.pack(fill='x', padx=8, pady=(0, 4))
+        lf.pack(fill='x', padx=8, pady=(0,4))
         tk.Label(lf, text='LOG OUTPUT:', font=FONT_BOLD, fg=CYAN2, bg=BG2).pack(anchor='w')
-        self._log_text = tk.Text(lf, height=12, font=('Courier New', 8),
+        self._log_text = tk.Text(lf, height=14, font=('Courier New', 8),
                                   fg=GREEN, bg='#050505', bd=0,
                                   state='disabled', wrap='word')
         lsb = ttk.Scrollbar(lf, orient='vertical', command=self._log_text.yview)
@@ -366,15 +462,10 @@ class FortniteBot:
         self._log_text.pack(side='left', fill='x', expand=True)
         lsb.pack(side='right', fill='y')
 
-        btn_f = tk.Frame(right, bg=BG2)
-        btn_f.pack(fill='x', padx=8, pady=4)
-        tk.Button(btn_f, text='ログ消去', font=FONT_SMALL, fg=BG, bg=PINK,
+        tk.Button(right, text='ログ消去', font=FONT_SMALL, fg=BG, bg=PINK,
                   bd=0, padx=6, pady=2, cursor='hand2',
-                  command=self._clear_log).pack(side='left')
+                  command=self._clear_log).pack(anchor='w', padx=8, pady=4)
 
-    # ─────────────────────────────────────────
-    # キャラグリッド
-    # ─────────────────────────────────────────
     def _build_char_grid(self):
         COLS = 4
         cur_rarity = None
@@ -386,58 +477,46 @@ class FortniteBot:
             rarity = char['rarity']
             color  = RARITY_COLOR.get(rarity, WHITE)
 
-            # レアリティヘッダー
             if rarity != cur_rarity:
                 cur_rarity = rarity
                 col = 0
-                grid_row_start = grid_row
-                hdr = tk.Label(self._grid_inner, text=f'── {rarity} ──',
-                               font=FONT_BOLD, fg=color, bg=BG)
-                hdr.grid(row=grid_row, column=0, columnspan=COLS,
-                         sticky='w', padx=6, pady=(8, 2))
+                tk.Label(self._grid_inner,
+                         text=f'── {rarity} ──',
+                         font=FONT_BOLD, fg=color, bg=BG).grid(
+                    row=grid_row, column=0, columnspan=COLS,
+                    sticky='w', padx=6, pady=(10, 2))
                 grid_row += 1
 
-            # キャラセル
             cell = tk.Frame(self._grid_inner, bg='#141414',
                             highlightthickness=2, highlightbackground=GRAY,
-                            cursor='hand2', width=120, height=120)
+                            cursor='hand2', width=128, height=118)
             cell.grid(row=grid_row, column=col, padx=3, pady=3, sticky='nsew')
             cell.grid_propagate(False)
 
-            # 画像ラベル
             img_lbl = tk.Label(cell, bg='#141414', cursor='hand2')
-            img_lbl.place(x=4, y=4, width=112, height=80)
-
-            # プレースホルダー
+            img_lbl.place(x=8, y=4, width=112, height=80)
             ph = ImageTk.PhotoImage(make_placeholder(80))
             img_lbl.configure(image=ph)
             img_lbl.image = ph
 
-            # キャラ名
-            tk.Label(cell, text=name[:16], font=('Courier New', 7),
-                     fg=WHITE, bg='#141414', wraplength=112).place(
-                     x=0, y=84, width=120, height=18)
-
-            # レアリティバッジ
+            tk.Label(cell, text=name[:17], font=('Courier New', 7),
+                     fg=WHITE, bg='#141414', wraplength=120).place(
+                     x=0, y=86, width=128, height=18)
             tk.Label(cell, text=rarity, font=('Courier New', 6, 'bold'),
-                     fg=color, bg='#0a0a0a').place(x=0, y=102, width=120, height=14)
+                     fg=color, bg='#0a0a0a').place(x=0, y=103, width=128, height=13)
 
-            # クリックイベント
             for w in [cell, img_lbl]:
                 w.bind('<Button-1>', lambda _, n=name, c=cell: self._toggle_select(n, c))
 
             self._cells[name] = cell
-
             col += 1
             if col >= COLS:
                 col = 0
                 grid_row += 1
 
-        # 選択済みキャラを反映
         for name in self.selected:
             if name in self._cells:
-                self._cells[name].configure(highlightbackground=CYAN,
-                                             highlightthickness=3)
+                self._cells[name].configure(highlightbackground=CYAN, highlightthickness=3)
 
     def _toggle_select(self, name: str, cell: tk.Frame):
         if name in self.selected:
@@ -446,39 +525,31 @@ class FortniteBot:
         else:
             self.selected.add(name)
             cell.configure(highlightbackground=CYAN, highlightthickness=3)
-        self._update_sel_label()
+        self._sel_label.configure(
+            text=', '.join(sorted(self.selected)) if self.selected else 'なし')
         self._save_config()
 
-    def _update_sel_label(self):
-        if self.selected:
-            self._sel_label.configure(text=', '.join(sorted(self.selected)))
-        else:
-            self._sel_label.configure(text='なし')
-
-    # ─────────────────────────────────────────
-    # 画像ダウンロード
-    # ─────────────────────────────────────────
     def _download_all_images(self):
-        self._log('[IMG] 画像ダウンロード開始...')
+        self._log(f'[IMG] {len(CHARACTERS)}体の画像をダウンロード中...')
         ok = 0
         for char in CHARACTERS:
-            name = char['name']
-            path = img_path(name)
+            name   = char['name']
+            fname  = char['img']
+            path   = IMG_DIR / fname
             if path.exists():
                 self._load_image_to_cell(name, path)
                 ok += 1
                 continue
             try:
-                url = img_url(name)
+                url = IMG_BASE + fname
                 req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-                with urllib.request.urlopen(req, timeout=8) as r:
-                    data = r.read()
-                path.write_bytes(data)
+                with urllib.request.urlopen(req, timeout=10) as r:
+                    path.write_bytes(r.read())
                 self._load_image_to_cell(name, path)
                 ok += 1
-                time.sleep(0.05)
+                time.sleep(0.03)
             except Exception:
-                pass  # プレースホルダーのまま
+                pass
         self._log(f'[IMG] 完了: {ok}/{len(CHARACTERS)} 枚')
 
     def _load_image_to_cell(self, name: str, path: Path):
@@ -494,20 +565,18 @@ class FortniteBot:
 
             def _update(n=name, p=photo):
                 cell = self._cells.get(n)
-                if cell:
-                    for w in cell.winfo_children():
-                        if isinstance(w, tk.Label) and w.winfo_y() < 84:
-                            w.configure(image=p)
-                            w.image = p
-                            break
+                if not cell:
+                    return
+                for w in cell.winfo_children():
+                    if isinstance(w, tk.Label) and w.winfo_y() < 84:
+                        w.configure(image=p)
+                        w.image = p
+                        break
 
             self.root.after(0, _update)
         except Exception:
             pass
 
-    # ─────────────────────────────────────────
-    # ウィンドウ管理
-    # ─────────────────────────────────────────
     def _refresh_windows(self):
         wins = []
         if HAS_WIN32:
@@ -523,9 +592,6 @@ class FortniteBot:
             fn = [w for w in wins if 'fortnite' in w.lower()]
             self._window_var.set(fn[0] if fn else wins[0])
 
-    # ─────────────────────────────────────────
-    # スキャン制御
-    # ─────────────────────────────────────────
     def _toggle_scan(self):
         if self.running:
             self.running = False
@@ -566,15 +632,11 @@ class FortniteBot:
         if img is None:
             return
         self.root.after(0, lambda i=img: self._update_preview(i))
-
         if not HAS_TESS:
-            self._log('[WARN] Tesseract 未検出')
             return
-
         text  = self._run_ocr(img)
         found = self._parse_chars(text)
-        self._log(f'[SCAN] 検出: {", ".join(found[:3]) if found else "なし"}')
-
+        self._log(f'[SCAN] {", ".join(found[:3]) if found else "未検出"}')
         matched = [n for n in found if n in self.selected]
         if matched:
             if not self.buying:
@@ -589,9 +651,6 @@ class FortniteBot:
                 self.buying_char = None
                 self._set_status('SCANNING...')
 
-    # ─────────────────────────────────────────
-    # スクリーンキャプチャ / OCR
-    # ─────────────────────────────────────────
     def _capture_screen(self):
         try:
             x, y, w, h = 0, 0, 1920, 1080
@@ -620,11 +679,8 @@ class FortniteBot:
         return [c['name'] for c in CHARACTERS
                 if any(w in tl for w in c['name'].lower().split() if len(w) > 3)]
 
-    # ─────────────────────────────────────────
-    # キャリブレーション
-    # ─────────────────────────────────────────
     def _start_calibrate(self):
-        self._log('[CAL] 3秒後にマウス位置を取得します...')
+        self._log('[CAL] 3秒後にマウス位置を記録します...')
         threading.Thread(target=self._cal_worker, daemon=True).start()
 
     def _cal_worker(self):
@@ -638,15 +694,11 @@ class FortniteBot:
             text=f'({pos.x}, {pos.y})', fg=GREEN))
         self._save_config()
 
-    # ─────────────────────────────────────────
-    # UI更新
-    # ─────────────────────────────────────────
     def _update_preview(self, img: Image.Image):
         try:
-            pw = 400
-            ph = min(int(img.height * pw / img.width), 300)
-            preview = img.resize((pw, ph), Image.LANCZOS)
-            photo = ImageTk.PhotoImage(preview)
+            pw = 380
+            ph = min(int(img.height * pw / img.width), 280)
+            photo = ImageTk.PhotoImage(img.resize((pw, ph), Image.LANCZOS))
             self._preview_lbl.configure(image=photo, text='')
             self._preview_lbl.image = photo
             self._preview_photo = photo
@@ -654,8 +706,7 @@ class FortniteBot:
             pass
 
     def _log(self, msg: str):
-        ts = datetime.now().strftime('%H:%M:%S')
-        self.log_q.put(f'[{ts}] {msg}')
+        self.log_q.put(f'[{datetime.now().strftime("%H:%M:%S")}] {msg}')
 
     def _poll_log(self):
         while not self.log_q.empty():
@@ -674,16 +725,11 @@ class FortniteBot:
         self._log_text.delete('1.0', 'end')
         self._log_text.configure(state='disabled')
 
-    # ─────────────────────────────────────────
-    # 設定保存/読み込み
-    # ─────────────────────────────────────────
     def _save_config(self):
-        data = {
-            'selected': list(self.selected),
-            'buy_pos':  list(self.buy_pos) if self.buy_pos else None,
-        }
         with open(SAVE_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+            json.dump({'selected': list(self.selected),
+                       'buy_pos': list(self.buy_pos) if self.buy_pos else None},
+                      f, ensure_ascii=False, indent=2)
 
     def _load_config(self):
         if not os.path.exists(SAVE_FILE):
