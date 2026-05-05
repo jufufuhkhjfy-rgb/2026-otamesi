@@ -12,6 +12,7 @@ import queue
 import json
 import os
 import urllib.request
+import difflib
 from datetime import datetime
 from pathlib import Path
 
@@ -832,9 +833,31 @@ class FortniteBot:
         return result
 
     def _parse_chars(self, text: str) -> list[str]:
-        tl = text.lower()
-        return [c['name'] for c in CHARACTERS
-                if any(w in tl for w in c['name'].lower().split() if len(w) > 3)]
+        lines = [l.strip().lower() for l in text.splitlines() if len(l.strip()) >= 4]
+        if not lines:
+            return []
+
+        scored = []
+        for c in CHARACTERS:
+            name_l = c['name'].lower()
+            best = 0.0
+            for line in lines:
+                # 行がキャラ名と似ているか（長さが近い行だけ比較）
+                if len(line) < len(name_l) * 0.4:
+                    continue
+                s = difflib.SequenceMatcher(None, name_l, line).ratio()
+                if s > best:
+                    best = s
+            if best >= 0.72:
+                scored.append((best, c['name']))
+
+        if not scored:
+            return []
+
+        scored.sort(reverse=True)
+        top = scored[0][0]
+        # トップスコアの95%以内のものだけ返す（差が大きいものは除外）
+        return [name for score, name in scored if score >= top * 0.95 and score >= 0.72]
 
     def _update_cps_label(self, *_):
         v = self._cps_var.get() if self._cps_var else 10
