@@ -27,11 +27,27 @@ except ImportError:
 
 try:
     import win32gui
+    import win32api
+    import win32con
     HAS_WIN32 = True
 except ImportError:
     HAS_WIN32 = False
 
 pyautogui.FAILSAFE = True
+
+def _vk_code(key: str) -> int:
+    special = {'space': 0x20, 'return': 0x0D, 'enter': 0x0D,
+               'tab': 0x09, 'shift': 0x10, 'ctrl': 0x11, 'alt': 0x12,
+               'f1':0x70,'f2':0x71,'f3':0x72,'f4':0x73,'f5':0x74,
+               'f6':0x75,'f7':0x76,'f8':0x77,'f9':0x78,'f10':0x79,
+               'f11':0x7A,'f12':0x7B,'up':0x26,'down':0x28,
+               'left':0x25,'right':0x27,'escape':0x1B,
+               '0':0x30,'1':0x31,'2':0x32,'3':0x33,'4':0x34,
+               '5':0x35,'6':0x36,'7':0x37,'8':0x38,'9':0x39}
+    k = key.lower()
+    if k in special:
+        return special[k]
+    return ord(k.upper()) if len(k) == 1 else 0
 
 BG      = '#0a0a0a'
 BG2     = '#111111'
@@ -650,13 +666,43 @@ class FortniteBot:
             threading.Thread(target=self._click_loop, daemon=True).start()
             threading.Thread(target=self._scan_loop,  daemon=True).start()
 
+    def _get_fortnite_hwnd(self):
+        if not HAS_WIN32:
+            return None
+        name = self._window_var.get()
+        hwnd = win32gui.FindWindow(None, name)
+        if not hwnd:
+            # 部分一致で探す
+            found = []
+            def _cb(h, _):
+                t = win32gui.GetWindowText(h)
+                if t and name.lower() in t.lower():
+                    found.append(h)
+            win32gui.EnumWindows(_cb, None)
+            hwnd = found[0] if found else None
+        return hwnd
+
+    def _send_key_to_window(self, hwnd, key: str):
+        vk = _vk_code(key)
+        if not vk:
+            return
+        lp_down = (0 << 29)
+        lp_up   = (1 << 31) | (1 << 30) | (0 << 29)
+        win32api.PostMessage(hwnd, win32con.WM_KEYDOWN, vk, lp_down)
+        time.sleep(0.05)
+        win32api.PostMessage(hwnd, win32con.WM_KEYUP,   vk, lp_up)
+
     def _click_loop(self):
         while self.running:
             if self.buying:
-                try:
-                    pyautogui.press(self.buy_key)
-                except Exception:
-                    pass
+                hwnd = self._get_fortnite_hwnd()
+                if hwnd and HAS_WIN32:
+                    self._send_key_to_window(hwnd, self.buy_key)
+                else:
+                    try:
+                        pyautogui.press(self.buy_key)
+                    except Exception:
+                        pass
                 cps = self._cps_var.get() if self._cps_var else 10
                 time.sleep(1.0 / max(1, cps))
             else:
@@ -697,13 +743,12 @@ class FortniteBot:
     def _capture_screen(self):
         try:
             x, y, w, h = 0, 0, 1920, 1080
-            if HAS_WIN32:
-                hwnd = win32gui.FindWindow(None, self._window_var.get())
-                if hwnd:
-                    r = win32gui.GetWindowRect(hwnd)
-                    x, y, w, h = r[0], r[1], r[2]-r[0], r[3]-r[1]
+            hwnd = self._get_fortnite_hwnd()
+            if hwnd:
+                r = win32gui.GetWindowRect(hwnd)
+                x, y, w, h = r[0], r[1], r[2]-r[0], r[3]-r[1]
             with mss.mss() as sct:
-                shot = sct.grab({'left': x, 'top': y, 'width': w, 'height': h})
+                shot = sct.grab({'left': x, 'top': y, 'width': max(w,1), 'height': max(h,1)})
             return Image.frombytes('RGB', shot.size, shot.bgra, 'raw', 'BGRX')
         except Exception as e:
             self._log(f'[ERROR] キャプチャ失敗: {e}')
