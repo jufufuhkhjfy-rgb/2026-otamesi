@@ -816,18 +816,20 @@ class FortniteBot:
 
     def _run_ocr(self, img: Image.Image) -> str:
         w, h = img.width, img.height
-        # キャラ名は画面中央・上から15〜55%の範囲に表示される
         x1, x2 = int(w * 0.2), int(w * 0.8)
         y1, y2 = int(h * 0.15), int(h * 0.55)
         crop = img.crop((x1, y1, x2, y2))
-        # 白文字を強調: 明るいピクセルだけ残す
-        import numpy as np
-        arr = np.array(crop.convert('L'))
-        bright = np.where(arr > 160, 255, 0).astype(np.uint8)
-        enhanced = Image.fromarray(bright)
-        return pytesseract.image_to_string(
-            enhanced,
-            config='--psm 6 --oem 3 -l eng')
+        # 2倍に拡大してOCR精度向上
+        crop = crop.resize((crop.width * 2, crop.height * 2), Image.LANCZOS)
+        gray = crop.convert('L')
+        enhanced = ImageEnhance.Contrast(gray).enhance(3.0)
+        result = pytesseract.image_to_string(
+            enhanced, config='--psm 11 --oem 3 -l eng')
+        # デバッグ: OCRが読んだ生テキストをログに出す
+        lines = [l.strip() for l in result.splitlines() if l.strip()]
+        if lines:
+            self._log(f'[OCR] {" | ".join(lines[:4])}')
+        return result
 
     def _parse_chars(self, text: str) -> list[str]:
         tl = text.lower()
