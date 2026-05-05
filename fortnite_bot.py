@@ -665,6 +665,7 @@ class FortniteBot:
             self._set_status('SCANNING...')
             threading.Thread(target=self._click_loop, daemon=True).start()
             threading.Thread(target=self._scan_loop,  daemon=True).start()
+            threading.Thread(target=self._afk_loop,   daemon=True).start()
 
     def _get_fortnite_hwnd(self):
         if not HAS_WIN32:
@@ -672,7 +673,6 @@ class FortniteBot:
         name = self._window_var.get()
         hwnd = win32gui.FindWindow(None, name)
         if not hwnd:
-            # 部分一致で探す
             found = []
             def _cb(h, _):
                 t = win32gui.GetWindowText(h)
@@ -682,31 +682,62 @@ class FortniteBot:
             hwnd = found[0] if found else None
         return hwnd
 
-    def _send_key_to_window(self, hwnd, key: str):
-        vk = _vk_code(key)
-        if not vk:
-            return
-        lp_down = (0 << 29)
-        lp_up   = (1 << 31) | (1 << 30) | (0 << 29)
-        win32api.PostMessage(hwnd, win32con.WM_KEYDOWN, vk, lp_down)
-        time.sleep(0.05)
-        win32api.PostMessage(hwnd, win32con.WM_KEYUP,   vk, lp_up)
+    def _focus_fortnite(self, hwnd):
+        try:
+            import win32process
+            fg = win32gui.GetForegroundWindow()
+            fg_tid = win32process.GetWindowThreadProcessId(fg)[0]
+            tgt_tid = win32process.GetWindowThreadProcessId(hwnd)[0]
+            win32api.AttachThreadInput(fg_tid, tgt_tid, True)
+            win32gui.SetForegroundWindow(hwnd)
+            win32api.AttachThreadInput(fg_tid, tgt_tid, False)
+        except Exception:
+            try:
+                win32gui.SetForegroundWindow(hwnd)
+            except Exception:
+                pass
+        time.sleep(0.08)
+
+    def _press_game_key(self, key: str):
+        hwnd = self._get_fortnite_hwnd()
+        if hwnd and HAS_WIN32:
+            self._focus_fortnite(hwnd)
+        try:
+            pyautogui.press(key)
+        except Exception:
+            pass
 
     def _click_loop(self):
         while self.running:
             if self.buying:
-                hwnd = self._get_fortnite_hwnd()
-                if hwnd and HAS_WIN32:
-                    self._send_key_to_window(hwnd, self.buy_key)
-                else:
-                    try:
-                        pyautogui.press(self.buy_key)
-                    except Exception:
-                        pass
+                self._press_game_key(self.buy_key)
                 cps = self._cps_var.get() if self._cps_var else 10
                 time.sleep(1.0 / max(1, cps))
             else:
                 time.sleep(0.05)
+
+    def _afk_loop(self):
+        last = time.time()
+        while self.running:
+            time.sleep(1)
+            if time.time() - last >= 55:
+                last = time.time()
+                if self.buying:
+                    continue
+                self._log('[AFK] 動作防止: 前進→後退')
+                hwnd = self._get_fortnite_hwnd()
+                if hwnd and HAS_WIN32:
+                    self._focus_fortnite(hwnd)
+                try:
+                    pyautogui.keyDown('w')
+                    time.sleep(0.4)
+                    pyautogui.keyUp('w')
+                    time.sleep(0.15)
+                    pyautogui.keyDown('s')
+                    time.sleep(0.4)
+                    pyautogui.keyUp('s')
+                except Exception:
+                    pass
 
     def _scan_loop(self):
         while self.running:
