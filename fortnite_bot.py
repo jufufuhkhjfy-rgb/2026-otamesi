@@ -537,6 +537,10 @@ class FortniteBot:
 
     def _download_all_images(self):
         self._log(f'[IMG] {len(CHARACTERS)}体の画像をダウンロード中...')
+        FALLBACK_MONTHS = [
+            '2025/10', '2026/02', '2026/03', '2026/04', '2026/05',
+            '2025/11', '2025/12', '2026/01',
+        ]
         ok = 0
         for char in CHARACTERS:
             name  = char['name']
@@ -547,16 +551,26 @@ class FortniteBot:
                 self._load_image_to_cell(name, path)
                 ok += 1
                 continue
-            try:
-                url = IMG_BASE + img
-                req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-                with urllib.request.urlopen(req, timeout=10) as r:
-                    path.write_bytes(r.read())
-                self._load_image_to_cell(name, path)
-                ok += 1
-                time.sleep(0.03)
-            except Exception:
-                pass
+            downloaded = False
+            # 指定パスを最初に試す、失敗したら全月を試す
+            candidates = [img] + [f'{m}/{fname}' for m in FALLBACK_MONTHS
+                                   if f'{m}/{fname}' != img]
+            for candidate in candidates:
+                try:
+                    url = IMG_BASE + candidate
+                    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                    with urllib.request.urlopen(req, timeout=8) as r:
+                        data = r.read()
+                    if len(data) > 1000:
+                        path.write_bytes(data)
+                        self._load_image_to_cell(name, path)
+                        ok += 1
+                        downloaded = True
+                        break
+                except Exception:
+                    continue
+            if not downloaded:
+                time.sleep(0.02)
         self._log(f'[IMG] 完了: {ok}/{len(CHARACTERS)} 枚')
 
     def _load_image_to_cell(self, name: str, path: Path):
