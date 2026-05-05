@@ -337,12 +337,13 @@ class FortniteBot:
         self.running     = False
         self.buying      = False
         self.buying_char: str | None = None
-        self.buy_pos     = None
+        self.buy_key     = 'e'
         self.selected: set[str] = set()
         self.log_q: queue.Queue = queue.Queue()
         self._photos: dict[str, ImageTk.PhotoImage] = {}
         self._cells:  dict[str, tk.Frame] = {}
         self._preview_photo = None
+        self._cps_var    = None  # clicks per second
 
         IMG_DIR.mkdir(exist_ok=True)
         self.root = tk.Tk()
@@ -350,8 +351,9 @@ class FortniteBot:
         self.root.configure(bg=BG)
         self.root.resizable(True, True)
 
-        self._load_config()
         self._build_ui()
+        self._load_config()
+        self._key_label.configure(text=f'[ {self.buy_key.upper()} ]')
         self.root.after(150, self._poll_log)
         self._refresh_windows()
         self._log('[SYSTEM] NEURAL LINK v2.0 起動完了')
@@ -400,12 +402,28 @@ class FortniteBot:
         tk.Button(ctrl, text='↺', font=('Courier New', 11), fg=CYAN, bg=BG2,
                   bd=0, cursor='hand2', command=self._refresh_windows).grid(row=0, column=2, padx=2)
 
-        tk.Label(ctrl, text='購入ボタン位置', font=FONT_MONO, fg=CYAN, bg=BG2).grid(
+        tk.Label(ctrl, text='購入キー', font=FONT_MONO, fg=CYAN, bg=BG2).grid(
             row=1, column=0, sticky='w', padx=4, pady=2)
-        self._cal_label = tk.Label(ctrl, text='未設定', font=FONT_MONO, fg=RED, bg=BG2)
-        self._cal_label.grid(row=1, column=1, sticky='w', padx=4)
-        tk.Button(ctrl, text='設定(3秒)', font=FONT_SMALL, fg=BG, bg=YELLOW,
-                  bd=0, cursor='hand2', command=self._start_calibrate).grid(row=1, column=2, padx=2)
+        self._key_label = tk.Label(ctrl, text=f'[ {self.buy_key.upper()} ]',
+                                    font=('Courier New', 10, 'bold'), fg=YELLOW, bg=BG2,
+                                    cursor='hand2')
+        self._key_label.grid(row=1, column=1, sticky='w', padx=4)
+        self._key_label.bind('<Button-1>', lambda _: self._start_key_capture())
+        tk.Label(ctrl, text='←クリックして変更', font=FONT_SMALL, fg=GRAY, bg=BG2).grid(
+            row=1, column=2, padx=2)
+
+        tk.Label(ctrl, text='連打速度', font=FONT_MONO, fg=CYAN, bg=BG2).grid(
+            row=2, column=0, sticky='w', padx=4, pady=2)
+        self._cps_var = tk.IntVar(value=10)
+        spd_frame = tk.Frame(ctrl, bg=BG2)
+        spd_frame.grid(row=2, column=1, columnspan=2, sticky='w', padx=4)
+        tk.Scale(spd_frame, from_=1, to=20, orient='horizontal', variable=self._cps_var,
+                 length=160, bg=BG2, fg=CYAN, troughcolor=GRAY, highlightthickness=0,
+                 font=FONT_SMALL, showvalue=False).pack(side='left')
+        self._cps_lbl = tk.Label(spd_frame, font=FONT_MONO, fg=YELLOW, bg=BG2)
+        self._cps_lbl.pack(side='left', padx=4)
+        self._cps_var.trace_add('write', self._update_cps_label)
+        self._update_cps_label()
 
         sel_f = tk.Frame(left, bg='#0d0d0d')
         sel_f.pack(fill='x', padx=8, pady=2)
@@ -634,9 +652,13 @@ class FortniteBot:
 
     def _click_loop(self):
         while self.running:
-            if self.buying and self.buy_pos:
-                pyautogui.click(self.buy_pos[0], self.buy_pos[1])
-                time.sleep(0.08)
+            if self.buying:
+                try:
+                    pyautogui.press(self.buy_key)
+                except Exception:
+                    pass
+                cps = self._cps_var.get() if self._cps_var else 10
+                time.sleep(1.0 / max(1, cps))
             else:
                 time.sleep(0.05)
 
@@ -700,19 +722,25 @@ class FortniteBot:
         return [c['name'] for c in CHARACTERS
                 if any(w in tl for w in c['name'].lower().split() if len(w) > 3)]
 
-    def _start_calibrate(self):
-        self._log('[CAL] 3秒後にマウス位置を記録します...')
-        threading.Thread(target=self._cal_worker, daemon=True).start()
+    def _update_cps_label(self, *_):
+        v = self._cps_var.get() if self._cps_var else 10
+        self._cps_lbl.configure(text=f'{v} 回/秒')
 
-    def _cal_worker(self):
-        for i in range(3, 0, -1):
-            self._log(f'[CAL] {i}...')
-            time.sleep(1)
-        pos = pyautogui.position()
-        self.buy_pos = (pos.x, pos.y)
-        self._log(f'[CAL ✓] 購入ボタン位置: ({pos.x}, {pos.y})')
-        self.root.after(0, lambda: self._cal_label.configure(
-            text=f'({pos.x}, {pos.y})', fg=GREEN))
+    def _start_key_capture(self):
+        self._key_label.configure(text='[ ? ]  ← キーを押して', fg=PINK)
+        self._key_label.bind('<KeyPress>', self._on_key_captured)
+        self._key_label.focus_set()
+
+    def _on_key_captured(self, event):
+        key = event.keysym.lower()
+        if key in ('escape', 'return', 'tab'):
+            self._key_label.configure(text=f'[ {self.buy_key.upper()} ]', fg=YELLOW)
+            self._key_label.unbind('<KeyPress>')
+            return
+        self.buy_key = key
+        self._key_label.configure(text=f'[ {key.upper()} ]', fg=YELLOW)
+        self._key_label.unbind('<KeyPress>')
+        self._log(f'[KEY] 購入キー設定: {key.upper()}')
         self._save_config()
 
     def _update_preview(self, img: Image.Image):
@@ -749,7 +777,8 @@ class FortniteBot:
     def _save_config(self):
         with open(SAVE_FILE, 'w', encoding='utf-8') as f:
             json.dump({'selected': list(self.selected),
-                       'buy_pos': list(self.buy_pos) if self.buy_pos else None},
+                       'buy_key': self.buy_key,
+                       'cps': self._cps_var.get() if self._cps_var else 10},
                       f, ensure_ascii=False, indent=2)
 
     def _load_config(self):
@@ -759,8 +788,9 @@ class FortniteBot:
             with open(SAVE_FILE, encoding='utf-8') as f:
                 data = json.load(f)
             self.selected = set(data.get('selected', []))
-            if data.get('buy_pos'):
-                self.buy_pos = tuple(data['buy_pos'])
+            self.buy_key  = data.get('buy_key', 'e')
+            if self._cps_var and data.get('cps'):
+                self._cps_var.set(data['cps'])
         except Exception:
             pass
 
