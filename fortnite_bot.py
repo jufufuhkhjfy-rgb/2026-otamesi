@@ -706,23 +706,43 @@ class FortniteBot:
         time.sleep(0.15)
 
     def _press_game_key(self, key: str):
+        """フォーカスを奪わずPostMessageで送信、失敗時のみフォーカスして送信"""
         hwnd = self._get_fortnite_hwnd()
+        sent = False
         if hwnd and HAS_WIN32:
-            self._focus_fortnite(hwnd)
-        try:
-            pyautogui.keyDown(key)
-            time.sleep(0.05)
-            pyautogui.keyUp(key)
-        except Exception:
-            pass
+            vk = _vk_code(key)
+            if vk:
+                try:
+                    win32api.PostMessage(hwnd, win32con.WM_KEYDOWN, vk, 0)
+                    time.sleep(0.05)
+                    win32api.PostMessage(hwnd, win32con.WM_KEYUP, vk,
+                                        (1 << 31) | (1 << 30))
+                    sent = True
+                except Exception:
+                    pass
+        if not sent:
+            try:
+                pyautogui.keyDown(key)
+                time.sleep(0.05)
+                pyautogui.keyUp(key)
+            except Exception:
+                pass
 
     def _click_loop(self):
+        was_buying = False
         while self.running:
             if self.buying:
+                # 購入開始時のみ1回だけフォーカス
+                if not was_buying:
+                    hwnd = self._get_fortnite_hwnd()
+                    if hwnd and HAS_WIN32:
+                        self._focus_fortnite(hwnd)
+                    was_buying = True
                 self._press_game_key(self.buy_key)
                 cps = self._cps_var.get() if self._cps_var else 10
                 time.sleep(1.0 / max(1, cps))
             else:
+                was_buying = False
                 time.sleep(0.05)
 
     def _afk_loop(self):
@@ -795,11 +815,18 @@ class FortniteBot:
             return None
 
     def _run_ocr(self, img: Image.Image) -> str:
-        h = img.height
-        crop = img.crop((0, int(h * 0.4), img.width, h))
-        enhanced = ImageEnhance.Contrast(crop.convert('L')).enhance(2.5)
+        w, h = img.width, img.height
+        # キャラ名は画面中央・上から15〜55%の範囲に表示される
+        x1, x2 = int(w * 0.2), int(w * 0.8)
+        y1, y2 = int(h * 0.15), int(h * 0.55)
+        crop = img.crop((x1, y1, x2, y2))
+        # 白文字を強調: 明るいピクセルだけ残す
+        import numpy as np
+        arr = np.array(crop.convert('L'))
+        bright = np.where(arr > 160, 255, 0).astype(np.uint8)
+        enhanced = Image.fromarray(bright)
         return pytesseract.image_to_string(
-            enhanced.filter(ImageFilter.SHARPEN),
+            enhanced,
             config='--psm 6 --oem 3 -l eng')
 
     def _parse_chars(self, text: str) -> list[str]:
@@ -832,7 +859,14 @@ class FortniteBot:
         try:
             pw = 380
             ph = min(int(img.height * pw / img.width), 280)
-            photo = ImageTk.PhotoImage(img.resize((pw, ph), Image.LANCZOS))
+            preview = img.resize((pw, ph), Image.LANCZOS).convert('RGB')
+            # OCR範囲を赤枠で表示
+            d = ImageDraw.Draw(preview)
+            rx1 = int(pw * 0.2); rx2 = int(pw * 0.8)
+            ry1 = int(ph * 0.15); ry2 = int(ph * 0.55)
+            d.rectangle([rx1, ry1, rx2, ry2], outline='#ff0000', width=2)
+            d.text((rx1+2, ry1+2), 'OCR ZONE', fill='#ff0000')
+            photo = ImageTk.PhotoImage(preview)
             self._preview_lbl.configure(image=photo, text='')
             self._preview_lbl.image = photo
             self._preview_photo = photo
