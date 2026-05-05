@@ -427,6 +427,11 @@ class FortniteBot:
         self._key_label.bind('<Button-1>', lambda _: self._start_key_capture())
         tk.Label(ctrl, text='←クリックして変更', font=FONT_SMALL, fg=GRAY, bg=BG2).grid(
             row=1, column=2, padx=2)
+        tk.Button(ctrl, text='テスト送信', font=FONT_SMALL, fg=BG, bg=GREEN,
+                  bd=0, cursor='hand2', padx=4,
+                  command=lambda: threading.Thread(
+                      target=self._press_game_key, args=(self.buy_key,), daemon=True
+                  ).start()).grid(row=1, column=3, padx=4)
 
         tk.Label(ctrl, text='連打速度', font=FONT_MONO, fg=CYAN, bg=BG2).grid(
             row=2, column=0, sticky='w', padx=4, pady=2)
@@ -685,25 +690,29 @@ class FortniteBot:
     def _focus_fortnite(self, hwnd):
         try:
             import win32process
-            fg = win32gui.GetForegroundWindow()
-            fg_tid = win32process.GetWindowThreadProcessId(fg)[0]
+            fg  = win32gui.GetForegroundWindow()
+            fg_tid  = win32process.GetWindowThreadProcessId(fg)[0]
             tgt_tid = win32process.GetWindowThreadProcessId(hwnd)[0]
-            win32api.AttachThreadInput(fg_tid, tgt_tid, True)
+            win32process.AttachThreadInput(fg_tid, tgt_tid, True)
+            win32gui.ShowWindow(hwnd, 9)
             win32gui.SetForegroundWindow(hwnd)
-            win32api.AttachThreadInput(fg_tid, tgt_tid, False)
+            win32process.AttachThreadInput(fg_tid, tgt_tid, False)
         except Exception:
             try:
+                win32gui.ShowWindow(hwnd, 9)
                 win32gui.SetForegroundWindow(hwnd)
             except Exception:
                 pass
-        time.sleep(0.08)
+        time.sleep(0.15)
 
     def _press_game_key(self, key: str):
         hwnd = self._get_fortnite_hwnd()
         if hwnd and HAS_WIN32:
             self._focus_fortnite(hwnd)
         try:
-            pyautogui.press(key)
+            pyautogui.keyDown(key)
+            time.sleep(0.05)
+            pyautogui.keyUp(key)
         except Exception:
             pass
 
