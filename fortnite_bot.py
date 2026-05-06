@@ -840,15 +840,17 @@ class FortniteBot:
         scored = []
         for c in CHARACTERS:
             name_l = c['name'].lower()
+            name_len = len(name_l)
             best = 0.0
             for line in lines:
-                # 行がキャラ名と似ているか（長さが近い行だけ比較）
-                if len(line) < len(name_l) * 0.4:
+                line_len = len(line)
+                # 長さが大幅に違う行は無視（名前の0.6〜1.8倍の長さの行のみ）
+                if not (name_len * 0.6 <= line_len <= name_len * 1.8):
                     continue
                 s = difflib.SequenceMatcher(None, name_l, line).ratio()
                 if s > best:
                     best = s
-            if best >= 0.72:
+            if best >= 0.82:
                 scored.append((best, c['name']))
 
         if not scored:
@@ -856,8 +858,8 @@ class FortniteBot:
 
         scored.sort(reverse=True)
         top = scored[0][0]
-        # トップスコアの95%以内のものだけ返す（差が大きいものは除外）
-        return [name for score, name in scored if score >= top * 0.95 and score >= 0.72]
+        # トップと2%以内のものだけ（ほぼ同スコアの複数候補を除外）
+        return [name for score, name in scored if score >= top * 0.98 and score >= 0.82]
 
     def _update_cps_label(self, *_):
         v = self._cps_var.get() if self._cps_var else 10
