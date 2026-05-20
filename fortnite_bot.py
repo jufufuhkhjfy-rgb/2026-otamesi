@@ -460,6 +460,23 @@ class FortniteBot:
         self._cps_var.trace_add('write', self._update_cps_label)
         self._update_cps_label()
 
+        tk.Label(ctrl, text='一括選択', font=FONT_MONO, fg=CYAN, bg=BG2).grid(
+            row=3, column=0, sticky='w', padx=4, pady=4)
+        btn_frame = tk.Frame(ctrl, bg=BG2)
+        btn_frame.grid(row=3, column=1, columnspan=3, sticky='w', padx=4)
+        tk.Button(btn_frame, text='SECRET全選択', font=FONT_MONO,
+                  fg=BG, bg='#aaaaaa', relief='raised', padx=6, pady=2,
+                  cursor='hand2', command=lambda: self._quick_select('シークレット')
+                  ).pack(side='left', padx=2)
+        tk.Button(btn_frame, text='ETERNAL全選択', font=FONT_MONO,
+                  fg=BG, bg=CYAN, relief='raised', padx=6, pady=2,
+                  cursor='hand2', command=lambda: self._quick_select('エターナル')
+                  ).pack(side='left', padx=2)
+        tk.Button(btn_frame, text='全解除', font=FONT_MONO,
+                  fg=BG, bg=RED, relief='raised', padx=6, pady=2,
+                  cursor='hand2', command=lambda: self._quick_select(None)
+                  ).pack(side='left', padx=2)
+
         sel_f = tk.Frame(left, bg='#0d0d0d')
         sel_f.pack(fill='x', padx=8, pady=2)
         tk.Label(sel_f, text='選択中: ', font=FONT_BOLD, fg=CYAN, bg='#0d0d0d').pack(side='left')
@@ -472,21 +489,6 @@ class FortniteBot:
                                           color=CYAN, width=560, height=42)
         self._scan_btn.pack(padx=8, pady=6)
 
-        # 一括選択ボタン
-        quick_f = tk.Frame(left, bg='#1a1a1a', pady=4)
-        quick_f.pack(fill='x', padx=8, pady=(0, 6))
-        tk.Label(quick_f, text='一括選択:', font=('MS Gothic', 9),
-                 fg=CYAN, bg='#1a1a1a').pack(side='left', padx=(4, 6))
-        for label, rarity, color in [
-            ('SECRET全選択', 'シークレット', '#cccccc'),
-            ('ETERNAL全選択', 'エターナル',  '#00ffff'),
-            ('全解除',        None,          RED),
-        ]:
-            tk.Button(quick_f, text=label, font=('MS Gothic', 9, 'bold'),
-                      fg='#000000', bg=color, relief='flat',
-                      padx=8, pady=4, cursor='hand2',
-                      command=lambda r=rarity: self._quick_select(r)
-                      ).pack(side='left', padx=3)
 
         tk.Label(left, text='キャラクター一覧  (クリックで選択/解除)',
                  font=FONT_BOLD, fg=CYAN, bg=BG).pack(anchor='w', padx=10)
