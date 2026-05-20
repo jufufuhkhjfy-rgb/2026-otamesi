@@ -67,6 +67,15 @@ FONT_BOLD  = ('Courier New', 9, 'bold')
 FONT_TITLE = ('Courier New', 11, 'bold')
 FONT_SMALL = ('Courier New', 7)
 
+# OCRで読まれても無視すべきキーワード（レアリティ・属性・UI文字）
+OCR_SKIP_WORDS = {
+    'uncommon','rare','epic','legendary','mythic','secret','eternal','goat',
+    'brainrot','magical','gold','shadow','corrupted','divine','crystal',
+    'neon','super','ultra','shiny','dark','light','collect','collect!',
+    'steals','cash','rebirths','lobby','support','favorite','recommend',
+    'admin','machine','void','event','starts','join','community',
+}
+
 RARITY_COLOR = {
     'アンコモン':     '#1eff00',
     'レア':           '#0070dd',
@@ -309,6 +318,9 @@ CHARACTERS = [
     {"name": "Il Maledettones",           "rarity": "エターナル",   "img": "2026/05/Il-Maledettones.webp"},
     # ── GOAT ──
     {"name": "SKIBIDI TOILET",            "rarity": "GOAT",         "img": "2025/10/SKIBIDI-TOILET.webp"},
+    # ── 新キャラ（シークレット） ──
+    {"name": "Dul Dul Dul",               "rarity": "シークレット", "img": "2025/10/Dul-Dul-Dul.webp"},
+    {"name": "Lucky Rod",                 "rarity": "シークレット", "img": "2025/10/Lucky-Rod.webp"},
 ]
 
 
@@ -833,8 +845,24 @@ class FortniteBot:
         return result
 
     def _parse_chars(self, text: str) -> list[str]:
-        lines = [l.strip().lower() for l in text.splitlines() if len(l.strip()) >= 4]
-        if not lines:
+        raw_lines = [l.strip() for l in text.splitlines() if len(l.strip()) >= 3]
+        if not raw_lines:
+            return []
+
+        # レアリティ・属性・UI文字の行を除外し、キャラ名候補だけ残す
+        candidate_lines = []
+        for line in raw_lines:
+            lw = line.lower()
+            # $記号・数字だけの行はスキップ
+            if lw.startswith('$') or lw.replace('.', '').replace(',', '').isdigit():
+                continue
+            # スキップワードと完全一致する行はスキップ
+            words = set(lw.split())
+            if words & OCR_SKIP_WORDS:
+                continue
+            candidate_lines.append(lw)
+
+        if not candidate_lines:
             return []
 
         scored = []
@@ -842,9 +870,8 @@ class FortniteBot:
             name_l = c['name'].lower()
             name_len = len(name_l)
             best = 0.0
-            for line in lines:
+            for line in candidate_lines:
                 line_len = len(line)
-                # 長さが大幅に違う行は無視（名前の0.6〜1.8倍の長さの行のみ）
                 if not (name_len * 0.6 <= line_len <= name_len * 1.8):
                     continue
                 s = difflib.SequenceMatcher(None, name_l, line).ratio()
@@ -858,7 +885,6 @@ class FortniteBot:
 
         scored.sort(reverse=True)
         top = scored[0][0]
-        # トップと2%以内のものだけ（ほぼ同スコアの複数候補を除外）
         return [name for score, name in scored if score >= top * 0.98 and score >= 0.82]
 
     def _update_cps_label(self, *_):
