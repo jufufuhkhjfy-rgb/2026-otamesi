@@ -70,6 +70,56 @@ FONT_BOLD  = ('Consolas', 10, 'bold')
 FONT_TITLE = ('Consolas', 13, 'bold')
 FONT_SMALL = ('Consolas', 8)
 
+def _load_custom_fonts() -> None:
+    """Share Tech Mono / Orbitron を Google Fonts から取得して Windows に登録する"""
+    import re, ctypes
+    if not hasattr(ctypes, 'windll'):
+        return
+    global FONT_MONO, FONT_BOLD, FONT_TITLE, FONT_SMALL
+
+    font_dir = Path(os.path.dirname(os.path.abspath(__file__))) / 'fonts'
+    font_dir.mkdir(exist_ok=True)
+
+    targets = [
+        # (保存ファイル名, Google Fonts CSS クエリ, tkinter family名, 用途)
+        ('ShareTechMono.ttf',  'Share+Tech+Mono',  'Share Tech Mono', 'mono'),
+        ('Orbitron-Bold.ttf',  'Orbitron:700',     'Orbitron',        'title'),
+    ]
+
+    loaded: dict[str, bool] = {}
+    for fname, css_q, family, role in targets:
+        fpath = font_dir / fname
+        if not fpath.exists():
+            try:
+                req = urllib.request.Request(
+                    f'https://fonts.googleapis.com/css?family={css_q}',
+                    headers={'User-Agent': 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'}
+                )
+                css = urllib.request.urlopen(req, timeout=8).read().decode()
+                m = re.search(r'url\((https://[^)]+)\)', css)
+                if m:
+                    urllib.request.urlretrieve(m.group(1), fpath)
+            except Exception:
+                pass
+
+        ok = False
+        if fpath.exists():
+            try:
+                n = ctypes.windll.gdi32.AddFontResourceW(str(fpath.resolve()))
+                if n > 0:
+                    ctypes.windll.user32.SendMessageW(0xFFFF, 0x001D, 0, 0)
+                    ok = True
+            except Exception:
+                pass
+        loaded[role] = ok
+
+    if loaded.get('mono'):
+        FONT_MONO  = ('Share Tech Mono', 11)
+        FONT_BOLD  = ('Share Tech Mono', 11, 'bold')
+        FONT_SMALL = ('Share Tech Mono', 9)
+    if loaded.get('title'):
+        FONT_TITLE = ('Orbitron', 13, 'bold')
+
 # OCRで読まれても無視すべきキーワード（レアリティ・属性・UI文字）
 OCR_SKIP_WORDS = {
     'uncommon','rare','epic','legendary','mythic','secret','eternal','goat',
@@ -378,6 +428,8 @@ class FortniteBot:
         self._cps_var    = None  # clicks per second
 
         IMG_DIR.mkdir(exist_ok=True)
+        _load_custom_fonts()  # Share Tech Mono / Orbitron を登録（Windows のみ）
+
         self.root = tk.Tk()
         self.root.title('NEURAL LINK // INTERFACE_V.2.0')
         self.root.configure(bg=BG)
