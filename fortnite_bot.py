@@ -473,15 +473,18 @@ class FortniteBot:
         self._scan_btn.pack(padx=8, pady=6)
 
         # 一括選択ボタン
-        quick_f = tk.Frame(left, bg=BG)
-        quick_f.pack(fill='x', padx=8, pady=(0, 4))
+        quick_f = tk.Frame(left, bg='#1a1a1a', pady=4)
+        quick_f.pack(fill='x', padx=8, pady=(0, 6))
+        tk.Label(quick_f, text='一括選択:', font=('MS Gothic', 9),
+                 fg=CYAN, bg='#1a1a1a').pack(side='left', padx=(4, 6))
         for label, rarity, color in [
-            ('シークレット全選択', 'シークレット', '#cccccc'),
-            ('エターナル全選択',   'エターナル',   '#00ffff'),
-            ('全解除',             None,           RED),
+            ('SECRET全選択', 'シークレット', '#cccccc'),
+            ('ETERNAL全選択', 'エターナル',  '#00ffff'),
+            ('全解除',        None,          RED),
         ]:
-            tk.Button(quick_f, text=label, font=FONT_SMALL, fg=BG,
-                      bg=color, bd=0, padx=6, pady=3, cursor='hand2',
+            tk.Button(quick_f, text=label, font=('MS Gothic', 9, 'bold'),
+                      fg='#000000', bg=color, relief='flat',
+                      padx=8, pady=4, cursor='hand2',
                       command=lambda r=rarity: self._quick_select(r)
                       ).pack(side='left', padx=3)
 
