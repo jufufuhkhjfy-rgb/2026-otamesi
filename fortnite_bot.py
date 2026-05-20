@@ -383,6 +383,7 @@ class FortniteBot:
         self._build_ui()
         self._load_config()
         self._key_label.configure(text=f'[ {self.buy_key.upper()} ]')
+        self._refresh_selection_ui()  # 保存済み選択をハイライト反映
         self.root.after(150, self._poll_log)
         self._refresh_windows()
         self._log('[SYSTEM] NEURAL LINK v2.0 起動完了')
@@ -470,6 +471,19 @@ class FortniteBot:
                                           command=self._toggle_scan,
                                           color=CYAN, width=560, height=42)
         self._scan_btn.pack(padx=8, pady=6)
+
+        # 一括選択ボタン
+        quick_f = tk.Frame(left, bg=BG)
+        quick_f.pack(fill='x', padx=8, pady=(0, 4))
+        for label, rarity, color in [
+            ('シークレット全選択', 'シークレット', '#cccccc'),
+            ('エターナル全選択',   'エターナル',   '#00ffff'),
+            ('全解除',             None,           RED),
+        ]:
+            tk.Button(quick_f, text=label, font=FONT_SMALL, fg=BG,
+                      bg=color, bd=0, padx=6, pady=3, cursor='hand2',
+                      command=lambda r=rarity: self._quick_select(r)
+                      ).pack(side='left', padx=3)
 
         tk.Label(left, text='キャラクター一覧  (クリックで選択/解除)',
                  font=FONT_BOLD, fg=CYAN, bg=BG).pack(anchor='w', padx=10)
@@ -575,6 +589,25 @@ class FortniteBot:
         for name in self.selected:
             if name in self._cells:
                 self._cells[name].configure(highlightbackground=CYAN, highlightthickness=3)
+
+    def _quick_select(self, rarity: str | None):
+        if rarity is None:
+            self.selected.clear()
+        else:
+            for c in CHARACTERS:
+                if c['rarity'] == rarity:
+                    self.selected.add(c['name'])
+        self._refresh_selection_ui()
+        self._save_config()
+
+    def _refresh_selection_ui(self):
+        for name, cell in self._cells.items():
+            if name in self.selected:
+                cell.configure(highlightbackground=CYAN, highlightthickness=3)
+            else:
+                cell.configure(highlightbackground=GRAY, highlightthickness=2)
+        self._sel_label.configure(
+            text=', '.join(sorted(self.selected)) if self.selected else 'なし')
 
     def _toggle_select(self, name: str, cell: tk.Frame):
         if name in self.selected:
