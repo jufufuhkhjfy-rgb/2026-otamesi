@@ -122,11 +122,21 @@ def _load_custom_fonts() -> None:
 
 # OCRで読まれても無視すべきキーワード（レアリティ・属性・UI文字）
 OCR_SKIP_WORDS = {
+    # レアリティ名
     'uncommon','rare','epic','legendary','mythic','secret','eternal','goat',
-    'brainrot','magical','gold','shadow','corrupted','divine','crystal',
-    'neon','super','ultra','shiny','dark','light','collect','collect!',
-    'steals','cash','rebirths','lobby','support','favorite','recommend',
-    'admin','machine','void','event','starts','join','community',
+    'brainrot','god',
+    # 属性名
+    'magical','gold','shadow','corrupted','divine','crystal','neon','super',
+    'ultra','shiny','dark','light','void','forest','fire','ice','water',
+    'thunder','wind','earth','chaos','holy','cursed','ancient','cosmic',
+    # UI / ゲーム文字
+    'collect','collect!','steals','cash','rebirths','lobby','support',
+    'favorite','recommend','admin','machine','event','starts','join',
+    'community','buy','sell','trade','shop','store','upgrade','level',
+    'rebirth','prestige','boost','pet','egg','hatch','spin','roll',
+    'claim','daily','mission','quest','reward','bonus','free','new',
+    'limited','special','exclusive','obtained','equipped','stolen',
+    # 記号・数字のみの行はparse時に除外
 }
 
 RARITY_COLOR = {
@@ -369,11 +379,17 @@ CHARACTERS = [
     {"name": "Cannone Maledettone",       "rarity": "エターナル",   "img": "2025/10/Cannone-Maledettone.webp"},
     {"name": "La Superior Combinacion",   "rarity": "エターナル",   "img": "2026/04/La-Superior-Combinacion.webp"},
     {"name": "Il Maledettones",           "rarity": "エターナル",   "img": "2026/05/Il-Maledettones.webp"},
+    {"name": "DiggoBlock",                "rarity": "エターナル",   "img": "2026/05/tile_8_9.webp"},
     # ── GOAT ──
     {"name": "SKIBIDI TOILET",            "rarity": "GOAT",         "img": "2025/10/SKIBIDI-TOILET.webp"},
     # ── 新キャラ（シークレット） ──
-    {"name": "Dul Dul Dul",               "rarity": "シークレット", "img": "2025/10/Dul-Dul-Dul.webp"},
-    {"name": "Lucky Rod",                 "rarity": "シークレット", "img": "2025/10/Lucky-Rod.webp"},
+    {"name": "Dul Dul Dul",               "rarity": "シークレット", "img": "2025/10/Default2_1_5.webp"},
+    {"name": "Lucky Rod",                 "rarity": "シークレット", "img": "2025/10/Default_9_5.webp"},
+    {"name": "Guardilope Antilope",       "rarity": "シークレット", "img": "2026/05/Default3_9_5.webp"},
+    {"name": "Mistifly",                  "rarity": "シークレット", "img": "2026/05/Default3_9_4.webp"},
+    {"name": "Mushzilla Fungzilla",       "rarity": "シークレット", "img": "2026/05/Default3_9_3.webp"},
+    {"name": "Flowerfang Squirreli",      "rarity": "シークレット", "img": "2026/05/Default3_9_2.webp"},
+    {"name": "Croakolini Spellini",       "rarity": "シークレット", "img": "2026/05/Default3_9_1.webp"},
 ]
 
 
@@ -1015,8 +1031,8 @@ class FortniteBot:
 
     def _run_ocr(self, img: Image.Image) -> str:
         w, h = img.width, img.height
-        x1, x2 = int(w * 0.2), int(w * 0.8)
-        y1, y2 = int(h * 0.15), int(h * 0.55)
+        x1, x2 = int(w * 0.10), int(w * 0.90)  # 横を広げた
+        y1, y2 = int(h * 0.10), int(h * 0.65)  # 縦も広げた
         crop = img.crop((x1, y1, x2, y2))
         # 2倍に拡大してOCR精度向上
         crop = crop.resize((crop.width * 2, crop.height * 2), Image.LANCZOS)
@@ -1038,13 +1054,21 @@ class FortniteBot:
         # レアリティ・属性・UI文字の行を除外し、キャラ名候補だけ残す
         candidate_lines = []
         for line in raw_lines:
-            lw = line.lower()
-            # $記号・数字だけの行はスキップ
-            if lw.startswith('$') or lw.replace('.', '').replace(',', '').isdigit():
+            lw = line.lower().strip()
+            # $記号や数字だけの行はスキップ
+            if lw.startswith('$') or lw.replace('.','').replace(',','').replace('/','').isdigit():
                 continue
-            # スキップワードと完全一致する行はスキップ
+            # 短すぎる行はスキップ
+            if len(lw) < 3:
+                continue
+            # スキップワードを含む行はスキップ
             words = set(lw.split())
             if words & OCR_SKIP_WORDS:
+                continue
+            # レアリティ名そのものの行はスキップ（日本語も）
+            rarity_names = {'アンコモン','レア','エピック','レジェンダリー','ミシック',
+                            'シークレット','エターナル','goat','brainrot god'}
+            if lw in rarity_names or any(r in lw for r in rarity_names):
                 continue
             candidate_lines.append(lw)
 
