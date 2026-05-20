@@ -65,10 +65,10 @@ YELLOW  = '#ffee00'
 ORANGE  = '#ff8800'
 PURPLE  = '#cc00ff'
 
-FONT_MONO  = ('Courier New', 9)
-FONT_BOLD  = ('Courier New', 9, 'bold')
-FONT_TITLE = ('Courier New', 11, 'bold')
-FONT_SMALL = ('Courier New', 7)
+FONT_MONO  = ('Consolas', 10)
+FONT_BOLD  = ('Consolas', 10, 'bold')
+FONT_TITLE = ('Consolas', 13, 'bold')
+FONT_SMALL = ('Consolas', 8)
 
 # OCRで読まれても無視すべきキーワード（レアリティ・属性・UI文字）
 OCR_SKIP_WORDS = {
@@ -398,12 +398,12 @@ class FortniteBot:
         # タイトルバー
         bar = tk.Frame(self.root, bg='#08081a', pady=2)
         bar.pack(fill='x')
-        tk.Label(bar, text='⬡', font=('Courier New', 14, 'bold'),
+        tk.Label(bar, text='⬡', font=('Consolas', 15, 'bold'),
                  fg=PURPLE, bg='#08081a').pack(side='left', padx=(10,2), pady=4)
-        tk.Label(bar, text='NEURAL LINK', font=('Courier New', 12, 'bold'),
+        tk.Label(bar, text='NEURAL LINK', font=('Consolas', 13, 'bold'),
                  fg=CYAN, bg='#08081a').pack(side='left')
         tk.Label(bar, text=' // ', font=FONT_TITLE, fg=GRAY, bg='#08081a').pack(side='left')
-        tk.Label(bar, text='BRAINROT', font=('Courier New', 12, 'bold'),
+        tk.Label(bar, text='BRAINROT', font=('Consolas', 13, 'bold'),
                  fg=PINK, bg='#08081a').pack(side='left')
         tk.Label(bar, text=' INTERFACE_V.2.0', font=FONT_MONO,
                  fg='#888888', bg='#08081a').pack(side='left')
@@ -428,9 +428,9 @@ class FortniteBot:
         sb.pack(fill='x', side='bottom')
         tk.Frame(sb, bg=CYAN, width=4, height=24).pack(side='left')
         self._status_var = tk.StringVar(value='SYSTEM IDLE')
-        tk.Label(sb, textvariable=self._status_var, font=('Courier New', 8),
+        tk.Label(sb, textvariable=self._status_var, font=('Consolas', 9),
                  fg=CYAN2, bg='#06060f').pack(side='left', padx=8)
-        tk.Label(sb, text='◈ BRAINROT AUTO-BUY', font=('Courier New', 8),
+        tk.Label(sb, text='◈ BRAINROT AUTO-BUY', font=('Consolas', 9),
                  fg='#333355', bg='#06060f').pack(side='right', padx=8)
 
     def _build_left(self, parent):
@@ -450,20 +450,20 @@ class FortniteBot:
         self._window_cb = ttk.Combobox(ctrl, textvariable=self._window_var,
                                         width=24, state='readonly', font=FONT_MONO)
         self._window_cb.grid(row=0, column=1, padx=4, pady=3)
-        tk.Button(ctrl, text='↺', font=('Courier New', 11), fg=CYAN, bg=BG2,
+        tk.Button(ctrl, text='↺', font=('Consolas', 12), fg=CYAN, bg=BG2,
                   bd=0, cursor='hand2', command=self._refresh_windows).grid(row=0, column=2, padx=2)
 
         tk.Label(ctrl, text='▸ 購入キー', font=FONT_MONO, fg=PINK, bg=BG2).grid(
             row=1, column=0, sticky='w', padx=6, pady=3)
         self._key_label = tk.Label(ctrl, text=f'[ {self.buy_key.upper()} ]',
-                                    font=('Courier New', 11, 'bold'), fg=YELLOW, bg='#1a1a00',
+                                    font=('Consolas', 12, 'bold'), fg=YELLOW, bg='#1a1a00',
                                     cursor='hand2', padx=6, pady=2,
                                     relief='solid', bd=1)
         self._key_label.grid(row=1, column=1, sticky='w', padx=4)
         self._key_label.bind('<Button-1>', lambda _: self._start_key_capture())
         tk.Label(ctrl, text='← click', font=FONT_SMALL, fg='#555577', bg=BG2).grid(
             row=1, column=2, padx=2)
-        tk.Button(ctrl, text='TEST', font=('Courier New', 8, 'bold'), fg='#000000', bg=GREEN,
+        tk.Button(ctrl, text='TEST', font=('Consolas', 9, 'bold'), fg='#000000', bg=GREEN,
                   bd=0, cursor='hand2', padx=6, pady=2,
                   command=lambda: threading.Thread(
                       target=self._press_game_key, args=(self.buy_key,), daemon=True
@@ -477,7 +477,7 @@ class FortniteBot:
         tk.Scale(spd_frame, from_=1, to=20, orient='horizontal', variable=self._cps_var,
                  length=160, bg=BG2, fg=ORANGE, troughcolor='#1a1a2a', highlightthickness=0,
                  font=FONT_SMALL, showvalue=False).pack(side='left')
-        self._cps_lbl = tk.Label(spd_frame, font=('Courier New', 10, 'bold'), fg=ORANGE, bg=BG2)
+        self._cps_lbl = tk.Label(spd_frame, font=('Consolas', 11, 'bold'), fg=ORANGE, bg=BG2)
         self._cps_lbl.pack(side='left', padx=4)
         self._cps_var.trace_add('write', self._update_cps_label)
         self._update_cps_label()
@@ -503,7 +503,7 @@ class FortniteBot:
         count_f = tk.Frame(left, bg='#0a0a18')
         count_f.pack(fill='x', padx=8, pady=(0, 2))
         tk.Label(count_f, text='選択中:', font=FONT_BOLD, fg=CYAN, bg='#0a0a18').pack(side='left', padx=6)
-        self._sel_label = tk.Label(count_f, text='0体', font=('Courier New', 10, 'bold'),
+        self._sel_label = tk.Label(count_f, text='0体', font=('Consolas', 11, 'bold'),
                                     fg=YELLOW, bg='#0a0a18')
         self._sel_label.pack(side='left')
         tk.Label(count_f, text='→ 右タブ「選択リスト」で確認', font=FONT_SMALL,
@@ -546,7 +546,7 @@ class FortniteBot:
         style.configure('Cyber.TNotebook', background=BG2, borderwidth=0, tabmargins=0)
         style.configure('Cyber.TNotebook.Tab',
                         background='#12122a', foreground='#555577',
-                        font=('Courier New', 9, 'bold'), padding=[12, 6])
+                        font=('Consolas', 10, 'bold'), padding=[12, 6])
         style.map('Cyber.TNotebook.Tab',
                   background=[('selected', '#0a1a2a')],
                   foreground=[('selected', CYAN)])
@@ -562,19 +562,19 @@ class FortniteBot:
         hdr.pack(fill='x', padx=0, pady=0)
         tk.Label(hdr, text=' ● REC', font=FONT_BOLD, fg=RED, bg='#0a0a1a').pack(side='left', padx=4, pady=4)
         tk.Label(hdr, text='LIVE // OCR_PROCESSOR',
-                 font=('Courier New', 9, 'bold'), fg='#ff4488', bg='#0a0a1a').pack(side='left')
+                 font=('Consolas', 10, 'bold'), fg='#ff4488', bg='#0a0a1a').pack(side='left')
 
         pw = tk.Frame(tab_ocr, bg='#020210', bd=1, relief='solid')
         pw.pack(fill='both', expand=True, padx=6, pady=4)
         self._preview_lbl = tk.Label(pw, bg='#020210',
                                       text='[ AWAITING SIGNAL ]',
-                                      font=('Courier New', 10), fg='#880022')
+                                      font=('Consolas', 10), fg='#880022')
         self._preview_lbl.pack(fill='both', expand=True)
 
         lf = tk.Frame(tab_ocr, bg=BG2)
         lf.pack(fill='x', padx=6, pady=(0, 2))
         tk.Label(lf, text='▸ LOG OUTPUT', font=FONT_BOLD, fg=CYAN2, bg=BG2).pack(anchor='w')
-        self._log_text = tk.Text(lf, height=13, font=('Courier New', 8),
+        self._log_text = tk.Text(lf, height=13, font=('Consolas', 9),
                                   fg='#00ff88', bg='#020210', bd=0,
                                   state='disabled', wrap='word')
         lsb = ttk.Scrollbar(lf, orient='vertical', command=self._log_text.yview)
@@ -594,7 +594,7 @@ class FortniteBot:
         sel_hdr.pack(fill='x')
         tk.Label(sel_hdr, text='◈ 選択中のキャラクター', font=FONT_BOLD,
                  fg=YELLOW, bg='#0a0a22').pack(side='left', padx=8, pady=6)
-        self._sel_count_lbl = tk.Label(sel_hdr, text='0体', font=('Courier New', 11, 'bold'),
+        self._sel_count_lbl = tk.Label(sel_hdr, text='0体', font=('Consolas', 12, 'bold'),
                                         fg=PINK, bg='#0a0a22')
         self._sel_count_lbl.pack(side='right', padx=12)
 
@@ -602,7 +602,7 @@ class FortniteBot:
         list_wrap.pack(fill='both', expand=True, padx=6, pady=6)
         list_inner = tk.Frame(list_wrap, bg='#020210')
         list_inner.pack(fill='both', expand=True)
-        self._sel_listbox = tk.Listbox(list_inner, font=('Courier New', 9),
+        self._sel_listbox = tk.Listbox(list_inner, font=('Consolas', 10),
                                         fg=CYAN, bg='#020210', bd=0,
                                         selectmode='none', activestyle='none',
                                         highlightthickness=0, selectbackground='#020210')
@@ -644,10 +644,10 @@ class FortniteBot:
             img_lbl.configure(image=ph)
             img_lbl.image = ph
 
-            tk.Label(cell, text=name[:17], font=('Courier New', 7),
+            tk.Label(cell, text=name[:17], font=('Consolas', 8),
                      fg=WHITE, bg='#141414', wraplength=120).place(
                      x=0, y=86, width=128, height=18)
-            tk.Label(cell, text=rarity, font=('Courier New', 6, 'bold'),
+            tk.Label(cell, text=rarity, font=('Consolas', 7, 'bold'),
                      fg=color, bg='#0a0a0a').place(x=0, y=103, width=128, height=13)
 
             for w in [cell, img_lbl]:
