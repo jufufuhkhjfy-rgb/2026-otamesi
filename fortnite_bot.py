@@ -672,7 +672,8 @@ class FortniteBot:
                                         fg=CYAN, bg='#04040e', bd=0,
                                         selectmode='none', activestyle='none',
                                         highlightthickness=0,
-                                        selectbackground='#04040e')
+                                        selectbackground='#04040e',
+                                        relief='flat')
         sel_vsb = ttk.Scrollbar(li, orient='vertical', command=self._sel_listbox.yview)
         self._sel_listbox.configure(yscrollcommand=sel_vsb.set)
         self._sel_listbox.pack(side='left', fill='both', expand=True)
