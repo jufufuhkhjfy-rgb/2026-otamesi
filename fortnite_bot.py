@@ -684,21 +684,6 @@ class FortniteBot:
                                       font=FONT_MONO, fg='#550011')
         self._preview_lbl.pack(fill='both', expand=True)
 
-        # コーナーブラケット（Canvas オーバーレイ）
-        brcvs = tk.Canvas(pf, bg='#04040e', highlightthickness=0)
-        brcvs.place(relx=0, rely=0, relwidth=1, relheight=1)
-        brcvs.lower()  # preview_lbl の下に
-
-        def _draw_br(event=None):
-            brcvs.delete('all')
-            w = brcvs.winfo_width(); h = brcvs.winfo_height()
-            if w < 10 or h < 10:
-                return
-            s, col = 14, CYAN
-            for x1, y1, dx, dy in [(1,1,1,1),(w-2,1,-1,1),(1,h-2,1,-1),(w-2,h-2,-1,-1)]:
-                brcvs.create_line(x1, y1, x1+dx*s, y1, fill=col, width=2)
-                brcvs.create_line(x1, y1, x1, y1+dy*s, fill=col, width=2)
-        brcvs.bind('<Configure>', _draw_br)
 
         # ── ログエリア（トグル可能） ──
         tk.Frame(right, bg='#1a1a2a', height=1).pack(fill='x', padx=8)
