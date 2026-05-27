@@ -1135,31 +1135,55 @@ class FortniteBot:
             self._log(f'[OCR] {" | ".join(lines[:4])}')
         return result
 
+    # ゲーム内の属性プレフィックス（キャラ名の前に付く修飾語）
+    _ATTR_PREFIXES = {
+        'gold','silver','shadow','corrupted','divine','crystal','neon','super',
+        'ultra','shiny','dark','light','void','forest','fire','ice','water',
+        'thunder','wind','earth','chaos','holy','cursed','ancient','cosmic',
+        'magical','rainbow','electric','plasma','frozen','blazing','toxic',
+        'phantom','mystic','radiant','spectral','infernal','celestial',
+        'glitched','cyber','omega','alpha','delta','sigma','prime',
+    }
+    _RARITY_NAMES = {
+        'uncommon','rare','epic','legendary','mythic','secret','eternal',
+        'goat','brainrot','god','アンコモン','レア','エピック','レジェンダリー',
+        'ミシック','シークレット','エターナル',
+    }
+
+    def _strip_attr_prefix(self, lw: str) -> str:
+        """属性プレフィックスを前から除去して純粋なキャラ名部分を返す"""
+        words = lw.split()
+        while words and words[0] in self._ATTR_PREFIXES:
+            words = words[1:]
+        return ' '.join(words)
+
     def _parse_chars(self, text: str) -> list[str]:
         raw_lines = [l.strip() for l in text.splitlines() if len(l.strip()) >= 3]
         if not raw_lines:
             return []
 
-        # レアリティ・属性・UI文字の行を除外し、キャラ名候補だけ残す
         candidate_lines = []
         for line in raw_lines:
             lw = line.lower().strip()
-            # $記号や数字だけの行はスキップ
+            # 記号・数字のみはスキップ
             if lw.startswith('$') or lw.replace('.','').replace(',','').replace('/','').isdigit():
                 continue
-            # 短すぎる行はスキップ
             if len(lw) < 3:
                 continue
-            # スキップワードを含む行はスキップ
-            words = set(lw.split())
-            if words & OCR_SKIP_WORDS:
+            # レアリティ名のみの行はスキップ
+            if lw in self._RARITY_NAMES:
                 continue
-            # レアリティ名そのものの行はスキップ（日本語も）
-            rarity_names = {'アンコモン','レア','エピック','レジェンダリー','ミシック',
-                            'シークレット','エターナル','goat','brainrot god'}
-            if lw in rarity_names or any(r in lw for r in rarity_names):
+            # UI専用ワード（1単語でスキップ対象）のみの行はスキップ
+            words = lw.split()
+            if len(words) == 1 and lw in OCR_SKIP_WORDS:
                 continue
-            candidate_lines.append(lw)
+
+            # 属性プレフィックスを除去したバージョンも候補に追加
+            stripped = self._strip_attr_prefix(lw)
+            if stripped and stripped != lw and len(stripped) >= 3:
+                candidate_lines.append(stripped)
+            if len(lw) >= 3:
+                candidate_lines.append(lw)
 
         if not candidate_lines:
             return []
@@ -1171,12 +1195,13 @@ class FortniteBot:
             best = 0.0
             for line in candidate_lines:
                 line_len = len(line)
-                if not (name_len * 0.6 <= line_len <= name_len * 1.8):
+                # 長さの許容範囲を少し広げる（属性除去後は短くなるため）
+                if not (name_len * 0.55 <= line_len <= name_len * 1.9):
                     continue
                 s = difflib.SequenceMatcher(None, name_l, line).ratio()
                 if s > best:
                     best = s
-            if best >= 0.82:
+            if best >= 0.80:
                 scored.append((best, c['name']))
 
         if not scored:
@@ -1184,7 +1209,7 @@ class FortniteBot:
 
         scored.sort(reverse=True)
         top = scored[0][0]
-        return [name for score, name in scored if score >= top * 0.98 and score >= 0.82]
+        return [name for score, name in scored if score >= top * 0.97 and score >= 0.80]
 
     def _update_cps_label(self, *_):
         v = self._cps_var.get() if self._cps_var else 10
@@ -1212,28 +1237,45 @@ class FortniteBot:
             pw = self._preview_lbl.winfo_width()
             if pw < 50:
                 pw = 400
-            ph = min(int(img.height * pw / img.width), 340)
+            ph_full = min(int(img.height * pw / img.width), 340)
 
             if self._ai_vision_on:
-                # AI視点: OCR処理と同じ白黒＋コントラスト強調
+                # ── スプリット表示: 上=カラー+OCR枠 / 下=B&W OCR処理済み ──
+                top_h = ph_full // 2
+                bot_h = ph_full - top_h
+
+                # 上段: カラー原画 + OCRゾーン枠
+                top = img.resize((pw, top_h), Image.LANCZOS).convert('RGB')
+                d = ImageDraw.Draw(top)
+                rx1 = int(pw * 0.10); rx2 = int(pw * 0.90)
+                ry1 = int(top_h * 0.10); ry2 = int(top_h * 0.65)
+                d.rectangle([rx1, ry1, rx2, ry2], outline=CYAN, width=2)
+                d.text((rx1 + 3, ry1 + 2), 'OCR ZONE', fill=CYAN)
+
+                # 下段: B&W高コントラスト（OCRが見ているもの）
                 iw, ih = img.width, img.height
                 x1, x2 = int(iw * 0.10), int(iw * 0.90)
                 y1, y2 = int(ih * 0.10), int(ih * 0.65)
                 crop = img.crop((x1, y1, x2, y2))
-                crop = crop.resize((crop.width * 2, crop.height * 2), Image.LANCZOS)
                 gray = crop.convert('L')
                 enhanced = ImageEnhance.Contrast(gray).enhance(3.0)
-                preview = enhanced.convert('RGB').resize((pw, ph), Image.LANCZOS)
-                d = ImageDraw.Draw(preview)
-                d.rectangle([2, 2, pw-3, ph-3], outline='#00ffcc', width=1)
-                d.text((6, 6), 'AI VISION // OCR VIEW', fill='#00ffcc')
+                bot = enhanced.convert('RGB').resize((pw, bot_h), Image.LANCZOS)
+                d2 = ImageDraw.Draw(bot)
+                d2.text((4, 2), 'AI INPUT // B&W', fill=CYAN)
+
+                # 合成
+                combined = Image.new('RGB', (pw, ph_full), '#04040e')
+                combined.paste(top, (0, 0))
+                combined.paste(bot, (0, top_h))
+                ImageDraw.Draw(combined).line([(0, top_h), (pw, top_h)], fill=CYAN, width=1)
+                preview = combined
             else:
-                preview = img.resize((pw, ph), Image.LANCZOS).convert('RGB')
+                preview = img.resize((pw, ph_full), Image.LANCZOS).convert('RGB')
                 d = ImageDraw.Draw(preview)
                 rx1 = int(pw * 0.10); rx2 = int(pw * 0.90)
-                ry1 = int(ph * 0.10); ry2 = int(ph * 0.65)
-                d.rectangle([rx1, ry1, rx2, ry2], outline='#ff0000', width=2)
-                d.text((rx1+2, ry1+2), 'OCR ZONE', fill='#ff0000')
+                ry1 = int(ph_full * 0.10); ry2 = int(ph_full * 0.65)
+                d.rectangle([rx1, ry1, rx2, ry2], outline='#ff3333', width=2)
+                d.text((rx1 + 2, ry1 + 2), 'OCR ZONE', fill='#ff3333')
 
             photo = ImageTk.PhotoImage(preview)
             self._preview_lbl.configure(image=photo, text='')
