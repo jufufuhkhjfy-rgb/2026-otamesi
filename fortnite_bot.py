@@ -512,15 +512,15 @@ class FortniteBot:
         ctrl = tk.Frame(left, bg=BG2)
         ctrl.pack(fill='x', padx=8, pady=(6, 2))
 
-        # ウィンドウ選択
+        # Fortniteウィンドウ（自動検出）
         r0 = tk.Frame(ctrl, bg=BG2); r0.pack(fill='x', pady=2)
-        tk.Label(r0, text='ウィンドウ', font=FONT_UI_SM, fg='#8888aa', bg=BG2,
+        tk.Label(r0, text='FORTNITE', font=FONT_UI_SM, fg='#556677', bg=BG2,
                  width=9, anchor='w').pack(side='left')
         self._window_var = tk.StringVar()
-        self._window_cb = ttk.Combobox(r0, textvariable=self._window_var,
-                                        state='readonly', font=FONT_SMALL)
-        self._window_cb.pack(side='left', fill='x', expand=True, padx=(4, 2))
-        tk.Button(r0, text='R', font=FONT_BOLD, fg=CYAN, bg='#111122',
+        self._win_status = tk.Label(r0, text='検索中...', font=FONT_SMALL,
+                                     fg='#445566', bg=BG2, anchor='w')
+        self._win_status.pack(side='left', fill='x', expand=True, padx=(4, 2))
+        tk.Button(r0, text='再検索', font=FONT_SMALL, fg='#667788', bg='#111122',
                   bd=0, cursor='hand2', padx=6, pady=1,
                   command=self._refresh_windows).pack(side='left')
 
@@ -914,19 +914,20 @@ class FortniteBot:
             pass
 
     def _refresh_windows(self):
-        wins = []
+        fn_wins = []
         if HAS_WIN32:
             def _cb(hwnd, _):
                 if win32gui.IsWindowVisible(hwnd):
                     t = win32gui.GetWindowText(hwnd)
-                    if t: wins.append(t)
+                    if t and 'fortnite' in t.lower():
+                        fn_wins.append(t)
             win32gui.EnumWindows(_cb, None)
-        else:
-            wins = ['Fortnite', 'FortniteClient-Win64-Shipping']
-        self._window_cb['values'] = wins
-        if wins:
-            fn = [w for w in wins if 'fortnite' in w.lower()]
-            self._window_var.set(fn[0] if fn else wins[0])
+        if not fn_wins:
+            fn_wins = ['FortniteClient-Win64-Shipping']
+        self._window_var.set(fn_wins[0])
+        name = fn_wins[0]
+        short = name[:32] + '...' if len(name) > 32 else name
+        self._win_status.configure(text=f'✓ {short}', fg=GREEN)
 
     def _toggle_scan(self):
         if self.running:
@@ -1077,14 +1078,41 @@ class FortniteBot:
                 self._set_status('SCANNING...')
 
     def _capture_screen(self):
+        """バックグラウンドでも動作するキャプチャ（PrintWindow優先、mssフォールバック）"""
+        hwnd = self._get_fortnite_hwnd()
+        # ── PrintWindow: フォーカス不要でウィンドウ内容を取得 ──
+        if hwnd and HAS_WIN32:
+            try:
+                import win32ui, ctypes
+                rect = win32gui.GetWindowRect(hwnd)
+                w = rect[2] - rect[0]
+                h = rect[3] - rect[1]
+                if w > 0 and h > 0:
+                    hdc    = win32gui.GetWindowDC(hwnd)
+                    dc_obj = win32ui.CreateDCFromHandle(hdc)
+                    cdc    = dc_obj.CreateCompatibleDC()
+                    bmp    = win32ui.CreateBitmap()
+                    bmp.CreateCompatibleBitmap(dc_obj, w, h)
+                    cdc.SelectObject(bmp)
+                    # PW_RENDERFULLCONTENT=2: DirectX含む全描画
+                    ok = ctypes.windll.user32.PrintWindow(hwnd, cdc.GetSafeHdc(), 2)
+                    bits = bmp.GetBitmapBits(True)
+                    win32gui.DeleteObject(bmp.GetHandle())
+                    cdc.DeleteDC(); dc_obj.DeleteDC()
+                    win32gui.ReleaseDC(hwnd, hdc)
+                    if ok and len(bits) > 0:
+                        return Image.frombuffer('RGB', (w, h), bits, 'raw', 'BGRX', 0, 1)
+            except Exception:
+                pass
+        # ── フォールバック: mss（画面座標キャプチャ） ──
         try:
             x, y, w, h = 0, 0, 1920, 1080
-            hwnd = self._get_fortnite_hwnd()
-            if hwnd:
+            if hwnd and HAS_WIN32:
                 r = win32gui.GetWindowRect(hwnd)
                 x, y, w, h = r[0], r[1], r[2]-r[0], r[3]-r[1]
             with mss.mss() as sct:
-                shot = sct.grab({'left': x, 'top': y, 'width': max(w,1), 'height': max(h,1)})
+                shot = sct.grab({'left': x, 'top': y,
+                                 'width': max(w, 1), 'height': max(h, 1)})
             return Image.frombytes('RGB', shot.size, shot.bgra, 'raw', 'BGRX')
         except Exception as e:
             self._log(f'[ERROR] キャプチャ失敗: {e}')
