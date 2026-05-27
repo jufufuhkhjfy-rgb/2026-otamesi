@@ -476,21 +476,16 @@ class FortniteBot:
         # ── タイトルバー ──
         bar = tk.Frame(self.root, bg='#06060f')
         bar.pack(fill='x')
-        tk.Label(bar, text='▶', font=FONT_MONO, fg=CYAN, bg='#06060f').pack(side='left', padx=(10,4), pady=5)
-        tk.Label(bar, text='NEURAL LINK', font=FONT_TITLE, fg=CYAN, bg='#06060f').pack(side='left')
-        tk.Label(bar, text=' // ', font=FONT_TITLE, fg='#222244', bg='#06060f').pack(side='left')
-        tk.Label(bar, text='INTERFACE_V.2.0', font=FONT_TITLE, fg='#555577', bg='#06060f').pack(side='left')
-        for txt, col, cmd in [('X', RED, self.root.destroy), ('F', '#226622', lambda: None),
-                               ('-', '#333344', self.root.iconify)]:
-            lbl = tk.Label(bar, text=txt, font=FONT_UI_SM, fg=WHITE, bg=col,
-                           width=3, cursor='hand2', pady=6)
+        tk.Label(bar, text='NEURAL LINK', font=FONT_TITLE, fg=CYAN, bg='#06060f').pack(side='left', padx=(14, 0), pady=6)
+        tk.Label(bar, text=' // BRAINROT BOT', font=('Consolas', 10), fg='#334455', bg='#06060f').pack(side='left', padx=4)
+        for txt, col, cmd in [('✕', '#1a0a0a', self.root.destroy),
+                               ('─', '#0a0a1a', self.root.iconify)]:
+            lbl = tk.Label(bar, text=txt, font=FONT_UI_SM, fg='#556677', bg=col,
+                           width=4, cursor='hand2', pady=6)
             lbl.pack(side='right', padx=1)
             lbl.bind('<Button-1>', lambda _, c=cmd: c())
-        # カラーライン
-        line_f = tk.Frame(self.root, height=2)
-        line_f.pack(fill='x')
-        for col in [PURPLE, PINK, RED, ORANGE, YELLOW, GREEN, CYAN]:
-            tk.Frame(line_f, bg=col, height=2).pack(side='left', fill='x', expand=True)
+        # シングルライン
+        tk.Frame(self.root, bg=CYAN, height=1).pack(fill='x')
 
         body = tk.Frame(self.root, bg=BG)
         body.pack(fill='both', expand=True)
@@ -511,13 +506,7 @@ class FortniteBot:
         left.pack(side='left', fill='both')
         left.pack_propagate(False)
 
-        # ── SYSTEM STATUS BAR ──
-        stat = tk.Frame(left, bg='#020210')
-        stat.pack(fill='x')
-        tk.Label(stat, text='■ SYSTEM STATUS: ONLINE // VERSION: v2.0',
-                 font=FONT_SMALL, fg='#00cc66', bg='#020210').pack(
-                 side='left', padx=8, pady=4)
-        tk.Frame(left, bg='#111133', height=1).pack(fill='x')
+        tk.Frame(left, bg='#0d0d1d', height=4).pack(fill='x')
 
         # ── コントロール枠 ──
         ctrl = tk.Frame(left, bg=BG2)
@@ -578,19 +567,20 @@ class FortniteBot:
         rbf = tk.Frame(left, bg=BG); rbf.pack(fill='x', padx=8, pady=(0, 4))
         for rar, col, abbr in [
             ('アンコモン',     '#1eff00', '緑'),
-            ('レア',           '#0070dd', '青'),
-            ('エピック',       '#a335ee', '紫'),
-            ('レジェンダリー', '#ff8000', '橙'),
-            ('ミシック',       '#ff3333', '赤'),
-            ('Brainrot God',   '#ffee00', '虹'),
-            ('シークレット',   '#cccccc', '灰'),
-            ('エターナル',     '#00ffff', '水'),
-            ('GOAT',           '#ff006e', 'GT'),
+            ('レア',           '#4499ff', '青'),
+            ('エピック',       '#cc77ff', '紫'),
+            ('レジェンダリー', '#ff9933', '橙'),
+            ('ミシック',       '#ff5555', '赤'),
+            ('Brainrot God',   '#ddcc00', '虹'),
+            ('シークレット',   '#aaaaaa', '灰'),
+            ('エターナル',     '#00eeff', '水'),
+            ('GOAT',           '#ff55aa', 'GT'),
         ]:
-            lbl = tk.Label(rbf, text=abbr, font=('Consolas', 8, 'bold'),
-                           fg='#000', bg=col, padx=5, pady=2,
-                           cursor='hand2', relief='flat')
-            lbl.pack(side='left', padx=1)
+            lbl = tk.Label(rbf, text=abbr, font=('Consolas', 8),
+                           fg=col, bg='#111122', padx=6, pady=3,
+                           cursor='hand2', relief='flat',
+                           highlightthickness=1, highlightbackground='#222233')
+            lbl.pack(side='left', padx=2)
             lbl.bind('<Button-1>', lambda _, r=rar: self._toggle_rarity_filter(r))
             self._rarity_btn_labels[rar] = lbl
 
@@ -604,35 +594,25 @@ class FortniteBot:
 
         # ── アクションボタン行 ──
         abf = tk.Frame(left, bg=BG); abf.pack(fill='x', padx=8, pady=(0, 4))
-        self._ai_btn = tk.Button(abf, text='AI視点 OFF', font=FONT_UI_SM,
-                                  fg=CYAN, bg='#001a1a', bd=0, padx=10, pady=4,
-                                  cursor='hand2', relief='flat',
-                                  command=self._toggle_ai_vision)
-        self._ai_btn.pack(side='left', padx=(0, 2))
-        tk.Button(abf, text='ログ消去', font=FONT_UI_SM, fg='#fff', bg='#2a0011',
-                  bd=0, padx=8, pady=4, cursor='hand2', relief='flat',
-                  command=self._clear_log).pack(side='left', padx=2)
-        self._log_toggle_btn = tk.Button(abf, text='ログ 表示', font=FONT_UI_SM,
-                                          fg=CYAN, bg='#001a33', bd=0, padx=8, pady=4,
-                                          cursor='hand2', relief='flat',
-                                          command=self._toggle_log_panel)
-        self._log_toggle_btn.pack(side='left', padx=2)
+        _btn_kw = dict(font=FONT_UI_SM, fg='#aabbcc', bg='#111122',
+                       bd=0, padx=10, pady=4, cursor='hand2', relief='flat',
+                       activebackground='#1a1a33', activeforeground=CYAN)
+        self._ai_btn = tk.Button(abf, text='AI視点', command=self._toggle_ai_vision, **_btn_kw)
+        self._ai_btn.pack(side='left', padx=(0, 1))
+        tk.Button(abf, text='ログ消去', command=self._clear_log, **_btn_kw).pack(side='left', padx=1)
+        self._log_toggle_btn = tk.Button(abf, text='ログ非表示', command=self._toggle_log_panel, **_btn_kw)
+        self._log_toggle_btn.pack(side='left', padx=1)
 
         # ── 選択ステータス + 全選択/解除 ──
-        sf = tk.Frame(left, bg='#090916'); sf.pack(fill='x', padx=8, pady=(0, 4))
-        tk.Label(sf, text='選択中:', font=FONT_UI_SM, fg='#8888aa',
-                 bg='#090916').pack(side='left', padx=(6, 2), pady=4)
-        self._sel_label = tk.Label(sf, text='0体', font=FONT_UI_BD,
-                                    fg=YELLOW, bg='#090916')
+        sf = tk.Frame(left, bg=BG); sf.pack(fill='x', padx=8, pady=(0, 4))
+        tk.Label(sf, text='選択中:', font=FONT_UI_SM, fg='#556677', bg=BG).pack(side='left', padx=(2, 2), pady=2)
+        self._sel_label = tk.Label(sf, text='0体', font=FONT_UI_BD, fg=CYAN, bg=BG)
         self._sel_label.pack(side='left')
-        tk.Label(sf, text=' | ', font=FONT_UI_SM, fg='#333355',
-                 bg='#090916').pack(side='left')
-        tk.Button(sf, text='全選択(表示中)', font=FONT_UI_SM, fg='#fff', bg='#003300',
-                  bd=0, padx=6, pady=2, cursor='hand2', relief='flat',
-                  command=self._quick_select_visible).pack(side='left', padx=2)
-        tk.Button(sf, text='全解除', font=FONT_UI_SM, fg='#fff', bg='#330000',
-                  bd=0, padx=6, pady=2, cursor='hand2', relief='flat',
-                  command=lambda: self._quick_select(None)).pack(side='left', padx=2)
+        _s_kw = dict(font=FONT_UI_SM, fg='#667788', bg='#0d0d1e',
+                     bd=0, padx=8, pady=2, cursor='hand2', relief='flat',
+                     activebackground='#1a1a33', activeforeground=CYAN)
+        tk.Button(sf, text='全選択', command=self._quick_select_visible, **_s_kw).pack(side='right', padx=2)
+        tk.Button(sf, text='全解除', command=lambda: self._quick_select(None), **_s_kw).pack(side='right', padx=2)
 
         # ── キャラ一覧ヘッダー ──
         hf = tk.Frame(left, bg='#090916'); hf.pack(fill='x', padx=8)
@@ -784,13 +764,15 @@ class FortniteBot:
             lbl = self._rarity_btn_labels.get(rarity)
             if lbl:
                 col = RARITY_COLOR.get(rarity, WHITE)
-                lbl.configure(fg='#000', bg=col)
+                lbl.configure(fg=col, bg='#111122',
+                              highlightbackground='#222233')
         else:
             self._rarity_filter.add(rarity)
             lbl = self._rarity_btn_labels.get(rarity)
             if lbl:
                 col = RARITY_COLOR.get(rarity, WHITE)
-                lbl.configure(fg=col, bg='#111111')
+                lbl.configure(fg='#000000', bg=col,
+                              highlightbackground=col)
         self._apply_char_filter()
 
     def _apply_char_filter(self):
@@ -818,18 +800,18 @@ class FortniteBot:
     def _toggle_ai_vision(self):
         self._ai_vision_on = not self._ai_vision_on
         if self._ai_vision_on:
-            self._ai_btn.configure(text='AI視点 ON', fg='#000', bg=CYAN)
+            self._ai_btn.configure(text='AI視点 ●', fg=CYAN, bg='#001a1a')
         else:
-            self._ai_btn.configure(text='AI視点 OFF', fg=CYAN, bg='#001a1a')
+            self._ai_btn.configure(text='AI視点', fg='#aabbcc', bg='#111122')
 
     def _toggle_log_panel(self):
         self._log_visible = not self._log_visible
         if self._log_visible:
             self._log_frame.pack(fill='x', padx=8, pady=(4, 6))
-            self._log_toggle_btn.configure(text='ログ 表示')
+            self._log_toggle_btn.configure(text='ログ非表示')
         else:
             self._log_frame.pack_forget()
-            self._log_toggle_btn.configure(text='ログ 非表示')
+            self._log_toggle_btn.configure(text='ログ表示')
 
     def _quick_select_visible(self):
         for char in CHARACTERS:
