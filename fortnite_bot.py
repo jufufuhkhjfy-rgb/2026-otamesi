@@ -69,6 +69,9 @@ FONT_MONO  = ('Consolas', 10)
 FONT_BOLD  = ('Consolas', 10, 'bold')
 FONT_TITLE = ('Consolas', 13, 'bold')
 FONT_SMALL = ('Consolas', 8)
+FONT_UI    = ('Segoe UI', 10)         # 日本語ラベル
+FONT_UI_SM = ('Segoe UI', 9)          # 小ラベル
+FONT_UI_BD = ('Segoe UI', 10, 'bold') # ボールドラベル
 
 def _load_custom_fonts() -> None:
     """Share Tech Mono / Orbitron を Google Fonts から取得して Windows に登録する"""
@@ -440,8 +443,14 @@ class FortniteBot:
         self.log_q: queue.Queue = queue.Queue()
         self._photos: dict[str, ImageTk.PhotoImage] = {}
         self._cells:  dict[str, tk.Frame] = {}
+        self._rarity_seps: dict[str, tk.Widget] = {}
         self._preview_photo = None
-        self._cps_var    = None  # clicks per second
+        self._cps_var    = None
+        self._search_var: tk.StringVar | None = None
+        self._rarity_filter: set[str] = set()   # 空=全表示
+        self._ai_vision_on  = False
+        self._log_visible   = True
+        self._rarity_btn_labels: dict[str, tk.Label] = {}
 
         IMG_DIR.mkdir(exist_ok=True)
         _load_custom_fonts()  # Share Tech Mono / Orbitron を登録（Windows のみ）
@@ -463,86 +472,97 @@ class FortniteBot:
         self.root.mainloop()
 
     def _build_ui(self):
-        self.root.minsize(1020, 680)
-        # タイトルバー
-        bar = tk.Frame(self.root, bg='#08081a')
+        self.root.minsize(1060, 700)
+        # ── タイトルバー ──
+        bar = tk.Frame(self.root, bg='#06060f')
         bar.pack(fill='x')
-        tk.Label(bar, text='NEURAL LINK', font=FONT_TITLE,
-                 fg=CYAN, bg='#08081a').pack(side='left', padx=(12,0), pady=6)
-        tk.Label(bar, text=' // ', font=FONT_TITLE, fg='#333355', bg='#08081a').pack(side='left')
-        tk.Label(bar, text='BRAINROT BOT', font=FONT_TITLE,
-                 fg=PINK, bg='#08081a').pack(side='left')
-        for txt, col, cmd in [('X', RED, self.root.destroy), ('-', '#333344', self.root.iconify)]:
-            lbl = tk.Label(bar, text=txt, font=FONT_BOLD, fg=WHITE, bg=col,
-                           width=4, cursor='hand2', pady=8)
-            lbl.pack(side='right', padx=0)
+        tk.Label(bar, text='▶', font=FONT_MONO, fg=CYAN, bg='#06060f').pack(side='left', padx=(10,4), pady=5)
+        tk.Label(bar, text='NEURAL LINK', font=FONT_TITLE, fg=CYAN, bg='#06060f').pack(side='left')
+        tk.Label(bar, text=' // ', font=FONT_TITLE, fg='#222244', bg='#06060f').pack(side='left')
+        tk.Label(bar, text='INTERFACE_V.2.0', font=FONT_TITLE, fg='#555577', bg='#06060f').pack(side='left')
+        for txt, col, cmd in [('X', RED, self.root.destroy), ('F', '#226622', lambda: None),
+                               ('-', '#333344', self.root.iconify)]:
+            lbl = tk.Label(bar, text=txt, font=FONT_UI_SM, fg=WHITE, bg=col,
+                           width=3, cursor='hand2', pady=6)
+            lbl.pack(side='right', padx=1)
             lbl.bind('<Button-1>', lambda _, c=cmd: c())
-        # レインボーライン
-        line_f = tk.Frame(self.root, height=3)
+        # カラーライン
+        line_f = tk.Frame(self.root, height=2)
         line_f.pack(fill='x')
         for col in [PURPLE, PINK, RED, ORANGE, YELLOW, GREEN, CYAN]:
-            tk.Frame(line_f, bg=col, height=3).pack(side='left', fill='x', expand=True)
+            tk.Frame(line_f, bg=col, height=2).pack(side='left', fill='x', expand=True)
 
         body = tk.Frame(self.root, bg=BG)
         body.pack(fill='both', expand=True)
         self._build_left(body)
-        tk.Frame(body, bg='#1a1a2a', width=2).pack(side='left', fill='y')
+        tk.Frame(body, bg='#111122', width=2).pack(side='left', fill='y')
         self._build_right(body)
 
-        sb = tk.Frame(self.root, bg='#06060f', height=26)
+        sb = tk.Frame(self.root, bg='#03030a', height=22)
         sb.pack(fill='x', side='bottom')
-        tk.Frame(sb, bg=CYAN, width=4).pack(side='left', fill='y')
         self._status_var = tk.StringVar(value='SYSTEM IDLE')
         tk.Label(sb, textvariable=self._status_var, font=FONT_SMALL,
-                 fg=CYAN2, bg='#06060f').pack(side='left', padx=10)
+                 fg='#336633', bg='#03030a').pack(side='left', padx=10, pady=2)
         tk.Label(sb, text='BRAINROT AUTO-BUY v2.0', font=FONT_SMALL,
-                 fg='#222244', bg='#06060f').pack(side='right', padx=10)
+                 fg='#111133', bg='#03030a').pack(side='right', padx=10)
 
     def _build_left(self, parent):
-        left = tk.Frame(parent, bg=BG)
-        left.pack(side='left', fill='both', expand=True)
+        left = tk.Frame(parent, bg=BG, width=440)
+        left.pack(side='left', fill='both')
+        left.pack_propagate(False)
 
-        # ── コントロールパネル ──
-        ctrl_wrap = tk.Frame(left, bg=CYAN, padx=1, pady=1)
-        ctrl_wrap.pack(fill='x', padx=10, pady=(8, 4))
-        ctrl = tk.Frame(ctrl_wrap, bg=BG2, padx=10, pady=6)
-        ctrl.pack(fill='x')
-        LW = 12  # label width
+        # ── SYSTEM STATUS BAR ──
+        stat = tk.Frame(left, bg='#020210')
+        stat.pack(fill='x')
+        tk.Label(stat, text='■ SYSTEM STATUS: ONLINE // VERSION: v2.0',
+                 font=FONT_SMALL, fg='#00cc66', bg='#020210').pack(
+                 side='left', padx=8, pady=4)
+        tk.Frame(left, bg='#111133', height=1).pack(fill='x')
 
-        # ウィンドウ
+        # ── コントロール枠 ──
+        ctrl = tk.Frame(left, bg=BG2)
+        ctrl.pack(fill='x', padx=8, pady=(6, 2))
+
+        # ウィンドウ選択
         r0 = tk.Frame(ctrl, bg=BG2); r0.pack(fill='x', pady=2)
-        tk.Label(r0, text='WINDOW', font=FONT_SMALL, fg=CYAN, bg=BG2,
-                 width=LW, anchor='w').pack(side='left')
+        tk.Label(r0, text='ウィンドウ', font=FONT_UI_SM, fg='#8888aa', bg=BG2,
+                 width=9, anchor='w').pack(side='left')
         self._window_var = tk.StringVar()
         self._window_cb = ttk.Combobox(r0, textvariable=self._window_var,
-                                        state='readonly', font=FONT_MONO)
-        self._window_cb.pack(side='left', fill='x', expand=True, padx=(4,2))
-        tk.Button(r0, text='R', font=FONT_BOLD, fg=CYAN, bg=BG2,
-                  bd=0, cursor='hand2', padx=4,
+                                        state='readonly', font=FONT_SMALL)
+        self._window_cb.pack(side='left', fill='x', expand=True, padx=(4, 2))
+        tk.Button(r0, text='R', font=FONT_BOLD, fg=CYAN, bg='#111122',
+                  bd=0, cursor='hand2', padx=6, pady=1,
                   command=self._refresh_windows).pack(side='left')
 
-        # 購入キー
+        # 購入キー + キャラ検索（横並び）
         r1 = tk.Frame(ctrl, bg=BG2); r1.pack(fill='x', pady=2)
-        tk.Label(r1, text='BUY KEY', font=FONT_SMALL, fg=PINK, bg=BG2,
-                 width=LW, anchor='w').pack(side='left')
-        self._key_label = tk.Label(r1, text=f'[ {self.buy_key.upper()} ]',
+        kf = tk.Frame(r1, bg=BG2); kf.pack(side='left')
+        tk.Label(kf, text='取得キー', font=FONT_UI_SM, fg='#8888aa', bg=BG2).pack(side='left')
+        self._key_label = tk.Label(kf, text=f'[ {self.buy_key.upper()} ]',
                                     font=FONT_BOLD, fg=YELLOW, bg='#181800',
-                                    cursor='hand2', padx=8, pady=3,
+                                    cursor='hand2', padx=6, pady=2,
                                     relief='solid', bd=1)
         self._key_label.pack(side='left', padx=4)
         self._key_label.bind('<Button-1>', lambda _: self._start_key_capture())
-        tk.Label(r1, text='← click to change', font=FONT_SMALL,
-                 fg='#444466', bg=BG2).pack(side='left', padx=4)
-        tk.Button(r1, text='TEST', font=FONT_SMALL, fg='#000', bg=GREEN,
-                  bd=0, cursor='hand2', padx=8, pady=3, relief='flat',
+        tk.Button(kf, text='TEST', font=FONT_SMALL, fg='#000', bg=GREEN,
+                  bd=0, cursor='hand2', padx=6, pady=2, relief='flat',
                   command=lambda: threading.Thread(
                       target=self._press_game_key, args=(self.buy_key,), daemon=True
-                  ).start()).pack(side='right')
+                  ).start()).pack(side='left', padx=(2, 10))
+        tk.Label(r1, text='検索', font=FONT_UI_SM, fg='#8888aa', bg=BG2).pack(side='left')
+        self._search_var = tk.StringVar()
+        se = tk.Entry(r1, textvariable=self._search_var, font=FONT_SMALL,
+                      fg=CYAN, bg='#0a0a1e', bd=0, insertbackground=CYAN,
+                      relief='solid', highlightthickness=1,
+                      highlightbackground='#333355', highlightcolor=CYAN)
+        se.pack(side='left', fill='x', expand=True, padx=(4, 0))
+        self._search_var.trace_add('write', lambda *_: self._apply_char_filter())
 
         # 連打速度
         r2 = tk.Frame(ctrl, bg=BG2); r2.pack(fill='x', pady=2)
-        tk.Label(r2, text='SPEED', font=FONT_SMALL, fg=ORANGE, bg=BG2,
-                 width=LW, anchor='w').pack(side='left')
+        tk.Label(r2, text='SPEED', font=FONT_UI_SM, fg='#8888aa', bg=BG2,
+                 width=9, anchor='w').pack(side='left')
         self._cps_var = tk.IntVar(value=10)
         tk.Scale(r2, from_=1, to=20, orient='horizontal', variable=self._cps_var,
                  bg=BG2, fg=ORANGE, troughcolor='#1a1a2a', highlightthickness=0,
@@ -552,50 +572,79 @@ class FortniteBot:
         self._cps_var.trace_add('write', self._update_cps_label)
         self._update_cps_label()
 
-        # 一括選択
-        r3 = tk.Frame(ctrl, bg=BG2); r3.pack(fill='x', pady=(6, 2))
-        tk.Label(r3, text='SELECT', font=FONT_SMALL, fg=YELLOW, bg=BG2,
-                 width=LW, anchor='w').pack(side='left')
-        for txt, rar, bg_c, fg_c in [
-            ('SECRET ALL', 'シークレット', '#cccccc', '#000'),
-            ('ETERNAL ALL', 'エターナル',  CYAN,      '#000'),
-            ('CLEAR',       None,           RED,       '#fff'),
+        # ── レアリティフィルター ──
+        rf = tk.Frame(left, bg=BG); rf.pack(fill='x', padx=8, pady=(4, 2))
+        tk.Label(rf, text='レアリティ選択:', font=FONT_UI_SM, fg='#8888aa', bg=BG).pack(side='left')
+        rbf = tk.Frame(left, bg=BG); rbf.pack(fill='x', padx=8, pady=(0, 4))
+        for rar, col, abbr in [
+            ('アンコモン',     '#1eff00', '緑'),
+            ('レア',           '#0070dd', '青'),
+            ('エピック',       '#a335ee', '紫'),
+            ('レジェンダリー', '#ff8000', '橙'),
+            ('ミシック',       '#ff3333', '赤'),
+            ('Brainrot God',   '#ffee00', '虹'),
+            ('シークレット',   '#cccccc', '灰'),
+            ('エターナル',     '#00ffff', '水'),
+            ('GOAT',           '#ff006e', 'GT'),
         ]:
-            tk.Button(r3, text=txt, font=FONT_SMALL, fg=fg_c, bg=bg_c,
-                      relief='flat', padx=8, pady=4, cursor='hand2',
-                      command=lambda r=rar: self._quick_select(r)
-                      ).pack(side='left', padx=2)
+            lbl = tk.Label(rbf, text=abbr, font=('Consolas', 8, 'bold'),
+                           fg='#000', bg=col, padx=5, pady=2,
+                           cursor='hand2', relief='flat')
+            lbl.pack(side='left', padx=1)
+            lbl.bind('<Button-1>', lambda _, r=rar: self._toggle_rarity_filter(r))
+            self._rarity_btn_labels[rar] = lbl
 
-        # 選択カウント
-        cf = tk.Frame(left, bg='#090916')
-        cf.pack(fill='x', padx=10, pady=(2, 0))
-        tk.Label(cf, text='SELECTED:', font=FONT_SMALL, fg=CYAN,
-                 bg='#090916').pack(side='left', padx=(6, 2), pady=4)
-        self._sel_label = tk.Label(cf, text='0', font=FONT_BOLD,
-                                    fg=YELLOW, bg='#090916')
-        self._sel_label.pack(side='left')
-        tk.Label(cf, text=' chars  |  see [SELECTED LIST] tab',
-                 font=FONT_SMALL, fg='#2a2a44', bg='#090916').pack(side='left', padx=6)
-
-        # スキャンボタン（fill='x' で自動サイズ）
+        # ── スキャンボタン ──
         self._scan_btn = tk.Button(left, text='>> START SCAN <<',
                                     font=FONT_TITLE, fg=BG, bg=CYAN,
                                     relief='flat', cursor='hand2', pady=10,
                                     activebackground='#00ccaa', activeforeground=BG,
                                     command=self._toggle_scan)
-        self._scan_btn.pack(fill='x', padx=10, pady=6)
+        self._scan_btn.pack(fill='x', padx=8, pady=4)
 
-        # キャラ一覧ヘッダー
-        hf = tk.Frame(left, bg='#090916')
-        hf.pack(fill='x', padx=10)
+        # ── アクションボタン行 ──
+        abf = tk.Frame(left, bg=BG); abf.pack(fill='x', padx=8, pady=(0, 4))
+        self._ai_btn = tk.Button(abf, text='AI視点 OFF', font=FONT_UI_SM,
+                                  fg=CYAN, bg='#001a1a', bd=0, padx=10, pady=4,
+                                  cursor='hand2', relief='flat',
+                                  command=self._toggle_ai_vision)
+        self._ai_btn.pack(side='left', padx=(0, 2))
+        tk.Button(abf, text='ログ消去', font=FONT_UI_SM, fg='#fff', bg='#2a0011',
+                  bd=0, padx=8, pady=4, cursor='hand2', relief='flat',
+                  command=self._clear_log).pack(side='left', padx=2)
+        self._log_toggle_btn = tk.Button(abf, text='ログ 表示', font=FONT_UI_SM,
+                                          fg=CYAN, bg='#001a33', bd=0, padx=8, pady=4,
+                                          cursor='hand2', relief='flat',
+                                          command=self._toggle_log_panel)
+        self._log_toggle_btn.pack(side='left', padx=2)
+
+        # ── 選択ステータス + 全選択/解除 ──
+        sf = tk.Frame(left, bg='#090916'); sf.pack(fill='x', padx=8, pady=(0, 4))
+        tk.Label(sf, text='選択中:', font=FONT_UI_SM, fg='#8888aa',
+                 bg='#090916').pack(side='left', padx=(6, 2), pady=4)
+        self._sel_label = tk.Label(sf, text='0体', font=FONT_UI_BD,
+                                    fg=YELLOW, bg='#090916')
+        self._sel_label.pack(side='left')
+        tk.Label(sf, text=' | ', font=FONT_UI_SM, fg='#333355',
+                 bg='#090916').pack(side='left')
+        tk.Button(sf, text='全選択(表示中)', font=FONT_UI_SM, fg='#fff', bg='#003300',
+                  bd=0, padx=6, pady=2, cursor='hand2', relief='flat',
+                  command=self._quick_select_visible).pack(side='left', padx=2)
+        tk.Button(sf, text='全解除', font=FONT_UI_SM, fg='#fff', bg='#330000',
+                  bd=0, padx=6, pady=2, cursor='hand2', relief='flat',
+                  command=lambda: self._quick_select(None)).pack(side='left', padx=2)
+
+        # ── キャラ一覧ヘッダー ──
+        hf = tk.Frame(left, bg='#090916'); hf.pack(fill='x', padx=8)
         tk.Label(hf, text='CHARACTER LIST', font=FONT_BOLD,
                  fg=CYAN, bg='#090916').pack(side='left', padx=4, pady=4)
-        tk.Label(hf, text='click to select / deselect', font=FONT_SMALL,
-                 fg='#2a2a44', bg='#090916').pack(side='left')
+        tk.Button(hf, text='RESET FILTERS', font=FONT_SMALL, fg='#fff', bg='#222233',
+                  bd=0, padx=6, pady=2, cursor='hand2', relief='flat',
+                  command=self._reset_filters).pack(side='right', padx=4)
 
-        # キャラグリッド
+        # ── キャラグリッド ──
         wrapper = tk.Frame(left, bg=BG)
-        wrapper.pack(fill='both', expand=True, padx=10, pady=(2, 6))
+        wrapper.pack(fill='both', expand=True, padx=8, pady=(2, 6))
         self._grid_canvas = tk.Canvas(wrapper, bg=BG, highlightthickness=0)
         vsb = ttk.Scrollbar(wrapper, orient='vertical', command=self._grid_canvas.yview)
         self._grid_inner = tk.Frame(self._grid_canvas, bg=BG)
@@ -612,53 +661,58 @@ class FortniteBot:
         self._build_char_grid()
 
     def _build_right(self, parent):
-        right = tk.Frame(parent, bg=BG2, width=390)
-        right.pack(side='right', fill='both')
-        right.pack_propagate(False)
+        right = tk.Frame(parent, bg=BG2)
+        right.pack(side='right', fill='both', expand=True)
 
-        style = ttk.Style()
-        style.configure('Cyber.TNotebook', background='#08081a', borderwidth=0, tabmargins=[0,0,0,0])
-        style.configure('Cyber.TNotebook.Tab',
-                        background='#10102a', foreground='#444466',
-                        font=FONT_SMALL, padding=[14, 7])
-        style.map('Cyber.TNotebook.Tab',
-                  background=[('selected', BG2)],
-                  foreground=[('selected', CYAN)])
+        # ── ヘッダー ──
+        hdr = tk.Frame(right, bg='#0a0a1a')
+        hdr.pack(fill='x')
+        tk.Label(hdr, text='REC', font=FONT_SMALL, fg=RED,
+                 bg='#0a0a1a').pack(side='left', padx=(8, 2), pady=5)
+        tk.Label(hdr, text='●', font=FONT_SMALL, fg=RED,
+                 bg='#0a0a1a').pack(side='left')
+        tk.Label(hdr, text=' LIVE FEED // OCR_PROCESSOR', font=FONT_SMALL,
+                 fg='#ff3366', bg='#0a0a1a').pack(side='left', padx=4)
+        tk.Frame(right, bg='#1a1a2a', height=1).pack(fill='x')
 
-        nb = ttk.Notebook(right, style='Cyber.TNotebook')
-        nb.pack(fill='both', expand=True)
-
-        # ── Tab 1: OCR FEED ──
-        tab_ocr = tk.Frame(nb, bg=BG2)
-        nb.add(tab_ocr, text='OCR FEED')
-
-        ocr_hdr = tk.Frame(tab_ocr, bg='#0a0a1a')
-        ocr_hdr.pack(fill='x')
-        tk.Label(ocr_hdr, text='REC', font=FONT_SMALL, fg=RED,
-                 bg='#0a0a1a').pack(side='left', padx=(8,2), pady=5)
-        tk.Label(ocr_hdr, text='LIVE FEED // OCR_PROCESSOR', font=FONT_SMALL,
-                 fg='#ff3366', bg='#0a0a1a').pack(side='left')
-        tk.Frame(tab_ocr, bg='#1a1a2a', height=1).pack(fill='x')
-
-        pw = tk.Frame(tab_ocr, bg='#04040e')
-        pw.pack(fill='both', expand=True, padx=6, pady=6)
-        self._preview_lbl = tk.Label(pw, bg='#04040e',
+        # ── プレビューエリア（コーナーブラケット付き） ──
+        pf = tk.Frame(right, bg='#04040e', highlightthickness=1,
+                      highlightbackground='#1a1a3a')
+        pf.pack(fill='both', expand=True, padx=8, pady=8)
+        self._preview_lbl = tk.Label(pf, bg='#04040e',
                                       text='[ AWAITING SIGNAL ]',
                                       font=FONT_MONO, fg='#550011')
         self._preview_lbl.pack(fill='both', expand=True)
 
-        tk.Frame(tab_ocr, bg='#1a1a2a', height=1).pack(fill='x', padx=6)
-        log_hdr = tk.Frame(tab_ocr, bg=BG2)
-        log_hdr.pack(fill='x', padx=6, pady=(4, 2))
+        # コーナーブラケット（Canvas オーバーレイ）
+        brcvs = tk.Canvas(pf, bg='#04040e', highlightthickness=0)
+        brcvs.place(relx=0, rely=0, relwidth=1, relheight=1)
+        brcvs.lower()  # preview_lbl の下に
+
+        def _draw_br(event=None):
+            brcvs.delete('all')
+            w = brcvs.winfo_width(); h = brcvs.winfo_height()
+            if w < 10 or h < 10:
+                return
+            s, col = 14, CYAN
+            for x1, y1, dx, dy in [(1,1,1,1),(w-2,1,-1,1),(1,h-2,1,-1),(w-2,h-2,-1,-1)]:
+                brcvs.create_line(x1, y1, x1+dx*s, y1, fill=col, width=2)
+                brcvs.create_line(x1, y1, x1, y1+dy*s, fill=col, width=2)
+        brcvs.bind('<Configure>', _draw_br)
+
+        # ── ログエリア（トグル可能） ──
+        tk.Frame(right, bg='#1a1a2a', height=1).pack(fill='x', padx=8)
+        self._log_frame = tk.Frame(right, bg=BG2)
+        self._log_frame.pack(fill='x', padx=8, pady=(4, 6))
+
+        log_hdr = tk.Frame(self._log_frame, bg=BG2)
+        log_hdr.pack(fill='x')
         tk.Label(log_hdr, text='LOG OUTPUT', font=FONT_SMALL,
                  fg=CYAN2, bg=BG2).pack(side='left')
-        tk.Button(log_hdr, text='CLEAR', font=FONT_SMALL, fg='#fff', bg=PINK2,
-                  bd=0, padx=6, pady=1, cursor='hand2',
-                  command=self._clear_log).pack(side='right')
 
-        lf = tk.Frame(tab_ocr, bg=BG2)
-        lf.pack(fill='x', padx=6, pady=(0, 6))
-        self._log_text = tk.Text(lf, height=14, font=FONT_SMALL,
+        lf = tk.Frame(self._log_frame, bg=BG2)
+        lf.pack(fill='x', pady=(2, 0))
+        self._log_text = tk.Text(lf, height=10, font=FONT_SMALL,
                                   fg='#00ee77', bg='#04040e', bd=0,
                                   state='disabled', wrap='word',
                                   padx=4, pady=4)
@@ -666,34 +720,6 @@ class FortniteBot:
         self._log_text.configure(yscrollcommand=lsb.set)
         self._log_text.pack(side='left', fill='x', expand=True)
         lsb.pack(side='right', fill='y')
-
-        # ── Tab 2: 選択リスト ──
-        tab_sel = tk.Frame(nb, bg='#06061a')
-        nb.add(tab_sel, text='SELECTED LIST')
-
-        sel_hdr = tk.Frame(tab_sel, bg='#0a0a22')
-        sel_hdr.pack(fill='x')
-        tk.Label(sel_hdr, text='SELECTED CHARACTERS', font=FONT_BOLD,
-                 fg=YELLOW, bg='#0a0a22').pack(side='left', padx=8, pady=6)
-        self._sel_count_lbl = tk.Label(sel_hdr, text='0', font=FONT_BOLD,
-                                        fg=PINK, bg='#0a0a22')
-        self._sel_count_lbl.pack(side='right', padx=8)
-        tk.Frame(tab_sel, bg=CYAN, height=1).pack(fill='x')
-
-        lw = tk.Frame(tab_sel, bg=CYAN, padx=1, pady=1)
-        lw.pack(fill='both', expand=True, padx=6, pady=6)
-        li = tk.Frame(lw, bg='#04040e')
-        li.pack(fill='both', expand=True)
-        self._sel_listbox = tk.Listbox(li, font=FONT_MONO,
-                                        fg=CYAN, bg='#04040e', bd=0,
-                                        selectmode='none', activestyle='none',
-                                        highlightthickness=0,
-                                        selectbackground='#04040e',
-                                        relief='flat')
-        sel_vsb = ttk.Scrollbar(li, orient='vertical', command=self._sel_listbox.yview)
-        self._sel_listbox.configure(yscrollcommand=sel_vsb.set)
-        self._sel_listbox.pack(side='left', fill='both', expand=True)
-        sel_vsb.pack(side='right', fill='y')
 
     def _build_char_grid(self):
         COLS   = 4
@@ -720,6 +746,7 @@ class FortniteBot:
                 tk.Label(sep, text=f'  {rarity}  ', font=FONT_SMALL,
                          fg=color, bg=BG).pack(side='left')
                 tk.Frame(sep, bg=color, height=1).pack(side='left', fill='x', expand=True)
+                self._rarity_seps[rarity] = sep
                 grid_row += 1
 
             cell = tk.Frame(self._grid_inner, bg='#0e0e1c',
@@ -766,6 +793,77 @@ class FortniteBot:
         self._refresh_selection_ui()
         self._save_config()
 
+    def _toggle_rarity_filter(self, rarity: str):
+        if rarity in self._rarity_filter:
+            self._rarity_filter.discard(rarity)
+            lbl = self._rarity_btn_labels.get(rarity)
+            if lbl:
+                col = RARITY_COLOR.get(rarity, WHITE)
+                lbl.configure(fg='#000', bg=col)
+        else:
+            self._rarity_filter.add(rarity)
+            lbl = self._rarity_btn_labels.get(rarity)
+            if lbl:
+                col = RARITY_COLOR.get(rarity, WHITE)
+                lbl.configure(fg=col, bg='#111111')
+        self._apply_char_filter()
+
+    def _apply_char_filter(self):
+        search = (self._search_var.get().lower()
+                  if self._search_var else '').strip()
+        for char in CHARACTERS:
+            name   = char['name']
+            rarity = char['rarity']
+            cell   = self._cells.get(name)
+            if cell is None:
+                continue
+            if self._rarity_filter and rarity not in self._rarity_filter:
+                cell.grid_remove()
+                continue
+            if search and search not in name.lower():
+                cell.grid_remove()
+                continue
+            cell.grid()
+        for rarity, sep in self._rarity_seps.items():
+            if self._rarity_filter and rarity not in self._rarity_filter:
+                sep.grid_remove()
+            else:
+                sep.grid()
+
+    def _toggle_ai_vision(self):
+        self._ai_vision_on = not self._ai_vision_on
+        if self._ai_vision_on:
+            self._ai_btn.configure(text='AI視点 ON', fg='#000', bg=CYAN)
+        else:
+            self._ai_btn.configure(text='AI視点 OFF', fg=CYAN, bg='#001a1a')
+
+    def _toggle_log_panel(self):
+        self._log_visible = not self._log_visible
+        if self._log_visible:
+            self._log_frame.pack(fill='x', padx=8, pady=(4, 6))
+            self._log_toggle_btn.configure(text='ログ 表示')
+        else:
+            self._log_frame.pack_forget()
+            self._log_toggle_btn.configure(text='ログ 非表示')
+
+    def _quick_select_visible(self):
+        for char in CHARACTERS:
+            name = char['name']
+            cell = self._cells.get(name)
+            if cell and cell.winfo_ismapped():
+                self.selected.add(name)
+        self._refresh_selection_ui()
+        self._save_config()
+
+    def _reset_filters(self):
+        self._rarity_filter.clear()
+        if self._search_var:
+            self._search_var.set('')
+        for rar, lbl in self._rarity_btn_labels.items():
+            col = RARITY_COLOR.get(rar, WHITE)
+            lbl.configure(fg='#000', bg=col)
+        self._apply_char_filter()
+
     def _refresh_selection_ui(self):
         for name, cell in self._cells.items():
             if name in self.selected:
@@ -774,10 +872,6 @@ class FortniteBot:
                 cell.configure(highlightbackground=GRAY, highlightthickness=2)
         count = len(self.selected)
         self._sel_label.configure(text=f'{count}体' if count > 0 else '0体')
-        self._sel_count_lbl.configure(text=f'{count}体')
-        self._sel_listbox.delete(0, 'end')
-        for i, name in enumerate(sorted(self.selected)):
-            self._sel_listbox.insert('end', f'  {"►" if i % 2 == 0 else "·"}  {name}')
 
     def _toggle_select(self, name: str, cell: tk.Frame):
         if name in self.selected:
@@ -1120,15 +1214,32 @@ class FortniteBot:
 
     def _update_preview(self, img: Image.Image):
         try:
-            pw = 380
-            ph = min(int(img.height * pw / img.width), 280)
-            preview = img.resize((pw, ph), Image.LANCZOS).convert('RGB')
-            # OCR範囲を赤枠で表示
-            d = ImageDraw.Draw(preview)
-            rx1 = int(pw * 0.2); rx2 = int(pw * 0.8)
-            ry1 = int(ph * 0.15); ry2 = int(ph * 0.55)
-            d.rectangle([rx1, ry1, rx2, ry2], outline='#ff0000', width=2)
-            d.text((rx1+2, ry1+2), 'OCR ZONE', fill='#ff0000')
+            pw = self._preview_lbl.winfo_width()
+            if pw < 50:
+                pw = 400
+            ph = min(int(img.height * pw / img.width), 340)
+
+            if self._ai_vision_on:
+                # AI視点: OCR処理と同じ白黒＋コントラスト強調
+                iw, ih = img.width, img.height
+                x1, x2 = int(iw * 0.10), int(iw * 0.90)
+                y1, y2 = int(ih * 0.10), int(ih * 0.65)
+                crop = img.crop((x1, y1, x2, y2))
+                crop = crop.resize((crop.width * 2, crop.height * 2), Image.LANCZOS)
+                gray = crop.convert('L')
+                enhanced = ImageEnhance.Contrast(gray).enhance(3.0)
+                preview = enhanced.convert('RGB').resize((pw, ph), Image.LANCZOS)
+                d = ImageDraw.Draw(preview)
+                d.rectangle([2, 2, pw-3, ph-3], outline='#00ffcc', width=1)
+                d.text((6, 6), 'AI VISION // OCR VIEW', fill='#00ffcc')
+            else:
+                preview = img.resize((pw, ph), Image.LANCZOS).convert('RGB')
+                d = ImageDraw.Draw(preview)
+                rx1 = int(pw * 0.10); rx2 = int(pw * 0.90)
+                ry1 = int(ph * 0.10); ry2 = int(ph * 0.65)
+                d.rectangle([rx1, ry1, rx2, ry2], outline='#ff0000', width=2)
+                d.text((rx1+2, ry1+2), 'OCR ZONE', fill='#ff0000')
+
             photo = ImageTk.PhotoImage(preview)
             self._preview_lbl.configure(image=photo, text='')
             self._preview_lbl.image = photo
