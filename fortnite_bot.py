@@ -639,6 +639,7 @@ class FortniteBot:
             lambda e: self._grid_canvas.yview_scroll(-1*(e.delta//120), 'units'))
 
         self._build_char_grid()
+        self._bind_scroll_recursive(self._grid_inner)
 
     def _build_right(self, parent):
         right = tk.Frame(parent, bg=BG2)
@@ -687,9 +688,9 @@ class FortniteBot:
         lsb.pack(side='right', fill='y')
 
     def _build_char_grid(self):
-        COLS   = 4
-        CW, CH = 138, 130   # cell width / height
-        IW, IH = 122, 86    # image width / height
+        COLS   = 5
+        CW, CH = 108, 106   # cell width / height
+        IW, IH = 94, 68     # image width / height
 
         cur_rarity = None
         col = 0
@@ -717,23 +718,23 @@ class FortniteBot:
             cell = tk.Frame(self._grid_inner, bg='#0e0e1c',
                             highlightthickness=2, highlightbackground=GRAY,
                             cursor='hand2', width=CW, height=CH)
-            cell.grid(row=grid_row, column=col, padx=3, pady=3)
+            cell.grid(row=grid_row, column=col, padx=2, pady=2)
             cell.grid_propagate(False)
 
             img_lbl = tk.Label(cell, bg='#0e0e1c', cursor='hand2')
-            img_lbl.place(x=(CW-IW)//2, y=4, width=IW, height=IH)
+            img_lbl.place(x=(CW-IW)//2, y=3, width=IW, height=IH)
             ph = ImageTk.PhotoImage(make_placeholder(IH))
             img_lbl.configure(image=ph)
             img_lbl.image = ph
 
-            name_lbl = tk.Label(cell, text=name, font=FONT_SMALL,
+            name_lbl = tk.Label(cell, text=name, font=('Consolas', 7),
                                  fg=WHITE, bg='#0e0e1c',
-                                 wraplength=CW-6, justify='center')
-            name_lbl.place(x=0, y=IH+6, width=CW, height=26)
+                                 wraplength=CW-4, justify='center')
+            name_lbl.place(x=0, y=IH+4, width=CW, height=20)
 
-            rar_lbl = tk.Label(cell, text=rarity, font=('Consolas', 7, 'bold'),
+            rar_lbl = tk.Label(cell, text=rarity, font=('Consolas', 6),
                                 fg=color, bg='#08080f', justify='center')
-            rar_lbl.place(x=0, y=CH-16, width=CW, height=15)
+            rar_lbl.place(x=0, y=CH-14, width=CW, height=13)
 
             for w in [cell, img_lbl, name_lbl]:
                 w.bind('<Button-1>', lambda _, n=name, c=cell: self._toggle_select(n, c))
@@ -888,13 +889,20 @@ class FortniteBot:
                 time.sleep(0.02)
         self._log(f'[IMG] 完了: {ok}/{len(CHARACTERS)} 枚')
 
+    def _bind_scroll_recursive(self, widget):
+        """キャラグリッド内の全ウィジェットにスクロールを伝播"""
+        widget.bind('<MouseWheel>',
+            lambda e: self._grid_canvas.yview_scroll(-1*(e.delta//120), 'units'))
+        for child in widget.winfo_children():
+            self._bind_scroll_recursive(child)
+
     def _load_image_to_cell(self, name: str, path: Path):
         try:
             img = Image.open(path).convert('RGBA')
-            img.thumbnail((108, 76), Image.LANCZOS)
-            bg = Image.new('RGBA', (108, 76), '#141414')
-            ox = (108 - img.width)  // 2
-            oy = (76  - img.height) // 2
+            img.thumbnail((90, 64), Image.LANCZOS)
+            bg = Image.new('RGBA', (90, 64), '#141414')
+            ox = (90 - img.width)  // 2
+            oy = (64 - img.height) // 2
             bg.paste(img, (ox, oy), img)
             photo = ImageTk.PhotoImage(bg)
             self._photos[name] = photo
@@ -904,7 +912,7 @@ class FortniteBot:
                 if not cell:
                     return
                 for w in cell.winfo_children():
-                    if isinstance(w, tk.Label) and w.winfo_y() < 84:
+                    if isinstance(w, tk.Label) and w.winfo_y() < 70:
                         w.configure(image=p)
                         w.image = p
                         break
