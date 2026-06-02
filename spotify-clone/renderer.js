@@ -111,7 +111,7 @@ function renderTrackList(tracks) {
     const el = elems.trackList.querySelector(`[data-path="${CSS.escape(track.path)}"]`);
     if (!el) return;
     const tmpAudio = new Audio();
-    tmpAudio.src = `file://${track.path}`;
+    tmpAudio.src = `file:///${track.path.replace(/\\/g, '/')}`;
     tmpAudio.addEventListener('loadedmetadata', () => {
       if (el) el.textContent = formatTime(tmpAudio.duration);
     }, { once: true });
@@ -172,7 +172,7 @@ function playTrack(index) {
   const track = state.filteredTracks[index];
   const tags = parseTags(track);
 
-  audio.src = `file://${track.path}`;
+  audio.src = `file:///${track.path.replace(/\\/g, '/')}`;
   audio.play().catch(console.error);
   state.isPlaying = true;
 
