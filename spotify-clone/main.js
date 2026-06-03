@@ -1,4 +1,8 @@
-const { app, BrowserWindow, ipcMain, dialog, protocol } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, protocol, net } = require('electron');
+
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'localfile', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }
+]);
 const path = require('path');
 const fs = require('fs');
 const url = require('url');
@@ -26,10 +30,9 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  // ローカルファイルへのアクセスを許可
-  protocol.registerFileProtocol('localfile', (request, callback) => {
-    const filePath = decodeURIComponent(request.url.replace('localfile://', ''));
-    callback({ path: filePath });
+  protocol.handle('localfile', (request) => {
+    const filePath = decodeURIComponent(request.url.slice('localfile://'.length));
+    return net.fetch('file:///' + filePath.replace(/\\/g, '/'));
   });
 
   createWindow();
