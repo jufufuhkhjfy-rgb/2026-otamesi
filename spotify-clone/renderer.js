@@ -1,8 +1,13 @@
 'use strict';
 
 // ===== Firebase初期化 =====
-firebase.initializeApp(FIREBASE_CONFIG);
-const db = firebase.database();
+let db = null;
+try {
+  firebase.initializeApp(FIREBASE_CONFIG);
+  db = firebase.database();
+} catch(e) {
+  console.warn('Firebase利用不可:', e);
+}
 
 // ===== ユーザー情報 =====
 let myUserId = localStorage.getItem('userId');
@@ -43,12 +48,13 @@ function initNameModal() {
 }
 
 function initFirebase() {
-  // オンライン時に自分のデータを登録、オフライン時に削除
+  if (!db) {
+    document.getElementById('friends-list').innerHTML = '<div class="friends-empty">オフライン</div>';
+    return;
+  }
   const myRef = db.ref('users/' + myUserId);
   myRef.update({ name: myName, song: '', artist: '', isPlaying: false, timestamp: Date.now() });
   myRef.onDisconnect().remove();
-
-  // フレンド一覧をリアルタイム監視
   db.ref('users').on('value', (snapshot) => {
     renderFriends(snapshot.val());
   });
@@ -94,8 +100,10 @@ function stringToColor(str) {
 }
 
 function updateFirebaseStatus(song, artist, isPlaying) {
-  if (!myUserId || !myName) return;
-  db.ref('users/' + myUserId).update({ song: song || '', artist: artist || '', isPlaying: !!isPlaying, timestamp: Date.now() });
+  if (!db || !myUserId || !myName) return;
+  try {
+    db.ref('users/' + myUserId).update({ song: song || '', artist: artist || '', isPlaying: !!isPlaying, timestamp: Date.now() });
+  } catch(e) {}
 }
 
 // ===== 状態管理 =====
