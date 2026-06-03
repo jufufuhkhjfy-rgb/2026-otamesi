@@ -65,6 +65,24 @@
         </div>
       </div>
 
+      <!-- yt-dlpダウンロードボタン -->
+        <button class="sidebar-btn" id="btn-download">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+          曲をダウンロード
+        </button>
+      </div>
+
+      <!-- プレイリストセクション -->
+      <div class="playlist-section">
+        <div class="playlist-header" style="display:flex;align-items:center;justify-content:space-between">
+          プレイリスト
+          <button id="btn-new-playlist" style="background:none;border:none;color:var(--text-subdued);cursor:pointer;font-size:20px;line-height:1;padding:0 4px" title="新規作成">+</button>
+        </div>
+        <div id="playlist-list">
+          <div class="playlist-empty">フォルダを追加してください</div>
+        </div>
+      </div>
+
       <!-- フレンドセクション -->
       <div class="friends-section">
         <div class="friends-header">
@@ -176,6 +194,61 @@
   </div>
 
   <audio id="audio-player"></audio>
+
+  <!-- yt-dlpダウンロードモーダル -->
+  <div class="modal-overlay" id="download-modal" style="display:none">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>曲をダウンロード</h3>
+        <button class="modal-close" id="download-modal-close">✕</button>
+      </div>
+      <p class="modal-desc">YouTubeのURLを貼り付けてください</p>
+      <input type="text" id="ytdlp-url-input" placeholder="https://www.youtube.com/watch?v=..." class="modal-input">
+      <div id="ytdlp-status" class="ytdlp-status" style="display:none"></div>
+      <div class="modal-actions">
+        <button class="btn-primary" id="ytdlp-download-btn">ダウンロード</button>
+      </div>
+      <div id="ytdlp-warning" class="ytdlp-warning" style="display:none">
+        ⚠️ yt-dlp.exe が見つかりません。<br>
+        <a href="#" id="ytdlp-guide-link">インストール方法を見る</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- プレイリスト作成モーダル -->
+  <div class="modal-overlay" id="playlist-modal" style="display:none">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="playlist-modal-title">プレイリストを作成</h3>
+        <button class="modal-close" id="playlist-modal-close">✕</button>
+      </div>
+      <input type="text" id="playlist-name-input" placeholder="プレイリスト名" class="modal-input" maxlength="30">
+      <div class="modal-privacy">
+        <label class="privacy-option">
+          <input type="radio" name="privacy" value="private" checked>
+          <span>🔒 プライベート（自分だけ）</span>
+        </label>
+        <label class="privacy-option">
+          <input type="radio" name="privacy" value="public">
+          <span>🌐 オープン（フレンドに共有）</span>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-primary" id="playlist-create-btn">作成</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 曲をプレイリストに追加モーダル -->
+  <div class="modal-overlay" id="add-to-playlist-modal" style="display:none">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>プレイリストに追加</h3>
+        <button class="modal-close" id="add-playlist-modal-close">✕</button>
+      </div>
+      <div id="add-to-playlist-list" class="add-to-playlist-list"></div>
+    </div>
+  </div>
 
   <!-- Firebase SDK (ローカル) -->
   <script src="firebase-app-compat.js"></script>

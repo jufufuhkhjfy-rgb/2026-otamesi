@@ -3,9 +3,12 @@ const { app, BrowserWindow, ipcMain, dialog, protocol, net } = require('electron
 protocol.registerSchemesAsPrivileged([
   { scheme: 'localfile', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }
 ]);
+
 const path = require('path');
 const fs = require('fs');
-const url = require('url');
+const { spawn } = require('child_process');
+
+const BASE_DIR = app.isPackaged ? path.dirname(process.execPath) : __dirname;
 
 let mainWindow;
 
@@ -25,7 +28,6 @@ function createWindow() {
       webSecurity: false
     }
   });
-
   mainWindow.loadFile('index.html');
 }
 
@@ -34,17 +36,11 @@ app.whenReady().then(() => {
     const filePath = decodeURIComponent(request.url.slice('localfile://'.length));
     return net.fetch('file:///' + filePath.replace(/\\/g, '/'));
   });
-
   createWindow();
 });
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
-});
-
-app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow();
-});
+app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 
 // フォルダ選択ダイアログ
 ipcMain.handle('select-folder', async () => {
@@ -56,9 +52,9 @@ ipcMain.handle('select-folder', async () => {
   return result.filePaths[0];
 });
 
-// MP3ファイル一覧取得
+// 音楽ファイル一覧取得
 ipcMain.handle('get-music-files', async (event, folderPath) => {
-  const supportedExts = ['.mp3', '.flac', '.wav', '.m4a', '.ogg', '.aac'];
+  const supportedExts = ['.mp3', '.flac', '.wav', '.m4a', '.ogg', '.aac', '.mp4'];
 
   function scanDir(dirPath) {
     let files = [];
@@ -80,18 +76,53 @@ ipcMain.handle('get-music-files', async (event, folderPath) => {
     } catch (e) {}
     return files;
   }
-
   return scanDir(folderPath);
 });
 
-// 音声ファイル読み込み
+// 音声ファイル読み込み(base64)
 ipcMain.handle('read-audio-file', async (event, filePath) => {
   try {
     const data = fs.readFileSync(filePath);
     return data.toString('base64');
-  } catch (e) {
-    return null;
-  }
+  } catch (e) { return null; }
+});
+
+// yt-dlp存在確認
+ipcMain.handle('check-ytdlp', async () => {
+  const p = path.join(BASE_DIR, 'yt-dlp.exe');
+  return fs.existsSync(p);
+});
+
+// yt-dlpでダウンロード
+ipcMain.handle('download-ytdlp', async (event, url, outputDir) => {
+  const ytdlpPath = path.join(BASE_DIR, 'yt-dlp.exe');
+  if (!fs.existsSync(ytdlpPath)) return { error: 'yt-dlp.exeが見つかりません' };
+  if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+
+  return new Promise((resolve) => {
+    const args = [
+      '-x', '--audio-format', 'mp3', '--audio-quality', '0',
+      '-o', path.join(outputDir, '%(title)s.%(ext)s'),
+      '--no-playlist', '--ffmpeg-location', BASE_DIR,
+      url
+    ];
+    const proc = spawn(ytdlpPath, args);
+    let lastLine = '';
+    proc.stdout.on('data', (d) => {
+      lastLine = d.toString().trim();
+      mainWindow.webContents.send('ytdlp-progress', lastLine);
+    });
+    proc.stderr.on('data', (d) => {
+      mainWindow.webContents.send('ytdlp-progress', d.toString().trim());
+    });
+    proc.on('close', (code) => resolve({ success: code === 0 }));
+    proc.on('error', (e) => resolve({ error: e.message }));
+  });
+});
+
+// ダウンロードフォルダのパスを返す
+ipcMain.handle('get-download-dir', async () => {
+  return path.join(BASE_DIR, 'downloads');
 });
 
 // ウィンドウ操作

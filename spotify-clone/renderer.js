@@ -106,6 +106,199 @@ function updateFirebaseStatus(song, artist, isPlaying) {
   } catch(e) {}
 }
 
+// ===== プレイリスト管理 =====
+let playlists = JSON.parse(localStorage.getItem('playlists') || '[]');
+// { id, name, isPublic, tracks: [{path, name, folder, ext}] }
+
+function savePlaylists() {
+  localStorage.setItem('playlists', JSON.stringify(playlists));
+  syncPublicPlaylists();
+}
+
+function syncPublicPlaylists() {
+  if (!db || !myUserId || !myName) return;
+  const publicPls = playlists.filter(p => p.isPublic).map(p => ({
+    name: p.name,
+    tracks: p.tracks.map(t => ({ name: t.name, folder: t.folder }))
+  }));
+  try {
+    db.ref('users/' + myUserId).update({ playlists: publicPls.length ? publicPls : null });
+  } catch(e) {}
+}
+
+function renderPlaylistSidebarFull() {
+  const list = document.getElementById('playlist-list');
+  if (playlists.length === 0) {
+    list.innerHTML = '<div class="playlist-empty">プレイリストがありません</div>';
+    return;
+  }
+  list.innerHTML = playlists.map((pl, i) => `
+    <div class="playlist-item" data-pl-id="${pl.id}">
+      <span>${escapeHtml(pl.name)}</span>
+      <span class="playlist-item-badge ${pl.isPublic ? 'public' : ''}">${pl.isPublic ? '公開' : '非公開'}</span>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.playlist-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const pl = playlists.find(p => p.id === item.dataset.plId);
+      if (!pl) return;
+      const plTracks = pl.tracks.map(t => state.tracks.find(s => s.path === t.path)).filter(Boolean);
+      state.filteredTracks = plTracks;
+      state.currentView = 'playlist_' + pl.id;
+      showTrackList();
+      renderTrackList(plTracks);
+      list.querySelectorAll('.playlist-item').forEach(p => p.classList.remove('active'));
+      item.classList.add('active');
+    });
+    item.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      showContextMenu(e.clientX, e.clientY, [
+        { label: '削除', action: () => {
+          playlists = playlists.filter(p => p.id !== item.dataset.plId);
+          savePlaylists();
+          renderPlaylistSidebarFull();
+        }}
+      ]);
+    });
+  });
+}
+
+function showContextMenu(x, y, items) {
+  document.querySelectorAll('.context-menu').forEach(m => m.remove());
+  const menu = document.createElement('div');
+  menu.className = 'context-menu';
+  menu.style.left = x + 'px';
+  menu.style.top = y + 'px';
+  items.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'context-menu-item';
+    el.textContent = item.label;
+    el.addEventListener('click', () => { item.action(); menu.remove(); });
+    menu.appendChild(el);
+  });
+  document.body.appendChild(menu);
+  setTimeout(() => document.addEventListener('click', () => menu.remove(), { once: true }), 0);
+}
+
+// プレイリスト作成
+document.getElementById('btn-new-playlist').addEventListener('click', () => {
+  document.getElementById('playlist-modal').style.display = 'flex';
+  document.getElementById('playlist-name-input').value = '';
+  document.getElementById('playlist-name-input').focus();
+});
+
+document.getElementById('playlist-modal-close').addEventListener('click', () => {
+  document.getElementById('playlist-modal').style.display = 'none';
+});
+
+document.getElementById('playlist-create-btn').addEventListener('click', () => {
+  const name = document.getElementById('playlist-name-input').value.trim();
+  if (!name) return;
+  const isPublic = document.querySelector('input[name="privacy"]:checked').value === 'public';
+  playlists.push({ id: 'pl_' + Date.now(), name, isPublic, tracks: [] });
+  savePlaylists();
+  renderPlaylistSidebarFull();
+  document.getElementById('playlist-modal').style.display = 'none';
+});
+
+// 曲をプレイリストに追加（右クリック）
+let pendingAddTrack = null;
+function openAddToPlaylistModal(track) {
+  pendingAddTrack = track;
+  const list = document.getElementById('add-to-playlist-list');
+  if (playlists.length === 0) {
+    list.innerHTML = '<div style="padding:12px;color:var(--text-subdued);font-size:13px">プレイリストがありません。先に作成してください。</div>';
+  } else {
+    list.innerHTML = playlists.map(pl => `
+      <div class="add-playlist-item" data-pl-id="${pl.id}">
+        <span>${escapeHtml(pl.name)}</span>
+        <span class="playlist-item-badge ${pl.isPublic ? 'public' : ''}">${pl.isPublic ? '公開' : '非公開'}</span>
+      </div>
+    `).join('');
+    list.querySelectorAll('.add-playlist-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const pl = playlists.find(p => p.id === item.dataset.plId);
+        if (!pl || !pendingAddTrack) return;
+        if (!pl.tracks.find(t => t.path === pendingAddTrack.path)) {
+          pl.tracks.push(pendingAddTrack);
+          savePlaylists();
+        }
+        document.getElementById('add-to-playlist-modal').style.display = 'none';
+      });
+    });
+  }
+  document.getElementById('add-to-playlist-modal').style.display = 'flex';
+}
+
+document.getElementById('add-playlist-modal-close').addEventListener('click', () => {
+  document.getElementById('add-to-playlist-modal').style.display = 'none';
+});
+
+// ===== yt-dlpダウンロード =====
+document.getElementById('btn-download').addEventListener('click', async () => {
+  const hasYtdlp = await window.electronAPI.checkYtdlp();
+  const modal = document.getElementById('download-modal');
+  const warning = document.getElementById('ytdlp-warning');
+  const btn = document.getElementById('ytdlp-download-btn');
+  warning.style.display = hasYtdlp ? 'none' : 'block';
+  btn.disabled = !hasYtdlp;
+  modal.style.display = 'flex';
+  document.getElementById('ytdlp-status').style.display = 'none';
+  document.getElementById('ytdlp-url-input').value = '';
+});
+
+document.getElementById('download-modal-close').addEventListener('click', () => {
+  document.getElementById('download-modal').style.display = 'none';
+});
+
+document.getElementById('ytdlp-guide-link').addEventListener('click', (e) => {
+  e.preventDefault();
+  alert('1. https://github.com/yt-dlp/yt-dlp/releases から yt-dlp.exe をダウンロード\n2. C:\\spotify-clone フォルダに置く\n3. このウィンドウを閉じて再度開く');
+});
+
+document.getElementById('ytdlp-download-btn').addEventListener('click', async () => {
+  const url = document.getElementById('ytdlp-url-input').value.trim();
+  if (!url) return;
+  const status = document.getElementById('ytdlp-status');
+  const btn = document.getElementById('ytdlp-download-btn');
+  status.style.display = 'block';
+  status.textContent = 'ダウンロード中...';
+  btn.disabled = true;
+  btn.textContent = 'ダウンロード中...';
+
+  window.electronAPI.onYtdlpProgress((msg) => {
+    status.textContent = msg.slice(-200);
+    status.scrollTop = status.scrollHeight;
+  });
+
+  const outputDir = await window.electronAPI.getDownloadDir();
+  const result = await window.electronAPI.downloadYtdlp(url, outputDir);
+
+  btn.disabled = false;
+  btn.textContent = 'ダウンロード';
+
+  if (result.success) {
+    status.textContent = '完了！フォルダを再読み込みします...';
+    // downloadsフォルダをライブラリに追加
+    const newFiles = await window.electronAPI.getMusicFiles(outputDir);
+    const existingPaths = new Set(state.tracks.map(t => t.path));
+    const unique = newFiles.filter(f => !existingPaths.has(f.path));
+    state.tracks.push(...unique);
+    state.filteredTracks = state.tracks;
+    if (!state.folders.includes(outputDir)) {
+      state.folders.push(outputDir);
+      saveFolders();
+    }
+    showTrackList();
+    renderTrackList(state.filteredTracks);
+    renderPlaylistSidebar();
+    setTimeout(() => { document.getElementById('download-modal').style.display = 'none'; }, 1500);
+  } else {
+    status.textContent = 'エラー: ' + (result.error || '失敗しました');
+  }
+});
+
 // ===== 状態管理 =====
 const state = {
   tracks: [],
@@ -113,12 +306,12 @@ const state = {
   currentIndex: -1,
   isPlaying: false,
   isShuffle: false,
-  repeatMode: 0, // 0: off, 1: all, 2: one
+  repeatMode: 0,
   isMuted: false,
   volume: 0.7,
   favorites: new Set(JSON.parse(localStorage.getItem('favorites') || '[]')),
   folders: JSON.parse(localStorage.getItem('folders') || '[]'),
-  currentView: 'library' // 'library' | 'favorites'
+  currentView: 'library'
 };
 
 // ===== DOM参照 =====
@@ -238,6 +431,20 @@ function renderTrackList(tracks) {
       const idx = parseInt(item.dataset.index);
       playTrack(idx);
     });
+    item.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      const idx = parseInt(item.dataset.index);
+      const track = state.filteredTracks[idx];
+      if (!track) return;
+      showContextMenu(e.clientX, e.clientY, [
+        { label: 'プレイリストに追加', action: () => openAddToPlaylistModal(track) },
+        { label: 'お気に入りに追加', action: () => {
+          state.favorites.add(track.path);
+          saveFavorites();
+          updateFavoriteBtn();
+        }}
+      ]);
+    });
   });
 }
 
@@ -250,26 +457,7 @@ function escapeHtml(str) {
 }
 
 function renderPlaylistSidebar() {
-  if (state.folders.length === 0) {
-    elems.playlistList.innerHTML = '<div class="playlist-empty">フォルダを追加してください</div>';
-    return;
-  }
-  elems.playlistList.innerHTML = state.folders.map((folder, i) => {
-    const name = folder.split(/[\\/]/).pop();
-    return `<div class="playlist-item" data-folder="${escapeHtml(folder)}">${escapeHtml(name)}</div>`;
-  }).join('');
-
-  elems.playlistList.querySelectorAll('.playlist-item').forEach(item => {
-    item.addEventListener('click', () => {
-      const folder = item.dataset.folder;
-      const folderTracks = state.tracks.filter(t => t.path.startsWith(folder));
-      state.filteredTracks = folderTracks;
-      showTrackList();
-      renderTrackList(folderTracks);
-      elems.playlistList.querySelectorAll('.playlist-item').forEach(p => p.classList.remove('active'));
-      item.classList.add('active');
-    });
-  });
+  renderPlaylistSidebarFull();
 }
 
 // ===== 再生制御 =====
@@ -612,3 +800,4 @@ async function init() {
 
 init();
 initNameModal();
+renderPlaylistSidebarFull();
