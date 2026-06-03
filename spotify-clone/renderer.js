@@ -1,5 +1,103 @@
 'use strict';
 
+// ===== Firebase初期化 =====
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.database();
+
+// ===== ユーザー情報 =====
+let myUserId = localStorage.getItem('userId');
+if (!myUserId) {
+  myUserId = 'user_' + Math.random().toString(36).substr(2, 9);
+  localStorage.setItem('userId', myUserId);
+}
+let myName = localStorage.getItem('userName') || '';
+
+function initNameModal() {
+  const overlay = document.getElementById('name-modal-overlay');
+  const input = document.getElementById('name-input');
+  const btn = document.getElementById('name-submit-btn');
+  const titlebarUser = document.getElementById('titlebar-user');
+
+  if (myName) {
+    overlay.style.display = 'none';
+    titlebarUser.textContent = myName;
+    initFirebase();
+    return;
+  }
+
+  overlay.style.display = 'flex';
+  input.focus();
+
+  function submit() {
+    const name = input.value.trim();
+    if (!name) return;
+    myName = name;
+    localStorage.setItem('userName', name);
+    overlay.style.display = 'none';
+    titlebarUser.textContent = name;
+    initFirebase();
+  }
+
+  btn.addEventListener('click', submit);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+}
+
+function initFirebase() {
+  // オンライン時に自分のデータを登録、オフライン時に削除
+  const myRef = db.ref('users/' + myUserId);
+  myRef.update({ name: myName, song: '', artist: '', isPlaying: false, timestamp: Date.now() });
+  myRef.onDisconnect().remove();
+
+  // フレンド一覧をリアルタイム監視
+  db.ref('users').on('value', (snapshot) => {
+    renderFriends(snapshot.val());
+  });
+}
+
+function renderFriends(data) {
+  const list = document.getElementById('friends-list');
+  if (!data) {
+    list.innerHTML = '<div class="friends-empty">フレンドがいません</div>';
+    return;
+  }
+
+  const entries = Object.entries(data).filter(([id]) => id !== myUserId);
+  if (entries.length === 0) {
+    list.innerHTML = '<div class="friends-empty">フレンドがいません</div>';
+    return;
+  }
+
+  list.innerHTML = entries.map(([id, user]) => {
+    const initial = (user.name || '?')[0].toUpperCase();
+    const isPlaying = user.isPlaying && user.song;
+    const statusText = isPlaying ? escapeHtml(user.song) : '停止中';
+    return `
+      <div class="friend-item">
+        <div class="friend-avatar" style="background:${stringToColor(user.name || '')}">${escapeHtml(initial)}</div>
+        <div class="friend-info">
+          <div class="friend-name">${escapeHtml(user.name || '不明')}</div>
+          <div class="friend-status ${isPlaying ? 'playing' : ''}">
+            ${isPlaying ? '<span class="friend-bars"><span></span><span></span><span></span></span>' : ''}
+            ${statusText}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function stringToColor(str) {
+  const colors = ['#e91e63','#9c27b0','#3f51b5','#2196f3','#009688','#ff5722','#795548','#607d8b'];
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
+}
+
+function updateFirebaseStatus(song, artist, isPlaying) {
+  if (!myUserId || !myName) return;
+  db.ref('users/' + myUserId).update({ song: song || '', artist: artist || '', isPlaying: !!isPlaying, timestamp: Date.now() });
+}
+
 // ===== 状態管理 =====
 const state = {
   tracks: [],
@@ -183,6 +281,7 @@ function playTrack(index) {
   updatePlayIcon();
   updateFavoriteBtn();
   renderCurrentView();
+  updateFirebaseStatus(tags.title, tags.artist, true);
 }
 
 function togglePlayPause() {
@@ -193,9 +292,11 @@ function togglePlayPause() {
   if (state.isPlaying) {
     audio.pause();
     state.isPlaying = false;
+    updateFirebaseStatus(elems.playerTrackName.textContent, elems.playerTrackArtist.textContent, false);
   } else {
     audio.play().catch(console.error);
     state.isPlaying = true;
+    updateFirebaseStatus(elems.playerTrackName.textContent, elems.playerTrackArtist.textContent, true);
   }
   updatePlayIcon();
   renderCurrentView();
@@ -496,3 +597,4 @@ async function init() {
 }
 
 init();
+initNameModal();

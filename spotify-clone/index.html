@@ -7,6 +7,22 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+
+  <!-- 名前入力モーダル -->
+  <div class="name-modal-overlay" id="name-modal-overlay">
+    <div class="name-modal">
+      <div class="name-modal-logo">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.586 14.424a.622.622 0 01-.857.207c-2.348-1.435-5.304-1.76-8.785-.964a.622.622 0 11-.277-1.215c3.809-.87 7.076-.496 9.712 1.115a.622.622 0 01.207.857zm1.223-2.722a.779.779 0 01-1.072.257c-2.687-1.652-6.785-2.131-9.965-1.166a.778.778 0 01-.973-.519.781.781 0 01.52-.972c3.632-1.102 8.147-.568 11.233 1.328a.779.779 0 01.257 1.072zm.105-2.835c-3.223-1.914-8.54-2.09-11.618-1.156a.935.935 0 11-.543-1.79c3.532-1.073 9.404-.866 13.115 1.338a.936.936 0 01-1.954 1.608z"/>
+        </svg>
+      </div>
+      <h2>Music Player</h2>
+      <p>名前を入力してください</p>
+      <input type="text" id="name-input" placeholder="あなたの名前" maxlength="20" autocomplete="off">
+      <button id="name-submit-btn" class="btn-primary">はじめる</button>
+    </div>
+  </div>
+
   <!-- カスタムタイトルバー -->
   <div class="titlebar">
     <div class="titlebar-drag-region"></div>
@@ -16,6 +32,7 @@
       </svg>
       Music Player
     </div>
+    <div class="titlebar-user" id="titlebar-user"></div>
     <div class="titlebar-controls">
       <button class="titlebar-btn" id="btn-minimize">&#8211;</button>
       <button class="titlebar-btn" id="btn-maximize">&#9633;</button>
@@ -47,11 +64,21 @@
           <div class="playlist-empty">フォルダを追加してください</div>
         </div>
       </div>
+
+      <!-- フレンドセクション -->
+      <div class="friends-section">
+        <div class="friends-header">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+          フレンド
+        </div>
+        <div id="friends-list">
+          <div class="friends-empty">接続中...</div>
+        </div>
+      </div>
     </aside>
 
     <!-- メインコンテンツ -->
     <main class="main-content">
-      <!-- 検索バー -->
       <div class="search-bar-wrapper">
         <div class="search-bar">
           <svg class="search-icon" viewBox="0 0 24 24" fill="currentColor">
@@ -61,9 +88,7 @@
         </div>
       </div>
 
-      <!-- コンテンツエリア -->
       <div class="content-area" id="content-area">
-        <!-- ウェルカム画面 -->
         <div class="welcome-screen" id="welcome-screen">
           <div class="welcome-icon">
             <svg viewBox="0 0 100 100" fill="currentColor">
@@ -79,7 +104,6 @@
           </button>
         </div>
 
-        <!-- 曲リスト -->
         <div class="track-list-container" id="track-list-container" style="display:none">
           <div class="track-list-header">
             <span class="col-num">#</span>
@@ -97,7 +121,6 @@
 
   <!-- プレイヤーバー -->
   <div class="player-bar">
-    <!-- 現在の曲情報 -->
     <div class="player-info">
       <div class="player-album-art" id="player-album-art">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
@@ -111,7 +134,6 @@
       </button>
     </div>
 
-    <!-- 再生コントロール -->
     <div class="player-controls">
       <div class="control-buttons">
         <button class="ctrl-btn" id="btn-shuffle" title="シャッフル">
@@ -141,7 +163,6 @@
       </div>
     </div>
 
-    <!-- 音量コントロール -->
     <div class="player-volume">
       <button class="ctrl-btn" id="btn-mute" title="ミュート">
         <svg class="icon-volume" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
@@ -156,6 +177,10 @@
 
   <audio id="audio-player"></audio>
 
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="firebase.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>
