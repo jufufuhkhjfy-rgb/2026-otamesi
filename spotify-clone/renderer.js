@@ -218,6 +218,7 @@ function renderTrackList(tracks) {
     if (!el) return;
     const tmpAudio = new Audio();
     tmpAudio.src = `localfile://${track.path.replace(/\\/g, '/')}`;
+    tmpAudio.preload = 'metadata';
     tmpAudio.addEventListener('loadedmetadata', () => {
       if (el) el.textContent = formatTime(tmpAudio.duration);
     }, { once: true });
@@ -278,8 +279,13 @@ function playTrack(index) {
   const track = state.filteredTracks[index];
   const tags = parseTags(track);
 
-  audio.src = `localfile://${track.path.replace(/\\/g, '/')}`;
-  audio.play().catch(console.error);
+  const mimeMap = { '.mp3': 'audio/mpeg', '.flac': 'audio/flac', '.wav': 'audio/wav', '.m4a': 'audio/mp4', '.ogg': 'audio/ogg', '.aac': 'audio/aac' };
+  const mime = mimeMap[track.ext.toLowerCase()] || 'audio/mpeg';
+  window.electronAPI.readAudioFile(track.path).then(base64 => {
+    if (!base64) return;
+    audio.src = `data:${mime};base64,${base64}`;
+    audio.play().catch(console.error);
+  });
   state.isPlaying = true;
 
   elems.playerTrackName.textContent = tags.title;

@@ -84,6 +84,16 @@ ipcMain.handle('get-music-files', async (event, folderPath) => {
   return scanDir(folderPath);
 });
 
+// 音声ファイル読み込み
+ipcMain.handle('read-audio-file', async (event, filePath) => {
+  try {
+    const data = fs.readFileSync(filePath);
+    return data.toString('base64');
+  } catch (e) {
+    return null;
+  }
+});
+
 // ウィンドウ操作
 ipcMain.on('window-minimize', () => mainWindow.minimize());
 ipcMain.on('window-maximize', () => {
