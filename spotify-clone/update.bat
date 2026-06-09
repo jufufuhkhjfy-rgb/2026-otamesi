@@ -1,26 +1,23 @@
 @echo off
-chcp 65001 >nul 2>&1
-echo ================================
-echo  Music Player アップデーター
-echo ================================
-echo.
-echo 最新ファイルをダウンロード中...
-
+setlocal
 cd /d "%~dp0"
-
-set BASE=https://raw.githubusercontent.com/jufufuhkhjfy-rgb/2026-otamesi/main/spotify-clone
-
-powershell -Command "Invoke-WebRequest '%BASE%/main.js' -OutFile 'main.js'" 2>nul
-powershell -Command "Invoke-WebRequest '%BASE%/renderer.js' -OutFile 'renderer.js'" 2>nul
-powershell -Command "Invoke-WebRequest '%BASE%/preload.js' -OutFile 'preload.js'" 2>nul
-powershell -Command "Invoke-WebRequest '%BASE%/index.html' -OutFile 'index.html'" 2>nul
-powershell -Command "Invoke-WebRequest '%BASE%/styles.css' -OutFile 'styles.css'" 2>nul
-powershell -Command "Invoke-WebRequest '%BASE%/firebase.js' -OutFile 'firebase.js'" 2>nul
-powershell -Command "Invoke-WebRequest '%BASE%/package.json' -OutFile 'package.json'" 2>nul
-
-echo ダウンロード完了！
+echo ================================
+echo  Music Player Updater
+echo ================================
 echo.
-echo ビルド中... (2〜3分かかります)
+echo Downloading latest files...
+
+curl -L -s -o main.js "https://raw.githubusercontent.com/jufufuhkhjfy-rgb/2026-otamesi/main/spotify-clone/main.js"
+curl -L -s -o renderer.js "https://raw.githubusercontent.com/jufufuhkhjfy-rgb/2026-otamesi/main/spotify-clone/renderer.js"
+curl -L -s -o preload.js "https://raw.githubusercontent.com/jufufuhkhjfy-rgb/2026-otamesi/main/spotify-clone/preload.js"
+curl -L -s -o index.html "https://raw.githubusercontent.com/jufufuhkhjfy-rgb/2026-otamesi/main/spotify-clone/index.html"
+curl -L -s -o styles.css "https://raw.githubusercontent.com/jufufuhkhjfy-rgb/2026-otamesi/main/spotify-clone/styles.css"
+curl -L -s -o firebase.js "https://raw.githubusercontent.com/jufufuhkhjfy-rgb/2026-otamesi/main/spotify-clone/firebase.js"
+curl -L -s -o package.json "https://raw.githubusercontent.com/jufufuhkhjfy-rgb/2026-otamesi/main/spotify-clone/package.json"
+
+echo Download done!
+echo.
+echo Building... (2-3 min)
 echo.
 
 call npm run build
@@ -28,13 +25,11 @@ call npm run build
 if %errorlevel% == 0 (
   echo.
   echo ================================
-  echo  完了！
-  echo  dist\win-unpacked が最新です
-  echo  ZIPにして友達に送ってください
+  echo  Done! dist\win-unpacked is ready
   echo ================================
 ) else (
   echo.
-  echo エラーが発生しました。
+  echo Build failed.
 )
 
 pause
