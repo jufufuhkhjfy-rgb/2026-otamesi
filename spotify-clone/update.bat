@@ -20,6 +20,8 @@ echo.
 echo Building... (2-3 min)
 echo.
 
+set CSC_IDENTITY_AUTO_DISCOVERY=false
+set WIN_CSC_LINK=
 call npm run build
 
 if %errorlevel% == 0 (

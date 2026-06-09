@@ -15,7 +15,8 @@
     "appId": "com.local.spotify-clone",
     "productName": "Music Player",
     "win": {
-      "target": "nsis"
+      "target": "dir",
+      "sign": false
     },
     "mac": {
       "target": "dmg"
