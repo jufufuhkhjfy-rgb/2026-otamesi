@@ -14,9 +14,9 @@
   "build": {
     "appId": "com.local.spotify-clone",
     "productName": "Music Player",
+    "forceCodeSigning": false,
     "win": {
-      "target": "dir",
-      "sign": false
+      "target": "dir"
     },
     "mac": {
       "target": "dmg"
