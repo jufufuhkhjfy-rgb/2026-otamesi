@@ -14,13 +14,16 @@ echo ================================
 echo.
 echo Downloading latest files...
 
-curl -L -s -o main.js "https://raw.githubusercontent.com/jufufuhkhjfy-rgb/2026-otamesi/main/spotify-clone/main.js"
-curl -L -s -o renderer.js "https://raw.githubusercontent.com/jufufuhkhjfy-rgb/2026-otamesi/main/spotify-clone/renderer.js"
-curl -L -s -o preload.js "https://raw.githubusercontent.com/jufufuhkhjfy-rgb/2026-otamesi/main/spotify-clone/preload.js"
-curl -L -s -o index.html "https://raw.githubusercontent.com/jufufuhkhjfy-rgb/2026-otamesi/main/spotify-clone/index.html"
-curl -L -s -o styles.css "https://raw.githubusercontent.com/jufufuhkhjfy-rgb/2026-otamesi/main/spotify-clone/styles.css"
-curl -L -s -o firebase.js "https://raw.githubusercontent.com/jufufuhkhjfy-rgb/2026-otamesi/main/spotify-clone/firebase.js"
-curl -L -s -o package.json "https://raw.githubusercontent.com/jufufuhkhjfy-rgb/2026-otamesi/main/spotify-clone/package.json"
+set H=-H "Cache-Control: no-cache" -H "Pragma: no-cache"
+set BASE=https://raw.githubusercontent.com/jufufuhkhjfy-rgb/2026-otamesi/main/spotify-clone
+
+curl -L -f %H% -o main.js     "%BASE%/main.js"
+curl -L -f %H% -o renderer.js "%BASE%/renderer.js"
+curl -L -f %H% -o preload.js  "%BASE%/preload.js"
+curl -L -f %H% -o index.html  "%BASE%/index.html"
+curl -L -f %H% -o styles.css  "%BASE%/styles.css"
+curl -L -f %H% -o firebase.js "%BASE%/firebase.js"
+curl -L -f %H% -o package.json "%BASE%/package.json"
 
 echo Download done!
 echo.
