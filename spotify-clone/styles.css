@@ -208,6 +208,26 @@ body {
   letter-spacing: 0.1em;
   color: var(--text-subdued);
   text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.playlist-header button {
+  background: none;
+  border: none;
+  color: var(--text-subdued);
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  padding: 0 4px;
+  border-radius: 50%;
+  transition: color 0.15s, background 0.15s;
+}
+
+.playlist-header button:hover {
+  color: var(--white);
+  background: rgba(255,255,255,0.1);
 }
 
 .playlist-empty {
