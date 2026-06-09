@@ -1,5 +1,7 @@
 'use strict';
 
+const APP_VERSION = '1.1.0';
+
 // ===== Firebase初期化 =====
 let db = null;
 try {
@@ -47,11 +49,39 @@ function initNameModal() {
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
 }
 
+function checkForUpdate() {
+  if (!db) return;
+  db.ref('app_info').once('value').then((snap) => {
+    const info = snap.val();
+    if (!info || !info.version) return;
+    if (compareVersions(info.version, APP_VERSION) > 0) {
+      const banner = document.getElementById('update-banner');
+      const text = document.getElementById('update-banner-text');
+      const btn = document.getElementById('update-download-btn');
+      text.textContent = `🎉 v${info.version} にアップデートできます！${info.message ? ' ' + info.message : ''}`;
+      if (info.download_url) btn.href = info.download_url;
+      banner.style.display = 'flex';
+      document.getElementById('update-banner-close').onclick = () => { banner.style.display = 'none'; };
+    }
+  }).catch(() => {});
+}
+
+function compareVersions(a, b) {
+  const pa = a.split('.').map(Number);
+  const pb = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    if ((pa[i] || 0) > (pb[i] || 0)) return 1;
+    if ((pa[i] || 0) < (pb[i] || 0)) return -1;
+  }
+  return 0;
+}
+
 function initFirebase() {
   if (!db) {
     document.getElementById('friends-list').innerHTML = '<div class="friends-empty">オフライン</div>';
     return;
   }
+  checkForUpdate();
   const myRef = db.ref('users/' + myUserId);
   myRef.update({ name: myName, song: '', artist: '', isPlaying: false, timestamp: Date.now() });
   myRef.onDisconnect().remove();

@@ -32,6 +32,44 @@ body {
   flex-direction: column;
 }
 
+/* アップデートバナー */
+.update-banner {
+  background: linear-gradient(90deg, #1DB954, #17a348);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  gap: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  flex-shrink: 0;
+  z-index: 1000;
+}
+.update-banner span { flex: 1; }
+.update-btn {
+  background: #fff;
+  color: #1DB954;
+  border: none;
+  border-radius: 20px;
+  padding: 5px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.update-btn:hover { background: #f0f0f0; }
+.update-close {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.8);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  line-height: 1;
+}
+.update-close:hover { color: #fff; }
+
 /* タイトルバー */
 .titlebar {
   height: var(--titlebar-height);
