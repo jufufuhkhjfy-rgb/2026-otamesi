@@ -1,6 +1,13 @@
 @echo off
 setlocal
 cd /d "%~dp0"
+
+net session >nul 2>&1
+if %errorlevel% neq 0 (
+  powershell -Command "Start-Process cmd -ArgumentList '/c \"%~f0\"' -Verb RunAs -WorkingDirectory '%~dp0'"
+  exit
+)
+
 echo ================================
 echo  Music Player Updater
 echo ================================
@@ -17,6 +24,9 @@ curl -L -s -o package.json "https://raw.githubusercontent.com/jufufuhkhjfy-rgb/2
 
 echo Download done!
 echo.
+
+rmdir /s /q "%LOCALAPPDATA%\electron-builder\Cache\winCodeSign" 2>nul
+
 echo Building... (2-3 min)
 echo.
 
