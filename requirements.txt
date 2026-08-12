@@ -4,6 +4,8 @@ curl_cffi
 cryptography
 pystray
 Pillow
+pywebview
+anthropic
 pyinstaller
 pyautogui
 numpy

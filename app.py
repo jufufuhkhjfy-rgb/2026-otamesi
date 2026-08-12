@@ -361,183 +361,189 @@ HTML = r"""<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MeriWatch</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
-  font-family: 'Noto Sans JP', 'Segoe UI', 'Yu Gothic UI', sans-serif;
+  /* 英数字は Segoe UI、日本語は Noto Sans JP。オフライン(.exe実行時)は Yu Gothic UI / Meiryo に確実に落ちる */
+  font-family: 'Segoe UI', system-ui, 'Noto Sans JP', 'Yu Gothic UI', 'Meiryo', sans-serif;
   background: #0d1117; color: #e6edf3; min-height: 100vh;
-  font-size: 14px; line-height: 1.6; letter-spacing: 0.01em;
+  font-size: 16px; line-height: 1.8; letter-spacing: 0.02em;
   -webkit-font-smoothing: antialiased;
 }
+/* 金額・数値は等幅数字にして桁を揃える */
+.stat-val, .hit-price, .summary-value, .kw-price-input, .rank-num,
+.purchase-table td, .profit-preview .big { font-variant-numeric: tabular-nums; }
 
-.header { background: #161b22; padding: 14px 24px; border-bottom: 1px solid #30363d; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 200; }
-.header h1 { font-size: 1.15em; font-weight: 700; letter-spacing: 0.05em; }
+.header { background: #161b22; padding: 16px 26px; border-bottom: 1px solid #30363d; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 200; }
+.header h1 { font-size: 1.3em; font-weight: 700; letter-spacing: 0.05em; }
 .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 
-.tab-nav { display: flex; gap: 4px; background: #161b22; padding: 8px 24px 0; border-bottom: 1px solid #30363d; overflow-x: auto; }
-.tab-btn { padding: 8px 16px; border: none; border-radius: 6px 6px 0 0; background: transparent; color: #8b949e; font-size: 0.88em; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; transition: color 0.2s; white-space: nowrap; font-family: inherit; }
+.tab-nav { display: flex; gap: 4px; background: #161b22; padding: 8px 26px 0; border-bottom: 1px solid #30363d; overflow-x: auto; }
+.tab-btn { padding: 11px 20px; border: none; border-radius: 6px 6px 0 0; background: transparent; color: #b6c2ce; font-size: 1em; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; transition: color 0.2s; white-space: nowrap; font-family: inherit; }
 .tab-btn.active { color: #e6edf3; border-bottom-color: #1f6feb; }
 .tab-btn:hover { color: #e6edf3; }
 
 .tab-content { display: none; }
 .tab-content.active { display: block; }
 
-.badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; font-size: 0.85em; font-weight: 600; }
-.badge.stopped { background: #21262d; color: #8b949e; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 14px; border-radius: 20px; font-size: 0.9em; font-weight: 700; }
+.badge.stopped { background: #21262d; color: #b6c2ce; }
 .badge.running { background: #1a4a2e; color: #3fb950; }
 .badge .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 .badge.running .dot { box-shadow: 0 0 6px currentColor; animation: pulse 2s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
-.container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-.layout { display: grid; grid-template-columns: 280px 1fr; gap: 16px; }
+.container { max-width: 1280px; margin: 0 auto; padding: 22px; }
+.layout { display: grid; grid-template-columns: 300px 1fr; gap: 18px; }
 
-.card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
-.card-title { font-size: 0.72em; font-weight: 700; color: #8b949e; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #21262d; }
+.card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 18px; margin-bottom: 18px; }
+.card-title { font-size: 1em; font-weight: 700; color: #c3ccd6; letter-spacing: 0.02em; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #21262d; }
 
-.btn { width: 100%; padding: 11px; border: none; border-radius: 8px; font-size: 0.95em; font-weight: 700; cursor: pointer; margin-bottom: 8px; transition: filter 0.15s, transform 0.1s; font-family: inherit; letter-spacing: 0.03em; }
+.btn { width: 100%; padding: 13px; border: none; border-radius: 8px; font-size: 1em; font-weight: 700; cursor: pointer; margin-bottom: 8px; transition: filter 0.15s, transform 0.1s; font-family: inherit; letter-spacing: 0.03em; }
 .btn:hover { filter: brightness(1.1); }
 .btn:active { transform: scale(0.98); }
 .btn-start { background: #238636; color: #fff; }
 .btn-stop  { background: #da3633; color: #fff; }
 
-.stat-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #21262d; font-size: 0.88em; }
+.stat-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #21262d; font-size: 0.95em; }
 .stat-row:last-child { border-bottom: none; }
-.stat-val { font-weight: 700; color: #3fb950; font-size: 1.05em; }
+.stat-val { font-weight: 700; color: #3fb950; font-size: 1.2em; }
 
-label { display: block; font-size: 0.78em; font-weight: 600; color: #8b949e; margin-bottom: 4px; margin-top: 12px; letter-spacing: 0.04em; text-transform: uppercase; }
+label { display: block; font-size: 0.95em; font-weight: 700; color: #c3ccd6; margin-bottom: 6px; margin-top: 14px; letter-spacing: 0.02em; }
 label:first-child { margin-top: 0; }
-input, textarea { width: 100%; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 8px 11px; color: #e6edf3; font-size: 0.92em; resize: vertical; font-family: inherit; line-height: 1.5; }
-input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 0 0 0 3px rgba(88,166,255,0.1); }
+input, textarea { width: 100%; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px 12px; color: #e6edf3; font-size: 1em; resize: vertical; font-family: inherit; line-height: 1.5; }
+input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 0 0 0 3px rgba(88,166,255,0.15); }
 
-.save-btn { margin-top: 12px; width: 100%; padding: 9px; background: #1f6feb; border: none; border-radius: 6px; color: #fff; font-weight: 700; cursor: pointer; font-size: 0.9em; font-family: inherit; }
+.save-btn { margin-top: 12px; width: 100%; padding: 11px; background: #1f6feb; border: none; border-radius: 6px; color: #fff; font-weight: 700; cursor: pointer; font-size: 0.95em; font-family: inherit; }
 .save-btn:hover { background: #388bfd; }
 
-.log-box { background: #0d1117; border-radius: 6px; padding: 10px; height: 180px; overflow-y: auto; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.8em; border: 1px solid #21262d; line-height: 1.7; }
-.log-line { color: #8b949e; padding: 1px 0; }
+/* 日本語を含むログなので、等幅の後ろに日本語フォントを必ず置く */
+.log-box { background: #0d1117; border-radius: 6px; padding: 12px; height: 240px; overflow-y: auto; font-family: 'Consolas', 'Courier New', 'Noto Sans JP', 'Yu Gothic UI', 'Meiryo', monospace; font-size: 0.95em; border: 1px solid #21262d; line-height: 1.85; }
+.log-line { color: #b6c2ce; padding: 2px 0; }
 .log-line.hit { color: #3fb950; font-weight: 600; }
 .log-line.error { color: #f85149; font-weight: 600; }
 
-.hits-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #21262d; }
-.count-badge { background: #da3633; color: #fff; font-size: 0.75em; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+.hits-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #21262d; }
+.count-badge { background: #da3633; color: #fff; font-size: 0.9em; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
 
-.hit-item { background: #0d1117; border: 1px solid #21262d; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; transition: border-color 0.2s; }
+.hit-item { background: #0d1117; border: 1px solid #21262d; border-radius: 8px; padding: 13px 15px; margin-bottom: 10px; transition: border-color 0.2s; }
 .hit-item:hover { border-color: #388bfd; }
-.hit-top { display: flex; gap: 10px; align-items: flex-start; }
-.hit-thumb { width: 52px; height: 52px; border-radius: 6px; object-fit: cover; background: #21262d; flex-shrink: 0; }
+.hit-top { display: flex; gap: 12px; align-items: flex-start; }
+.hit-thumb { width: 64px; height: 64px; border-radius: 6px; object-fit: cover; background: #21262d; flex-shrink: 0; }
 .hit-info { flex: 1; min-width: 0; }
-.hit-name { font-size: 0.88em; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.hit-name a { color: #58a6ff; text-decoration: none; }
+.hit-name { font-size: 1em; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.hit-name a { color: #6cb2ff; text-decoration: none; }
 .hit-name a:hover { text-decoration: underline; }
-.hit-price { color: #3fb950; font-weight: 700; font-size: 1.1em; margin-top: 4px; letter-spacing: 0.02em; }
-.hit-meta { font-size: 0.76em; color: #8b949e; margin-top: 3px; }
-.hit-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
-.buy-btn  { padding: 5px 12px; background: #1f6feb; border: none; border-radius: 6px; color: #fff; font-size: 0.8em; font-weight: 600; cursor: pointer; }
+.hit-price { color: #3fb950; font-weight: 700; font-size: 1.3em; margin-top: 5px; letter-spacing: 0.02em; }
+.hit-meta { font-size: 0.95em; color: #b6c2ce; margin-top: 4px; }
+.hit-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.buy-btn  { padding: 7px 14px; background: #1f6feb; border: none; border-radius: 6px; color: #fff; font-size: 0.95em; font-weight: 600; cursor: pointer; }
 .buy-btn:hover  { background: #388bfd; }
-.miss-btn { padding: 5px 10px; background: #3a1a1a; border: 1px solid #6e3030; border-radius: 6px; color: #f85149; font-size: 0.8em; font-weight: 600; cursor: pointer; }
+.miss-btn { padding: 7px 12px; background: #3a1a1a; border: 1px solid #6e3030; border-radius: 6px; color: #ff7b72; font-size: 0.95em; font-weight: 600; cursor: pointer; }
 .miss-btn:hover { background: #4a2020; }
-.ng-btn   { padding: 5px 10px; background: #21262d; border: 1px solid #30363d; border-radius: 6px; color: #8b949e; font-size: 0.8em; font-weight: 600; cursor: pointer; }
+.ng-btn   { padding: 7px 12px; background: #21262d; border: 1px solid #30363d; border-radius: 6px; color: #b6c2ce; font-size: 0.95em; font-weight: 600; cursor: pointer; }
 .ng-btn:hover   { background: #da3633; color: #fff; border-color: #da3633; }
 
-.empty { text-align: center; color: #30363d; padding: 40px; font-size: 0.9em; }
+.empty { text-align: center; color: #8b97a5; padding: 44px; font-size: 1em; }
 
 /* 収益管理タブ */
-.summary-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
-.chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-.chart-box { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px; }
-.chart-box h3 { font-size: 0.85em; color: #8b949e; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
-.rank-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
-.rank-table th { text-align: left; padding: 9px 10px; color: #8b949e; font-size: 0.72em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid #30363d; }
-.rank-table td { padding: 10px; border-bottom: 1px solid #21262d; font-size: 0.9em; }
+.summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 22px; }
+.chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
+.chart-box { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 18px; }
+.chart-box h3 { font-size: 1em; color: #c3ccd6; margin-bottom: 14px; letter-spacing: 0.02em; }
+.rank-table { width: 100%; border-collapse: collapse; font-size: 0.95em; }
+.rank-table th { text-align: left; padding: 11px 12px; color: #b6c2ce; font-size: 0.92em; font-weight: 700; letter-spacing: 0.02em; border-bottom: 1px solid #30363d; }
+.rank-table td { padding: 12px; border-bottom: 1px solid #21262d; font-size: 0.98em; }
 .rank-table tr:first-child td { color: #f0c040; }
-.rank-table tr:nth-child(2) td { color: #c0c0c0; }
-.rank-table tr:nth-child(3) td { color: #cd7f32; }
-.rank-num { font-weight: 700; font-size: 1.1em; }
-.summary-card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px; text-align: center; }
-.summary-label { font-size: 0.72em; font-weight: 600; color: #8b949e; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em; }
-.summary-value { font-size: 1.45em; font-weight: 700; color: #e6edf3; letter-spacing: 0.02em; }
+.rank-table tr:nth-child(2) td { color: #d5d5d5; }
+.rank-table tr:nth-child(3) td { color: #e0955a; }
+.rank-num { font-weight: 700; font-size: 1.2em; }
+.summary-card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 18px; text-align: center; }
+.summary-label { font-size: 0.95em; font-weight: 600; color: #b6c2ce; margin-bottom: 9px; letter-spacing: 0.02em; }
+.summary-value { font-size: 1.6em; font-weight: 700; color: #e6edf3; letter-spacing: 0.02em; }
 .summary-value.green { color: #3fb950; }
 .summary-value.red { color: #f85149; }
 
-.purchase-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
-.purchase-table th { text-align: left; padding: 9px 10px; color: #8b949e; font-weight: 700; border-bottom: 1px solid #30363d; font-size: 0.72em; text-transform: uppercase; letter-spacing: 0.06em; }
-.purchase-table td { padding: 11px 10px; border-bottom: 1px solid #21262d; vertical-align: middle; font-size: 0.9em; }
-.purchase-table tr:hover td { background: #161b22; }
-.p-thumb { width: 40px; height: 40px; border-radius: 4px; object-fit: cover; background: #21262d; }
-.p-name { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.p-name a { color: #58a6ff; text-decoration: none; }
+.purchase-table { width: 100%; border-collapse: collapse; font-size: 0.95em; }
+.purchase-table th { text-align: left; padding: 11px 12px; color: #b6c2ce; font-weight: 700; border-bottom: 1px solid #30363d; font-size: 0.92em; letter-spacing: 0.02em; }
+.purchase-table td { padding: 13px 12px; border-bottom: 1px solid #21262d; vertical-align: middle; font-size: 0.98em; }
+.purchase-table tr:hover td { background: #1c2129; }
+.p-thumb { width: 46px; height: 46px; border-radius: 4px; object-fit: cover; background: #21262d; }
+.p-name { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.p-name a { color: #6cb2ff; text-decoration: none; }
 .profit-pos { color: #3fb950; font-weight: 700; }
 .profit-neg { color: #f85149; font-weight: 700; }
-.status-badge { padding: 3px 8px; border-radius: 12px; font-size: 0.8em; font-weight: 600; }
-.status-bought { background: #1f3a5f; color: #58a6ff; }
+.status-badge { padding: 4px 10px; border-radius: 12px; font-size: 0.95em; font-weight: 600; }
+.status-bought { background: #1f3a5f; color: #6cb2ff; }
 .status-sold { background: #1a4a2e; color: #3fb950; }
-.action-btn { padding: 4px 10px; border: none; border-radius: 5px; cursor: pointer; font-size: 0.8em; font-weight: 600; margin-right: 4px; }
+.action-btn { padding: 6px 12px; border: none; border-radius: 5px; cursor: pointer; font-size: 0.95em; font-weight: 600; margin-right: 5px; }
 .sell-btn { background: #238636; color: #fff; }
-.del-btn { background: #21262d; color: #8b949e; }
+.del-btn { background: #21262d; color: #b6c2ce; }
 .del-btn:hover { background: #da3633; color: #fff; }
-.memo-input { background: #0d1117; border: 1px solid #30363d; border-radius: 4px; padding: 3px 6px; color: #e6edf3; font-size: 0.85em; width: 120px; }
+.memo-input { background: #0d1117; border: 1px solid #30363d; border-radius: 4px; padding: 5px 8px; color: #e6edf3; font-size: 0.95em; width: 130px; }
 
 /* モーダル */
-.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 500; justify-content: center; align-items: center; }
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 500; justify-content: center; align-items: center; }
 .modal-overlay.open { display: flex; }
-.modal { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 24px; width: 420px; max-width: 95vw; }
-.modal h3 { font-size: 1.1em; margin-bottom: 16px; }
-.modal-name { font-size: 0.9em; color: #8b949e; margin-bottom: 14px; padding: 8px; background: #0d1117; border-radius: 6px; word-break: break-all; }
-.modal label { margin-top: 10px; }
-.profit-preview { margin-top: 14px; padding: 12px; background: #0d1117; border-radius: 8px; font-size: 0.88em; }
-.profit-preview .big { font-size: 1.3em; font-weight: 700; }
-.modal-btns { display: flex; gap: 8px; margin-top: 16px; }
-.modal-btns button { flex: 1; padding: 10px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+.modal { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 26px; width: 460px; max-width: 95vw; }
+.modal h3 { font-size: 1.25em; margin-bottom: 18px; }
+.modal-name { font-size: 0.98em; color: #c3ccd6; margin-bottom: 14px; padding: 10px; background: #0d1117; border-radius: 6px; word-break: break-all; }
+.modal label { margin-top: 12px; }
+.profit-preview { margin-top: 16px; padding: 14px; background: #0d1117; border-radius: 8px; font-size: 0.95em; }
+.profit-preview .big { font-size: 1.45em; font-weight: 700; }
+.modal-btns { display: flex; gap: 10px; margin-top: 18px; }
+.modal-btns button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: 600; font-size: 0.98em; cursor: pointer; }
 .modal-ok { background: #238636; color: #fff; }
-.modal-cancel { background: #21262d; color: #8b949e; }
+.modal-cancel { background: #21262d; color: #b6c2ce; }
 
-.toast { position: fixed; bottom: 24px; right: 24px; background: #238636; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 0.9em; font-weight: 600; display: none; z-index: 999; }
+.toast { position: fixed; bottom: 26px; right: 26px; background: #238636; color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 0.98em; font-weight: 600; display: none; z-index: 999; }
 
 /* ===== 設定タブ ===== */
-.settings-save-bar { display: flex; gap: 10px; margin-bottom: 20px; }
-.settings-save-bar .big-btn { padding: 11px 28px; border: none; border-radius: 8px; font-size: 0.95em; font-weight: 700; cursor: pointer; }
+.settings-save-bar { display: flex; gap: 10px; margin-bottom: 22px; }
+.settings-save-bar .big-btn { padding: 13px 30px; border: none; border-radius: 8px; font-size: 1em; font-weight: 700; cursor: pointer; }
 .btn-save-big  { background: #238636; color: #fff; }
-.btn-undo-big  { background: #21262d; border: 1px solid #30363d; color: #8b949e; }
+.btn-undo-big  { background: #21262d; border: 1px solid #30363d; color: #b6c2ce; }
 .btn-save-big:hover { background: #2ea043; }
 .btn-undo-big:hover { background: #30363d; color: #e6edf3; }
 
-.kw-card { background: #0d1117; border: 1px solid #30363d; border-radius: 10px; padding: 14px; margin-bottom: 10px; }
-.kw-header { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
-.kw-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
-.kw-name-input { flex: 1; background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 7px 10px; color: #e6edf3; font-size: 0.92em; font-family: inherit; font-weight: 500; }
-.kw-name-input:focus { outline: none; border-color: #58a6ff; box-shadow: 0 0 0 3px rgba(88,166,255,0.1); }
-.kw-price-wrap { display: flex; align-items: center; gap: 6px; background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 4px 10px; }
-.kw-price-wrap span { color: #3fb950; font-size: 0.85em; }
-.kw-price-input { width: 80px; background: transparent; border: none; color: #3fb950; font-size: 0.95em; font-weight: 700; text-align: right; }
+.kw-card { background: #0d1117; border: 1px solid #30363d; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
+.kw-header { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; }
+.kw-dot { width: 13px; height: 13px; border-radius: 50%; flex-shrink: 0; }
+.kw-name-input { flex: 1; background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 8px 11px; color: #e6edf3; font-size: 1em; font-family: inherit; font-weight: 500; }
+.kw-name-input:focus { outline: none; border-color: #58a6ff; box-shadow: 0 0 0 3px rgba(88,166,255,0.15); }
+.kw-price-wrap { display: flex; align-items: center; gap: 6px; background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 5px 11px; }
+.kw-price-wrap span { color: #3fb950; font-size: 0.92em; }
+.kw-price-input { width: 90px; background: transparent; border: none; color: #3fb950; font-size: 1.02em; font-weight: 700; text-align: right; }
 .kw-price-input:focus { outline: none; }
-.kw-del-btn { background: none; border: 1px solid #30363d; border-radius: 6px; color: #8b949e; cursor: pointer; padding: 5px 9px; font-size: 0.9em; }
+.kw-del-btn { background: none; border: 1px solid #30363d; border-radius: 6px; color: #b6c2ce; cursor: pointer; padding: 6px 10px; font-size: 0.98em; }
 .kw-del-btn:hover { background: #3a1a1a; border-color: #da3633; color: #f85149; }
 
-.tag-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
-.tag-row-label { font-size: 0.72em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 3px 8px; border-radius: 4px; white-space: nowrap; }
-.label-req { background: #1f3a5f; color: #58a6ff; }
-.label-ng  { background: #3a1a1a; color: #f85149; }
-.tag { display: inline-flex; align-items: center; gap: 3px; padding: 3px 8px; border-radius: 20px; font-size: 0.8em; font-weight: 500; }
+.tag-row { display: flex; align-items: center; gap: 7px; margin-top: 9px; flex-wrap: wrap; }
+.tag-row-label { font-size: 0.9em; font-weight: 700; letter-spacing: 0.02em; padding: 4px 9px; border-radius: 4px; white-space: nowrap; }
+.label-req { background: #1f3a5f; color: #6cb2ff; }
+.label-ng  { background: #3a1a1a; color: #ff7b72; }
+.tag { display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: 20px; font-size: 0.95em; font-weight: 500; }
 .req-tag { background: #1a2f4e; border: 1px solid #1f6feb; color: #79c0ff; }
 .ng-tag2 { background: #2d1212; border: 1px solid #6e3030; color: #ff7b72; }
-.tag button { background: none; border: none; cursor: pointer; color: inherit; padding: 0 0 0 2px; font-size: 0.85em; opacity: 0.6; line-height: 1; }
+.tag button { background: none; border: none; cursor: pointer; color: inherit; padding: 0 0 0 2px; font-size: 0.9em; opacity: 0.7; line-height: 1; }
 .tag button:hover { opacity: 1; }
-.tag-add-input { background: #161b22; border: 1px solid #21262d; border-radius: 20px; padding: 3px 10px; color: #e6edf3; font-size: 0.8em; width: 90px; }
-.tag-add-input:focus { outline: none; border-color: #58a6ff; width: 130px; transition: width 0.2s; }
+.tag-add-input { background: #161b22; border: 1px solid #21262d; border-radius: 20px; padding: 4px 11px; color: #e6edf3; font-size: 0.95em; width: 100px; }
+.tag-add-input:focus { outline: none; border-color: #58a6ff; width: 140px; transition: width 0.2s; }
 
-.add-kw-btn { width: 100%; margin-top: 10px; padding: 10px; background: transparent; border: 1px dashed #30363d; border-radius: 8px; color: #8b949e; cursor: pointer; font-size: 0.9em; }
+.add-kw-btn { width: 100%; margin-top: 12px; padding: 12px; background: transparent; border: 1px dashed #30363d; border-radius: 8px; color: #b6c2ce; cursor: pointer; font-size: 0.98em; }
 .add-kw-btn:hover { border-color: #58a6ff; color: #58a6ff; }
 
-.global-ng-box { background: #0d1117; border-radius: 8px; padding: 12px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.suggest-section { margin-top: 12px; }
-.suggest-title { font-size: 0.78em; color: #8b949e; margin-bottom: 8px; }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip { padding: 4px 12px; background: #21262d; border: 1px solid #30363d; border-radius: 20px; font-size: 0.8em; color: #8b949e; cursor: pointer; }
+.global-ng-box { background: #0d1117; border-radius: 8px; padding: 14px; display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
+.suggest-section { margin-top: 14px; }
+.suggest-title { font-size: 0.95em; color: #b6c2ce; margin-bottom: 9px; }
+.chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.chip { padding: 5px 13px; background: #21262d; border: 1px solid #30363d; border-radius: 20px; font-size: 0.95em; color: #b6c2ce; cursor: pointer; }
 .chip:hover { background: #da3633; color: #fff; border-color: #da3633; }
-.kw-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; font-size: 0.78em; font-weight: 600; border: 1px solid; }
-.kw-badge .kw-price { opacity: 0.75; font-weight: 400; }
+.kw-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 20px; font-size: 0.9em; font-weight: 600; border: 1px solid; }
+.kw-badge .kw-price { opacity: 0.8; font-weight: 400; }
 </style>
 </head>
 <body>
@@ -604,7 +610,7 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
       <input type="text" id="urlInput" placeholder="https://jp.mercari.com/item/m..." style="flex:1">
       <button onclick="lookupUrl()" style="padding:8px 18px;background:#1f6feb;border:none;border-radius:6px;color:#fff;font-weight:600;cursor:pointer;white-space:nowrap">🔍 商品を取得</button>
     </div>
-    <div id="urlStatus" style="font-size:0.82em;color:#8b949e;margin-top:6px"></div>
+    <div id="urlStatus" style="font-size:0.92em;color:#a3b0bd;margin-top:6px"></div>
   </div>
   <div class="summary-grid">
     <div class="summary-card">
@@ -669,9 +675,9 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
   </div>
 
   <div class="card">
-    <div class="card-title">Claude API キー <span style="font-size:0.85em;font-weight:400;color:#8b949e">— 出品文の自動生成に使用</span></div>
+    <div class="card-title">Claude API キー <span style="font-size:0.92em;font-weight:400;color:#a3b0bd">— 出品文の自動生成に使用</span></div>
     <input type="password" id="claudeApiKey" placeholder="sk-ant-...">
-    <div style="font-size:0.78em;color:#8b949e;margin-top:6px">取得先: <a href="https://console.anthropic.com/" target="_blank" style="color:#58a6ff">console.anthropic.com</a>（無料枠あり）</div>
+    <div style="font-size:0.78em;color:#a3b0bd;margin-top:6px">取得先: <a href="https://console.anthropic.com/" target="_blank" style="color:#58a6ff">console.anthropic.com</a>（無料枠あり）</div>
   </div>
 
   <div class="card">
@@ -681,7 +687,7 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
   </div>
 
   <div class="card">
-    <div class="card-title">グローバルNGワード <span style="font-size:0.85em;font-weight:400;color:#8b949e">— 全キーワードに適用（クリックで削除）</span></div>
+    <div class="card-title">グローバルNGワード <span style="font-size:0.92em;font-weight:400;color:#a3b0bd">— 全キーワードに適用（クリックで削除）</span></div>
     <div class="global-ng-box" id="globalNgTags"></div>
     <input class="tag-add-input" style="margin-top:10px;width:150px" id="globalNgInput" placeholder="追加してEnter" onkeydown="addGlobalNG(event)">
     <div class="suggest-section">
@@ -696,7 +702,7 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 <div id="tab-miss" class="tab-content">
 <div class="container">
   <div class="card">
-    <div class="card-title">😢 買い負け履歴 <span style="font-size:0.85em;color:#8b949e;font-weight:400">— 他の人に買われた商品</span></div>
+    <div class="card-title">😢 買い負け履歴 <span style="font-size:0.92em;color:#a3b0bd;font-weight:400">— 他の人に買われた商品</span></div>
     <div style="overflow-x:auto">
       <table class="purchase-table">
         <thead>
@@ -790,17 +796,17 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
     <div id="listing-result" style="display:none;margin-top:16px">
       <div style="margin-bottom:10px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <span style="font-size:0.78em;font-weight:700;color:#8b949e;text-transform:uppercase;letter-spacing:0.06em">タイトル</span>
-          <button onclick="copyText('listing-title-text')" style="padding:3px 10px;background:#21262d;border:1px solid #30363d;border-radius:6px;color:#8b949e;font-size:0.78em;cursor:pointer">コピー</button>
+          <span style="font-size:0.78em;font-weight:700;color:#a3b0bd;text-transform:uppercase;letter-spacing:0.06em">タイトル</span>
+          <button onclick="copyText('listing-title-text')" style="padding:3px 10px;background:#21262d;border:1px solid #30363d;border-radius:6px;color:#a3b0bd;font-size:0.78em;cursor:pointer">コピー</button>
         </div>
         <div id="listing-title-text" style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:10px;font-size:0.9em;line-height:1.6;white-space:pre-wrap;word-break:break-all"></div>
       </div>
       <div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <span style="font-size:0.78em;font-weight:700;color:#8b949e;text-transform:uppercase;letter-spacing:0.06em">説明文</span>
-          <button onclick="copyText('listing-desc-text')" style="padding:3px 10px;background:#21262d;border:1px solid #30363d;border-radius:6px;color:#8b949e;font-size:0.78em;cursor:pointer">コピー</button>
+          <span style="font-size:0.78em;font-weight:700;color:#a3b0bd;text-transform:uppercase;letter-spacing:0.06em">説明文</span>
+          <button onclick="copyText('listing-desc-text')" style="padding:3px 10px;background:#21262d;border:1px solid #30363d;border-radius:6px;color:#a3b0bd;font-size:0.78em;cursor:pointer">コピー</button>
         </div>
-        <div id="listing-desc-text" style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:10px;font-size:0.85em;line-height:1.8;white-space:pre-wrap;max-height:260px;overflow-y:auto"></div>
+        <div id="listing-desc-text" style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:10px;font-size:0.92em;line-height:1.8;white-space:pre-wrap;max-height:260px;overflow-y:auto"></div>
       </div>
     </div>
   </div>
@@ -842,10 +848,10 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
     <label>メモ</label>
     <input type="text" id="modal-memo" placeholder="状態・購入場所など">
     <div class="profit-preview">
-      <div style="color:#8b949e;margin-bottom:6px;font-size:0.85em">予想利益（メルカリ手数料10%含む）</div>
+      <div style="color:#a3b0bd;margin-bottom:6px;font-size:0.92em">予想利益（メルカリ手数料10%含む）</div>
       <span class="big" id="preview-profit">¥0</span>
       &nbsp;
-      <span id="preview-rate" style="color:#8b949e">（0%）</span>
+      <span id="preview-rate" style="color:#a3b0bd">（0%）</span>
     </div>
     <div class="modal-btns">
       <button class="modal-ok" onclick="savePurchase()">保存</button>
@@ -917,7 +923,7 @@ function renderKwList() {
         <span class="tag-row-label label-ng">NG</span>
         ${ngTags}
         <input class="tag-add-input" placeholder="追加→Enter" onkeydown="addTag(event,_kwData[${i}].ng_extra,()=>renderKwList())">
-        <button onclick="addGlobalToKw(${i})" style="padding:3px 8px;background:#21262d;border:1px solid #30363d;border-radius:12px;color:#8b949e;font-size:0.75em;cursor:pointer" title="グローバルNGを全部追加">＋グローバルから</button>
+        <button onclick="addGlobalToKw(${i})" style="padding:3px 8px;background:#21262d;border:1px solid #30363d;border-radius:12px;color:#a3b0bd;font-size:0.75em;cursor:pointer" title="グローバルNGを全部追加">＋グローバルから</button>
       </div>
     </div>`;
   }).join('');
@@ -943,7 +949,7 @@ function addGlobalToKw(i) {
 
 function renderGlobalNg() {
   const el = document.getElementById('globalNgTags');
-  if (!_globalNg.length) { el.innerHTML = '<span style="color:#30363d;font-size:0.85em">まだNGワードがありません</span>'; return; }
+  if (!_globalNg.length) { el.innerHTML = '<span style="color:#8b97a5;font-size:0.95em">まだNGワードがありません</span>'; return; }
   el.innerHTML = _globalNg.map((w,i) =>
     `<span class="tag ng-tag2" style="cursor:pointer" onclick="_globalNg.splice(${i},1);renderGlobalNg();renderNgSuggests()">${w} <span style="opacity:0.6">×</span></span>`
   ).join('');
@@ -989,7 +995,7 @@ async function loadKwOverview() {
   const el = document.getElementById('kwOverview');
   const searches = s.searches || {};
   const keys = Object.keys(searches);
-  if (!keys.length) { el.innerHTML = '<span style="color:#30363d;font-size:0.85em">キーワードなし</span>'; return; }
+  if (!keys.length) { el.innerHTML = '<span style="color:#8b97a5;font-size:0.95em">キーワードなし</span>'; return; }
   el.innerHTML = keys.map((k, i) => {
     const v = searches[k];
     const price = typeof v === 'object' ? v.max_price : v;
@@ -1005,7 +1011,7 @@ async function lookupUrl() {
   const status = document.getElementById('urlStatus');
   if (!url) return;
   status.textContent = '🔍 取得中...';
-  status.style.color = '#8b949e';
+  status.style.color = '#a3b0bd';
   try {
     const r = await fetch('/api/item_lookup', {
       method: 'POST',
@@ -1264,14 +1270,14 @@ function renderPurchases(purchases) {
     return `
       <tr>
         <td>${p.thumbnail ? `<img class="p-thumb" src="${p.thumbnail}" onerror="this.style.display='none'">` : '<div class="p-thumb"></div>'}</td>
-        <td class="p-name"><a href="${p.url}" target="_blank">${p.name}</a><br><span style="font-size:0.75em;color:#8b949e">${p.bought_at}</span></td>
+        <td class="p-name"><a href="${p.url}" target="_blank">${p.name}</a><br><span style="font-size:0.75em;color:#a3b0bd">${p.bought_at}</span></td>
         <td>¥${p.buy_price.toLocaleString()}</td>
         <td><input class="memo-input" type="number" value="${p.sell_price}" onchange="updateSellPrice('${p.id}', this.value)" style="width:90px;color:#e6edf3;text-align:right"></td>
         <td>¥${p.shipping.toLocaleString()}</td>
         <td class="${pClass}">¥${profit.toLocaleString()}</td>
         <td class="${pClass}">${rate}%</td>
         <td><span class="status-badge ${isSold ? 'status-sold' : 'status-bought'}">${isSold ? '売却済' : '購入済'}</span></td>
-        <td style="color:#8b949e;font-size:0.85em">${isSold && p.sold_at ? daysBetween(p.bought_at, p.sold_at) + '日' : '-'}</td>
+        <td style="color:#a3b0bd;font-size:0.92em">${isSold && p.sold_at ? daysBetween(p.bought_at, p.sold_at) + '日' : '-'}</td>
         <td><input class="memo-input" value="${p.memo}" onchange="updateMemo('${p.id}', this.value)" placeholder="メモ"></td>
         <td>
           <button class="action-btn" style="background:#4a2d6b;color:#c084fc" onclick='openListingModal(${JSON.stringify({name:p.name,keyword:p.keyword})})'>✍️ 出品文</button>
@@ -1375,9 +1381,9 @@ async function loadMisses() {
         <td>${m.thumbnail ? `<img class="p-thumb" src="${m.thumbnail}" onerror="this.style.display='none'">` : '<div class="p-thumb"></div>'}</td>
         <td class="p-name"><a href="${m.url}" target="_blank">${m.name}</a></td>
         <td style="color:#f85149;font-weight:700">¥${m.price.toLocaleString()}</td>
-        <td style="color:#8b949e;font-size:0.85em">${m.keyword}</td>
-        <td style="color:#8b949e;font-size:0.85em">${m.memo || '-'}</td>
-        <td style="color:#8b949e;font-size:0.85em">${m.time}</td>
+        <td style="color:#a3b0bd;font-size:0.92em">${m.keyword}</td>
+        <td style="color:#a3b0bd;font-size:0.92em">${m.memo || '-'}</td>
+        <td style="color:#a3b0bd;font-size:0.92em">${m.time}</td>
       </tr>`).join('');
   }
   // 買い負けグラフ
@@ -1392,7 +1398,7 @@ async function loadMisses() {
     _charts['miss'] = new Chart(document.getElementById('chartMiss'), {
       type: 'bar',
       data: { labels, datasets: [{ label: '買い負け数', data: labels.map(k=>kw[k]), backgroundColor: '#da3633', borderRadius: 4 }] },
-      options: { responsive: true, plugins: { legend: { display: false } }, scales: { x:{ticks:{color:'#8b949e'}}, y:{ticks:{color:'#8b949e'},grid:{color:'#21262d'}} } }
+      options: { responsive: true, plugins: { legend: { display: false } }, scales: { x:{ticks:{color:'#a3b0bd'}}, y:{ticks:{color:'#a3b0bd'},grid:{color:'#21262d'}} } }
     });
   }
 }
@@ -1423,7 +1429,7 @@ function buildAnalytics(purchases) {
   const cfg = (type, labels, data, label, color, opts={}) => ({
     type, data: { labels, datasets: [{ label, data, backgroundColor: color, borderColor: color, borderWidth: 1, borderRadius: 4 }] },
     options: { responsive: true, plugins: { legend: { display: type==='doughnut', labels: { color:'#e6edf3', font:{size:11} } } },
-      scales: type!=='doughnut' ? { x:{ticks:{color:'#8b949e'}}, y:{ticks:{color:'#8b949e'}, grid:{color:'#21262d'}} } : undefined,
+      scales: type!=='doughnut' ? { x:{ticks:{color:'#a3b0bd'}}, y:{ticks:{color:'#a3b0bd'}, grid:{color:'#21262d'}} } : undefined,
       ...opts }
   });
 
@@ -1465,7 +1471,7 @@ function buildAnalytics(purchases) {
       <td>${kw[k].soldCount}個</td>
       <td class="${kw[k].profit>=0?'profit-pos':'profit-neg'}">¥${kw[k].profit.toLocaleString()}</td>
       <td class="${avg(kw[k].rates)>=0?'profit-pos':'profit-neg'}">${avg(kw[k].rates)}%</td>
-      <td style="color:#8b949e">${avg(kw[k].days) || '-'}${avg(kw[k].days)?'日':''}</td>
+      <td style="color:#a3b0bd">${avg(kw[k].days) || '-'}${avg(kw[k].days)?'日':''}</td>
     </tr>`).join('');
 }
 

@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# MeriWatch がアプリと同じ階層に書き出す個人データ（app.py の BASE_DIR）
+settings.json
+settings_backup.json
+purchases.json
+misses.json
+
+# AI デイトレーダーの生成データ
+trader.db
+trader.log
+
+# PyInstaller の生成物
+dist/
+build/
+*.spec
