@@ -528,21 +528,31 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 .summary-value.red { color: #f85149; }
 
 .purchase-table { width: 100%; border-collapse: collapse; font-size: 0.95em; }
-.purchase-table th { text-align: left; padding: 11px 12px; color: #b6c2ce; font-weight: 700; border-bottom: 1px solid #30363d; font-size: 0.92em; letter-spacing: 0.02em; }
-.purchase-table td { padding: 13px 12px; border-bottom: 1px solid #21262d; vertical-align: middle; font-size: 0.98em; }
+/* 11列あるため、見出しやバッジが単語の途中で折り返さないよう nowrap で固定する */
+.purchase-table th { text-align: left; padding: 11px 9px; color: #b6c2ce; font-weight: 700; border-bottom: 1px solid #30363d; font-size: 0.92em; letter-spacing: 0.02em; white-space: nowrap; }
+.purchase-table td { padding: 13px 9px; border-bottom: 1px solid #21262d; vertical-align: middle; font-size: 0.98em; }
 .purchase-table tr:hover td { background: #1c2129; }
+/* 金額・状態・操作は折り返させない。商品名とメモだけが可変幅を受け持つ */
+.purchase-table td.nowrap, .purchase-table th.nowrap { white-space: nowrap; }
 .p-thumb { width: 46px; height: 46px; border-radius: 4px; object-fit: cover; background: #21262d; }
-.p-name { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.p-name { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .p-name a { color: #6cb2ff; text-decoration: none; }
+/* 色は意味のある箇所だけに使う。利益(金額)のみ着色し、利益率はニュートラルにする */
 .profit-pos { color: #3fb950; font-weight: 700; }
 .profit-neg { color: #f85149; font-weight: 700; }
-.status-badge { padding: 4px 10px; border-radius: 12px; font-size: 0.95em; font-weight: 600; }
-.status-bought { background: #1f3a5f; color: #6cb2ff; }
-.status-sold { background: #1a4a2e; color: #3fb950; }
-.action-btn { padding: 6px 12px; border: none; border-radius: 5px; cursor: pointer; font-size: 0.95em; font-weight: 600; margin-right: 5px; }
-.sell-btn { background: #238636; color: #fff; }
-.del-btn { background: #21262d; color: #b6c2ce; }
-.del-btn:hover { background: #da3633; color: #fff; }
+.rate-cell { color: #c3ccd6; font-weight: 600; }
+.rate-cell.neg { color: #f85149; }
+.status-badge { padding: 4px 10px; border-radius: 12px; font-size: 0.95em; font-weight: 600; white-space: nowrap; }
+.status-bought { background: #1c2431; color: #79c0ff; }
+.status-sold { background: #1b2a22; color: #56d364; }
+.action-btn { display: inline-flex; align-items: center; padding: 6px 12px; border: none; border-radius: 5px; cursor: pointer; font-size: 0.95em; font-weight: 600; margin-right: 5px; white-space: nowrap; }
+/* 一覧に何度も並ぶ操作はべた塗りにせず、面と枠線で示す */
+.sell-btn { background: #21262d; color: #56d364; border: 1px solid #2f4a38; }
+.sell-btn:hover { background: #1b2a22; border-color: #3fb950; }
+.listing-btn { background: #21262d; color: #c3ccd6; border: 1px solid #30363d; }
+.listing-btn:hover { background: #30363d; color: #e6edf3; }
+.del-btn { background: #21262d; color: #b6c2ce; border: 1px solid #30363d; }
+.del-btn:hover { background: #3a1a1a; color: #ff7b72; border-color: #6e3030; }
 .memo-input { background: #0d1117; border: 1px solid #30363d; border-radius: 4px; padding: 5px 8px; color: #e6edf3; font-size: 0.95em; width: 130px; }
 
 /* モーダル */
@@ -1348,16 +1358,16 @@ function renderPurchases(purchases) {
       <tr>
         <td>${p.thumbnail ? `<img class="p-thumb" src="${p.thumbnail}" onerror="this.style.display='none'">` : '<div class="p-thumb"></div>'}</td>
         <td class="p-name"><a href="${p.url}" target="_blank">${p.name}</a><br><span style="font-size:0.75em;color:#a3b0bd">${p.bought_at}</span></td>
-        <td>¥${p.buy_price.toLocaleString()}</td>
-        <td><input class="memo-input" type="number" value="${p.sell_price}" onchange="updateSellPrice('${p.id}', this.value)" style="width:90px;color:#e6edf3;text-align:right"></td>
-        <td>¥${p.shipping.toLocaleString()}</td>
-        <td class="${pClass}">¥${profit.toLocaleString()}</td>
-        <td class="${pClass}">${rate}%</td>
-        <td><span class="status-badge ${isSold ? 'status-sold' : 'status-bought'}">${isSold ? '売却済' : '購入済'}</span></td>
-        <td style="color:#a3b0bd;font-size:0.92em">${isSold && p.sold_at ? daysBetween(p.bought_at, p.sold_at) + '日' : '-'}</td>
+        <td class="nowrap">¥${p.buy_price.toLocaleString()}</td>
+        <td class="nowrap"><input class="memo-input" type="number" value="${p.sell_price}" onchange="updateSellPrice('${p.id}', this.value)" style="width:90px;color:#e6edf3;text-align:right"></td>
+        <td class="nowrap">¥${p.shipping.toLocaleString()}</td>
+        <td class="nowrap ${pClass}">¥${profit.toLocaleString()}</td>
+        <td class="nowrap rate-cell ${profit < 0 ? 'neg' : ''}">${rate}%</td>
+        <td class="nowrap"><span class="status-badge ${isSold ? 'status-sold' : 'status-bought'}">${isSold ? '売却済' : '購入済'}</span></td>
+        <td class="nowrap" style="color:#a3b0bd;font-size:0.92em">${isSold && p.sold_at ? daysBetween(p.bought_at, p.sold_at) + '日' : '-'}</td>
         <td><input class="memo-input" value="${p.memo}" onchange="updateMemo('${p.id}', this.value)" placeholder="メモ"></td>
-        <td>
-          <button class="action-btn" style="background:#21262d;color:#c3ccd6;border:1px solid #30363d" onclick='openListingModal(${JSON.stringify({name:p.name,keyword:p.keyword})})'><svg class="ico ico-sm" viewBox="0 0 24 24" style="vertical-align:-2px;margin-right:4px"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>出品文</button>
+        <td class="nowrap">
+          <button class="action-btn listing-btn" onclick='openListingModal(${JSON.stringify({name:p.name,keyword:p.keyword})})'><svg class="ico ico-sm" viewBox="0 0 24 24" style="vertical-align:-2px;margin-right:4px"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>出品文</button>
           ${!isSold ? `<button class="action-btn sell-btn" onclick="markSold('${p.id}')">売却済</button>` : ''}
           <button class="action-btn del-btn" onclick="deletePurchase('${p.id}')">削除</button>
         </td>
@@ -1457,10 +1467,10 @@ async function loadMisses() {
       <tr>
         <td>${m.thumbnail ? `<img class="p-thumb" src="${m.thumbnail}" onerror="this.style.display='none'">` : '<div class="p-thumb"></div>'}</td>
         <td class="p-name"><a href="${m.url}" target="_blank">${m.name}</a></td>
-        <td style="color:#f85149;font-weight:700">¥${m.price.toLocaleString()}</td>
-        <td style="color:#a3b0bd;font-size:0.92em">${m.keyword}</td>
+        <td class="nowrap" style="font-weight:700">¥${m.price.toLocaleString()}</td>
+        <td class="nowrap" style="color:#a3b0bd;font-size:0.92em">${m.keyword}</td>
         <td style="color:#a3b0bd;font-size:0.92em">${m.memo || '-'}</td>
-        <td style="color:#a3b0bd;font-size:0.92em">${m.time}</td>
+        <td class="nowrap" style="color:#a3b0bd;font-size:0.92em">${m.time}</td>
       </tr>`).join('');
   }
   // 買い負けグラフ
