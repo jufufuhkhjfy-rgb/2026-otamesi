@@ -401,12 +401,12 @@ button:active { transform: translateY(1px); }
 button:focus-visible { outline: 2px solid #58a6ff; outline-offset: 2px; }
 button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 
-.header { background: #161b22; padding: 16px 26px; border-bottom: 1px solid #30363d; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 200; }
+.header { background: #161b22; padding: 16px 24px; border-bottom: 1px solid #30363d; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 200; }
 .header h1 { font-size: 1.3em; font-weight: 700; letter-spacing: 0.05em; }
 .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 
-.tab-nav { display: flex; gap: 4px; background: #161b22; padding: 8px 26px 0; border-bottom: 1px solid #30363d; overflow-x: auto; }
-.tab-btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; border: none; border-radius: 6px 6px 0 0; background: transparent; color: #b6c2ce; font-size: 1em; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; font-family: inherit; }
+.tab-nav { display: flex; gap: 4px; background: #161b22; padding: 8px 24px 0; border-bottom: 1px solid #30363d; overflow-x: auto; }
+.tab-btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; border: none; border-radius: 8px 8px 0 0; background: transparent; color: #b6c2ce; font-size: 1em; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; font-family: inherit; }
 .tab-btn.active { color: #e6edf3; border-bottom-color: #1f6feb; }
 .tab-btn:hover { color: #e6edf3; background: #1c222b; }
 .tab-btn:active { transform: none; }
@@ -416,17 +416,17 @@ button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 .tab-content { display: none; }
 .tab-content.active { display: block; }
 
-.badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 14px; border-radius: 20px; font-size: 0.9em; font-weight: 700; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 14px; border-radius: 999px; font-size: 0.9em; font-weight: 700; }
 .badge.stopped { background: #21262d; color: #b6c2ce; }
 .badge.running { background: #1a4a2e; color: #3fb950; }
 .badge .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 .badge.running .dot { box-shadow: 0 0 6px currentColor; animation: pulse 2s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
-.container { max-width: 1280px; margin: 0 auto; padding: 22px; }
-.layout { display: grid; grid-template-columns: 300px 1fr; gap: 18px; }
+.container { max-width: 1280px; margin: 0 auto; padding: 24px; }
+.layout { display: grid; grid-template-columns: 300px 1fr; gap: 16px; }
 
-.card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 18px; margin-bottom: 18px; }
+.card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
 .card-title { font-size: 1em; font-weight: 700; color: #c3ccd6; letter-spacing: 0.02em; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #21262d; }
 
 .btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 13px; border: none; border-radius: 8px; font-size: 1em; font-weight: 700; cursor: pointer; margin-bottom: 8px; font-family: inherit; letter-spacing: 0.03em; box-shadow: 0 1px 0 rgba(0,0,0,.3); }
@@ -458,7 +458,7 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 .log-line.error { color: #f85149; font-weight: 600; }
 
 .hits-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #21262d; }
-.count-badge { background: #da3633; color: #fff; font-size: 0.9em; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+.count-badge { background: #da3633; color: #fff; font-size: 0.9em; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
 
 .hit-item { background: #0d1117; border: 1px solid #21262d; border-radius: 8px; padding: 13px 15px; margin-bottom: 10px; transition: border-color 0.2s; }
 .hit-item:hover { border-color: #388bfd; }
@@ -485,8 +485,8 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 .empty { text-align: center; color: #8b97a5; padding: 44px; font-size: 1em; }
 
 /* 収益管理タブ */
-.summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 22px; }
-.chart-box { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 18px; }
+.summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.chart-box { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 20px; }
 .chart-box h3 { font-size: 1em; color: #c3ccd6; margin-bottom: 14px; letter-spacing: 0.02em; }
 
 /* ===== 分析タブ ===== */
@@ -495,7 +495,7 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 .an-hero h2 { font-size: 1.5em; font-weight: 700; line-height: 1.55; letter-spacing: 0.01em; }
 .an-hero p { margin-top: 7px; color: #a3b0bd; font-size: 0.95em; }
 
-.an-panel { background: #161b22; border: 1px solid #30363d; border-radius: 10px; overflow: hidden; margin-bottom: 18px; }
+.an-panel { background: #161b22; border: 1px solid #30363d; border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
 .metric-row { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid #21262d; }
 .metric { background: none; border: none; border-right: 1px solid #21262d; border-bottom: 3px solid transparent; padding: 15px 18px; text-align: left; cursor: pointer; font-family: inherit; color: #a3b0bd; }
 .metric:last-child { border-right: none; }
@@ -504,8 +504,8 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 .metric.active { background: #1a2029; border-bottom-color: #1f6feb; color: #e6edf3; }
 .metric-label { display: block; font-size: 0.92em; font-weight: 600; }
 .metric-value { display: block; margin-top: 5px; font-size: 1.45em; font-weight: 700; color: #e6edf3; font-variant-numeric: tabular-nums; }
-.an-chart { height: 330px; padding: 18px; }
-.an-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; align-items: start; }
+.an-chart { height: 330px; padding: 20px; }
+.an-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; align-items: start; }
 @media (max-width: 1080px) {
   .an-grid { grid-template-columns: 1fr; }
   .metric-row { grid-template-columns: repeat(2, 1fr); }
@@ -517,11 +517,11 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 .rank-table tr:last-child td { border-bottom: none; }
 .rank-table tr:hover td { background: #1c2129; }
 /* 順位はメダル絵文字ではなく落ち着いたバッジで示す */
-.rank-num { display: inline-flex; align-items: center; justify-content: center; width: 25px; height: 25px; border-radius: 7px; background: #21262d; color: #a3b0bd; font-size: 0.88em; font-weight: 700; }
+.rank-num { display: inline-flex; align-items: center; justify-content: center; width: 25px; height: 25px; border-radius: 8px; background: #21262d; color: #a3b0bd; font-size: 0.88em; font-weight: 700; }
 .rank-num.top1 { background: #3a3116; color: #e3b341; }
 .rank-num.top2 { background: #2d323a; color: #c9d1d9; }
 .rank-num.top3 { background: #33251a; color: #d18d5b; }
-.summary-card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 18px; text-align: center; }
+.summary-card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 20px; text-align: center; }
 .summary-label { font-size: 0.95em; font-weight: 600; color: #b6c2ce; margin-bottom: 9px; letter-spacing: 0.02em; }
 .summary-value { font-size: 1.6em; font-weight: 700; color: #e6edf3; letter-spacing: 0.02em; }
 .summary-value.green { color: #3fb950; }
@@ -534,7 +534,7 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 .purchase-table tr:hover td { background: #1c2129; }
 /* 金額・状態・操作は折り返させない。商品名とメモだけが可変幅を受け持つ */
 .purchase-table td.nowrap, .purchase-table th.nowrap { white-space: nowrap; }
-.p-thumb { width: 46px; height: 46px; border-radius: 4px; object-fit: cover; background: #21262d; }
+.p-thumb { width: 46px; height: 46px; border-radius: 6px; object-fit: cover; background: #21262d; }
 .p-name { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .p-name a { color: #6cb2ff; text-decoration: none; }
 /* 色は意味のある箇所だけに使う。利益(金額)のみ着色し、利益率はニュートラルにする */
@@ -542,10 +542,10 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 .profit-neg { color: #f85149; font-weight: 700; }
 .rate-cell { color: #c3ccd6; font-weight: 600; }
 .rate-cell.neg { color: #f85149; }
-.status-badge { padding: 4px 10px; border-radius: 12px; font-size: 0.95em; font-weight: 600; white-space: nowrap; }
+.status-badge { padding: 4px 10px; border-radius: 10px; font-size: 0.95em; font-weight: 600; white-space: nowrap; }
 .status-bought { background: #1c2431; color: #79c0ff; }
 .status-sold { background: #1b2a22; color: #56d364; }
-.action-btn { display: inline-flex; align-items: center; padding: 6px 12px; border: none; border-radius: 5px; cursor: pointer; font-size: 0.95em; font-weight: 600; margin-right: 5px; white-space: nowrap; }
+.action-btn { display: inline-flex; align-items: center; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.95em; font-weight: 600; margin-right: 5px; white-space: nowrap; }
 /* 一覧に何度も並ぶ操作はべた塗りにせず、面と枠線で示す */
 .sell-btn { background: #21262d; color: #56d364; border: 1px solid #2f4a38; }
 .sell-btn:hover { background: #1b2a22; border-color: #3fb950; }
@@ -553,12 +553,12 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 .listing-btn:hover { background: #30363d; color: #e6edf3; }
 .del-btn { background: #21262d; color: #b6c2ce; border: 1px solid #30363d; }
 .del-btn:hover { background: #3a1a1a; color: #ff7b72; border-color: #6e3030; }
-.memo-input { background: #0d1117; border: 1px solid #30363d; border-radius: 4px; padding: 5px 8px; color: #e6edf3; font-size: 0.95em; width: 130px; }
+.memo-input { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 5px 8px; color: #e6edf3; font-size: 0.95em; width: 130px; }
 
 /* モーダル */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 500; justify-content: center; align-items: center; }
 .modal-overlay.open { display: flex; }
-.modal { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 26px; width: 460px; max-width: 95vw; }
+.modal { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 24px; width: 460px; max-width: 95vw; }
 .modal h3 { font-size: 1.25em; margin-bottom: 18px; }
 .modal-name { font-size: 0.98em; color: #c3ccd6; margin-bottom: 14px; padding: 10px; background: #0d1117; border-radius: 6px; word-break: break-all; }
 .modal label { margin-top: 12px; }
@@ -572,7 +572,7 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 .toast { position: fixed; bottom: 26px; right: 26px; background: #238636; color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 0.98em; font-weight: 600; display: none; z-index: 999; }
 
 /* ===== 設定タブ ===== */
-.settings-save-bar { display: flex; gap: 10px; margin-bottom: 22px; }
+.settings-save-bar { display: flex; gap: 8px; margin-bottom: 24px; }
 .settings-save-bar .big-btn { padding: 13px 30px; border: none; border-radius: 8px; font-size: 1em; font-weight: 700; cursor: pointer; }
 .btn-save-big  { background: #238636; color: #fff; }
 .btn-undo-big  { background: #21262d; border: 1px solid #30363d; color: #b6c2ce; }
@@ -592,15 +592,15 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 .kw-del-btn:hover { background: #3a1a1a; border-color: #da3633; color: #f85149; }
 
 .tag-row { display: flex; align-items: center; gap: 7px; margin-top: 9px; flex-wrap: wrap; }
-.tag-row-label { font-size: 0.9em; font-weight: 700; letter-spacing: 0.02em; padding: 4px 9px; border-radius: 4px; white-space: nowrap; }
+.tag-row-label { font-size: 0.9em; font-weight: 700; letter-spacing: 0.02em; padding: 4px 9px; border-radius: 6px; white-space: nowrap; }
 .label-req { background: #1f3a5f; color: #6cb2ff; }
 .label-ng  { background: #3a1a1a; color: #ff7b72; }
-.tag { display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: 20px; font-size: 0.95em; font-weight: 500; }
+.tag { display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: 999px; font-size: 0.95em; font-weight: 500; }
 .req-tag { background: #1a2f4e; border: 1px solid #1f6feb; color: #79c0ff; }
 .ng-tag2 { background: #2d1212; border: 1px solid #6e3030; color: #ff7b72; }
 .tag button { background: none; border: none; cursor: pointer; color: inherit; padding: 0 0 0 2px; font-size: 0.9em; opacity: 0.7; line-height: 1; }
 .tag button:hover { opacity: 1; }
-.tag-add-input { background: #161b22; border: 1px solid #21262d; border-radius: 20px; padding: 4px 11px; color: #e6edf3; font-size: 0.95em; width: 100px; }
+.tag-add-input { background: #161b22; border: 1px solid #21262d; border-radius: 999px; padding: 4px 11px; color: #e6edf3; font-size: 0.95em; width: 100px; }
 .tag-add-input:focus { outline: none; border-color: #58a6ff; width: 140px; transition: width 0.2s; }
 
 .add-kw-btn { width: 100%; margin-top: 12px; padding: 12px; background: transparent; border: 1px dashed #30363d; border-radius: 8px; color: #b6c2ce; cursor: pointer; font-size: 0.98em; }
@@ -610,10 +610,13 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 .suggest-section { margin-top: 14px; }
 .suggest-title { font-size: 0.95em; color: #b6c2ce; margin-bottom: 9px; }
 .chips { display: flex; flex-wrap: wrap; gap: 7px; }
-.chip { padding: 5px 13px; background: #21262d; border: 1px solid #30363d; border-radius: 20px; font-size: 0.95em; color: #b6c2ce; cursor: pointer; }
+.chip { padding: 5px 13px; background: #21262d; border: 1px solid #30363d; border-radius: 999px; font-size: 0.95em; color: #b6c2ce; cursor: pointer; }
 .chip:hover { background: #da3633; color: #fff; border-color: #da3633; }
-.kw-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 20px; font-size: 0.9em; font-weight: 600; border: 1px solid; }
-.kw-badge .kw-price { opacity: 0.8; font-weight: 400; }
+/* キーワード色を文字色に使うとコントラストが 3.7:1 程度まで落ちる色が多いため、
+   文字は通常色にし、色の識別は先頭のドットだけに担わせる */
+.kw-badge { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 8px; font-size: 0.95em; font-weight: 600; background: #1c222b; border: 1px solid #30363d; color: #e6edf3; }
+.kw-badge .kw-dot { width: 8px; height: 8px; }
+.kw-badge .kw-price { color: #a3b0bd; font-weight: 500; font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body>
@@ -1087,7 +1090,8 @@ async function loadKwOverview() {
     const v = searches[k];
     const price = typeof v === 'object' ? v.max_price : v;
     const color = KW_COLORS[i % KW_COLORS.length];
-    return `<span class="kw-badge" style="background:${color}22;border-color:${color};color:${color}">
+    return `<span class="kw-badge">
+      <span class="kw-dot" style="background:${color}"></span>
       ${k} <span class="kw-price">¥${parseInt(price).toLocaleString()}</span>
     </span>`;
   }).join('');
