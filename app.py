@@ -251,7 +251,7 @@ def monitor_loop():
                     ng_extra   = []
 
                 try:
-                    add_log(f"🔍 検索中: {keyword}")
+                    add_log(f"検索中: {keyword}")
                     result = search_mercari(keyword)
                     items = result.get("items", [])
                     hit_count = 0
@@ -267,7 +267,7 @@ def monitor_loop():
                     if all_prices:
                         avg_p = sum(all_prices) // len(all_prices)
                         min_p = min(all_prices)
-                        add_log(f"  📊 相場: 平均¥{avg_p:,} / 最安¥{min_p:,} ({len(all_prices)}件)")
+                        add_log(f"  相場: 平均¥{avg_p:,} / 最安¥{min_p:,} ({len(all_prices)}件)")
 
                     for item in items:
                         item_id = item.get("id", "")
@@ -313,20 +313,20 @@ def monitor_loop():
                             if webhook_url:
                                 send_discord(webhook_url, keyword, name, price, url, thumbnail)
 
-                            add_log(f"✅ ヒット！ ¥{price:,} {name[:25]}")
+                            add_log(f"ヒット ¥{price:,} {name[:25]}")
 
                     if hit_count == 0:
                         add_log(f"  → {keyword}: 新着なし ({len(items)}件確認)")
 
                 except Exception as e:
                     err = str(e)
-                    add_log(f"❌ エラー ({keyword}): {err[:80]}")
+                    add_log(f"エラー ({keyword}): {err[:80]}")
                     # ブロック検知時はDPoP鍵リセット＋長めに待機
                     if "401" in err or "403" in err or "429" in err or "503" in err:
                         global _dpop_key, _dpop_nonce
                         _dpop_key = None
                         _dpop_nonce = None
-                        add_log("🔄 DPoP鍵リセット。3分待機してから再開します...")
+                        add_log("DPoP鍵リセット。3分待機してから再開します...")
                         for _ in range(180):
                             if not running:
                                 break
@@ -340,14 +340,14 @@ def monitor_loop():
                 settings.get("wait_min", 5),
                 settings.get("wait_max", 15)
             )
-            add_log(f"⏳ {wait}秒待機...")
+            add_log(f"{wait}秒待機...")
             for _ in range(wait):
                 if not running:
                     break
                 time.sleep(1)
 
     except Exception as e:
-        add_log(f"💥 監視スレッド異常終了: {str(e)[:80]}")
+        add_log(f"監視スレッド異常終了: {str(e)[:80]}")
     finally:
         running = False
         add_log("■ 監視停止")
@@ -377,14 +377,41 @@ body {
 .stat-val, .hit-price, .summary-value, .kw-price-input, .rank-num,
 .purchase-table td, .profit-preview .big { font-variant-numeric: tabular-nums; }
 
+/* ===== アイコン ===== */
+.ico {
+  width: 18px; height: 18px; flex-shrink: 0;
+  fill: none; stroke: currentColor; stroke-width: 1.8;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.ico-sm { width: 15px; height: 15px; stroke-width: 2; }
+.brand-mark {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 8px;
+  background: #1f6feb; color: #fff;
+}
+
+/* ===== 押下フィードバック =====
+   全ボタン共通。沈み込み(1px)＋影の消失で物理的な手応えを出す。
+   transform は 70ms と短くし、跳ねる動きは付けない。 */
+button {
+  transition: background .15s ease, border-color .15s ease, color .15s ease,
+              box-shadow .15s ease, opacity .15s ease, transform .07s ease;
+}
+button:active { transform: translateY(1px); }
+button:focus-visible { outline: 2px solid #58a6ff; outline-offset: 2px; }
+button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+
 .header { background: #161b22; padding: 16px 26px; border-bottom: 1px solid #30363d; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 200; }
 .header h1 { font-size: 1.3em; font-weight: 700; letter-spacing: 0.05em; }
 .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 
 .tab-nav { display: flex; gap: 4px; background: #161b22; padding: 8px 26px 0; border-bottom: 1px solid #30363d; overflow-x: auto; }
-.tab-btn { padding: 11px 20px; border: none; border-radius: 6px 6px 0 0; background: transparent; color: #b6c2ce; font-size: 1em; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; transition: color 0.2s; white-space: nowrap; font-family: inherit; }
+.tab-btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; border: none; border-radius: 6px 6px 0 0; background: transparent; color: #b6c2ce; font-size: 1em; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; font-family: inherit; }
 .tab-btn.active { color: #e6edf3; border-bottom-color: #1f6feb; }
-.tab-btn:hover { color: #e6edf3; }
+.tab-btn:hover { color: #e6edf3; background: #1c222b; }
+.tab-btn:active { transform: none; }
+.tab-btn .ico { opacity: .75; }
+.tab-btn.active .ico { opacity: 1; color: #58a6ff; }
 
 .tab-content { display: none; }
 .tab-content.active { display: block; }
@@ -402,9 +429,10 @@ body {
 .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 18px; margin-bottom: 18px; }
 .card-title { font-size: 1em; font-weight: 700; color: #c3ccd6; letter-spacing: 0.02em; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #21262d; }
 
-.btn { width: 100%; padding: 13px; border: none; border-radius: 8px; font-size: 1em; font-weight: 700; cursor: pointer; margin-bottom: 8px; transition: filter 0.15s, transform 0.1s; font-family: inherit; letter-spacing: 0.03em; }
-.btn:hover { filter: brightness(1.1); }
-.btn:active { transform: scale(0.98); }
+.btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 13px; border: none; border-radius: 8px; font-size: 1em; font-weight: 700; cursor: pointer; margin-bottom: 8px; font-family: inherit; letter-spacing: 0.03em; box-shadow: 0 1px 0 rgba(0,0,0,.3); }
+.btn:hover { filter: brightness(1.12); }
+.btn:active { transform: translateY(1px); box-shadow: none; filter: brightness(.95); }
+.btn .ico { fill: currentColor; stroke: none; }
 .btn-start { background: #238636; color: #fff; }
 .btn-stop  { background: #da3633; color: #fff; }
 
@@ -419,6 +447,9 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 
 .save-btn { margin-top: 12px; width: 100%; padding: 11px; background: #1f6feb; border: none; border-radius: 6px; color: #fff; font-weight: 700; cursor: pointer; font-size: 0.95em; font-family: inherit; }
 .save-btn:hover { background: #388bfd; }
+.save-btn:active { background: #1a5fcc; }
+.action-btn:active, .add-kw-btn:active, .chip:active,
+.big-btn:active, .modal-btns button:active { filter: brightness(.9); }
 
 /* 日本語を含むログなので、等幅の後ろに日本語フォントを必ず置く */
 .log-box { background: #0d1117; border-radius: 6px; padding: 12px; height: 240px; overflow-y: auto; font-family: 'Consolas', 'Courier New', 'Noto Sans JP', 'Yu Gothic UI', 'Meiryo', monospace; font-size: 0.95em; border: 1px solid #21262d; line-height: 1.85; }
@@ -440,27 +471,56 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 .hit-price { color: #3fb950; font-weight: 700; font-size: 1.3em; margin-top: 5px; letter-spacing: 0.02em; }
 .hit-meta { font-size: 0.95em; color: #b6c2ce; margin-top: 4px; }
 .hit-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-.buy-btn  { padding: 7px 14px; background: #1f6feb; border: none; border-radius: 6px; color: #fff; font-size: 0.95em; font-weight: 600; cursor: pointer; }
-.buy-btn:hover  { background: #388bfd; }
-.miss-btn { padding: 7px 12px; background: #3a1a1a; border: 1px solid #6e3030; border-radius: 6px; color: #ff7b72; font-size: 0.95em; font-weight: 600; cursor: pointer; }
-.miss-btn:hover { background: #4a2020; }
+.hit-actions button { display: inline-flex; align-items: center; gap: 6px; }
+.buy-btn  { padding: 7px 14px; background: #1f6feb; border: 1px solid #1f6feb; border-radius: 6px; color: #fff; font-size: 0.95em; font-weight: 600; cursor: pointer; box-shadow: 0 1px 0 rgba(0,0,0,.25); }
+.buy-btn:hover  { background: #388bfd; border-color: #388bfd; }
+.buy-btn:active { box-shadow: none; background: #1a5fcc; }
+.miss-btn { padding: 7px 12px; background: #21262d; border: 1px solid #4a2c2c; border-radius: 6px; color: #ff7b72; font-size: 0.95em; font-weight: 600; cursor: pointer; }
+.miss-btn:hover { background: #3a1a1a; border-color: #6e3030; }
+.miss-btn:active { background: #2b1212; }
 .ng-btn   { padding: 7px 12px; background: #21262d; border: 1px solid #30363d; border-radius: 6px; color: #b6c2ce; font-size: 0.95em; font-weight: 600; cursor: pointer; }
-.ng-btn:hover   { background: #da3633; color: #fff; border-color: #da3633; }
+.ng-btn:hover   { background: #30363d; color: #e6edf3; }
+.ng-btn:active  { background: #1a1f26; }
 
 .empty { text-align: center; color: #8b97a5; padding: 44px; font-size: 1em; }
 
 /* 収益管理タブ */
 .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 22px; }
-.chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
 .chart-box { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 18px; }
 .chart-box h3 { font-size: 1em; color: #c3ccd6; margin-bottom: 14px; letter-spacing: 0.02em; }
+
+/* ===== 分析タブ ===== */
+/* 冒頭に要約文を置き、指標を選ぶと下のグラフが切り替わる構成 */
+.an-hero { padding: 2px 0 22px; }
+.an-hero h2 { font-size: 1.5em; font-weight: 700; line-height: 1.55; letter-spacing: 0.01em; }
+.an-hero p { margin-top: 7px; color: #a3b0bd; font-size: 0.95em; }
+
+.an-panel { background: #161b22; border: 1px solid #30363d; border-radius: 10px; overflow: hidden; margin-bottom: 18px; }
+.metric-row { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid #21262d; }
+.metric { background: none; border: none; border-right: 1px solid #21262d; border-bottom: 3px solid transparent; padding: 15px 18px; text-align: left; cursor: pointer; font-family: inherit; color: #a3b0bd; }
+.metric:last-child { border-right: none; }
+.metric:hover { background: #1a2029; }
+.metric:active { transform: none; }
+.metric.active { background: #1a2029; border-bottom-color: #1f6feb; color: #e6edf3; }
+.metric-label { display: block; font-size: 0.92em; font-weight: 600; }
+.metric-value { display: block; margin-top: 5px; font-size: 1.45em; font-weight: 700; color: #e6edf3; font-variant-numeric: tabular-nums; }
+.an-chart { height: 330px; padding: 18px; }
+.an-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; align-items: start; }
+@media (max-width: 1080px) {
+  .an-grid { grid-template-columns: 1fr; }
+  .metric-row { grid-template-columns: repeat(2, 1fr); }
+}
+
 .rank-table { width: 100%; border-collapse: collapse; font-size: 0.95em; }
 .rank-table th { text-align: left; padding: 11px 12px; color: #b6c2ce; font-size: 0.92em; font-weight: 700; letter-spacing: 0.02em; border-bottom: 1px solid #30363d; }
 .rank-table td { padding: 12px; border-bottom: 1px solid #21262d; font-size: 0.98em; }
-.rank-table tr:first-child td { color: #f0c040; }
-.rank-table tr:nth-child(2) td { color: #d5d5d5; }
-.rank-table tr:nth-child(3) td { color: #e0955a; }
-.rank-num { font-weight: 700; font-size: 1.2em; }
+.rank-table tr:last-child td { border-bottom: none; }
+.rank-table tr:hover td { background: #1c2129; }
+/* 順位はメダル絵文字ではなく落ち着いたバッジで示す */
+.rank-num { display: inline-flex; align-items: center; justify-content: center; width: 25px; height: 25px; border-radius: 7px; background: #21262d; color: #a3b0bd; font-size: 0.88em; font-weight: 700; }
+.rank-num.top1 { background: #3a3116; color: #e3b341; }
+.rank-num.top2 { background: #2d323a; color: #c9d1d9; }
+.rank-num.top3 { background: #33251a; color: #d18d5b; }
 .summary-card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 18px; text-align: center; }
 .summary-label { font-size: 0.95em; font-weight: 600; color: #b6c2ce; margin-bottom: 9px; letter-spacing: 0.02em; }
 .summary-value { font-size: 1.6em; font-weight: 700; color: #e6edf3; letter-spacing: 0.02em; }
@@ -549,7 +609,9 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 <body>
 
 <div class="header">
-  <span style="font-size:1.4em">🛒</span>
+  <span class="brand-mark">
+    <svg class="ico" viewBox="0 0 24 24" style="width:17px;height:17px"><circle cx="9" cy="20" r="1.4"/><circle cx="19" cy="20" r="1.4"/><path d="M2 3h3l2.4 11.2a1.8 1.8 0 0 0 1.8 1.4h8.6a1.8 1.8 0 0 0 1.8-1.4L21.4 7H6"/></svg>
+  </span>
   <h1>MeriWatch</h1>
   <div class="header-right">
     <div class="badge stopped" id="statusBadge">
@@ -560,11 +622,11 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 </div>
 
 <div class="tab-nav">
-  <button class="tab-btn active" onclick="switchTab('monitor')">📡 監視</button>
-  <button class="tab-btn" onclick="switchTab('profit')">💰 収益管理</button>
-  <button class="tab-btn" onclick="switchTab('miss')">😢 買い負け</button>
-  <button class="tab-btn" onclick="switchTab('analytics')">📊 分析</button>
-  <button class="tab-btn" onclick="switchTab('settings')">⚙️ 設定</button>
+  <button class="tab-btn active" onclick="switchTab('monitor')"><svg class="ico" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>監視</button>
+  <button class="tab-btn" onclick="switchTab('profit')"><svg class="ico" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>収益管理</button>
+  <button class="tab-btn" onclick="switchTab('miss')"><svg class="ico" viewBox="0 0 24 24"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>買い負け</button>
+  <button class="tab-btn" onclick="switchTab('analytics')"><svg class="ico" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>分析</button>
+  <button class="tab-btn" onclick="switchTab('settings')"><svg class="ico" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>設定</button>
 </div>
 
 <!-- ===== 監視タブ ===== -->
@@ -574,8 +636,8 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
     <div>
       <div class="card">
         <div class="card-title">コントロール</div>
-        <button class="btn btn-start" onclick="doStart()">▶ 開始</button>
-        <button class="btn btn-stop" onclick="doStop()">■ 停止</button>
+        <button class="btn btn-start" onclick="doStart()"><svg class="ico" viewBox="0 0 24 24"><polygon points="7 4 20 12 7 20"/></svg>開始</button>
+        <button class="btn btn-stop" onclick="doStop()"><svg class="ico" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>停止</button>
         <div style="margin-top:10px">
           <div class="stat-row"><span>検知数</span><span class="stat-val" id="hitCount">0</span></div>
           <div class="stat-row"><span>既チェック数</span><span class="stat-val" id="checkedCount">0</span></div>
@@ -595,7 +657,7 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
         <span class="card-title" style="margin:0;padding:0;border:none">検知リスト</span>
         <span class="count-badge" id="hitBadge">0</span>
       </div>
-      <div id="hitList"><div class="empty">📭 まだ検知がありません</div></div>
+      <div id="hitList"><div class="empty">まだ検知がありません</div></div>
     </div>
   </div>
 </div>
@@ -605,10 +667,10 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 <div id="tab-profit" class="tab-content">
 <div class="container">
   <div class="card" style="margin-bottom:16px">
-    <div class="card-title">🔗 URLから商品を追加</div>
+    <div class="card-title">URLから商品を追加</div>
     <div style="display:flex;gap:8px;align-items:center">
       <input type="text" id="urlInput" placeholder="https://jp.mercari.com/item/m..." style="flex:1">
-      <button onclick="lookupUrl()" style="padding:8px 18px;background:#1f6feb;border:none;border-radius:6px;color:#fff;font-weight:600;cursor:pointer;white-space:nowrap">🔍 商品を取得</button>
+      <button onclick="lookupUrl()" style="padding:8px 18px;background:#1f6feb;border:none;border-radius:6px;color:#fff;font-weight:600;cursor:pointer;white-space:nowrap">商品を取得</button>
     </div>
     <div id="urlStatus" style="font-size:0.92em;color:#a3b0bd;margin-top:6px"></div>
   </div>
@@ -665,7 +727,7 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 <div id="tab-settings" class="tab-content">
 <div class="container" style="max-width:860px">
   <div class="settings-save-bar">
-    <button class="big-btn btn-save-big" onclick="saveSettings()">💾 保存</button>
+    <button class="big-btn btn-save-big" onclick="saveSettings()">保存</button>
     <button class="big-btn btn-undo-big" onclick="restoreSettings()">↩ 元に戻す</button>
   </div>
 
@@ -702,7 +764,7 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 <div id="tab-miss" class="tab-content">
 <div class="container">
   <div class="card">
-    <div class="card-title">😢 買い負け履歴 <span style="font-size:0.92em;color:#a3b0bd;font-weight:400">— 他の人に買われた商品</span></div>
+    <div class="card-title">買い負け履歴 <span style="font-size:0.92em;color:#a3b0bd;font-weight:400">— 他の人に買われた商品</span></div>
     <div style="overflow-x:auto">
       <table class="purchase-table">
         <thead>
@@ -714,7 +776,7 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
     </div>
   </div>
   <div class="card">
-    <div class="card-title">📊 キーワード別 買い負け数</div>
+    <div class="card-title">キーワード別 買い負け数</div>
     <canvas id="chartMiss" style="max-height:260px"></canvas>
   </div>
 </div>
@@ -723,40 +785,52 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 <!-- ===== 分析タブ ===== -->
 <div id="tab-analytics" class="tab-content">
 <div class="container">
-  <div class="chart-grid">
-    <div class="chart-box">
-      <h3>💴 キーワード別 総利益</h3>
-      <canvas id="chartProfit"></canvas>
-    </div>
-    <div class="chart-box">
-      <h3>📦 キーワード別 購入数</h3>
-      <canvas id="chartCount"></canvas>
-    </div>
-    <div class="chart-box">
-      <h3>📈 キーワード別 平均利益率</h3>
-      <canvas id="chartRate"></canvas>
-    </div>
-    <div class="chart-box">
-      <h3>⏱️ 平均売却期間（日）</h3>
-      <canvas id="chartDays"></canvas>
-    </div>
+  <div class="an-hero">
+    <h2 id="anHeadline">読み込み中…</h2>
+    <p id="anSubline"></p>
   </div>
-  <div class="card">
-    <div class="card-title">🏆 キーワード別 ランキング</div>
-    <table class="rank-table">
-      <thead>
-        <tr>
-          <th>順位</th>
-          <th>キーワード</th>
-          <th>購入数</th>
-          <th>売却数</th>
-          <th>総利益</th>
-          <th>平均利益率</th>
-          <th>平均売却期間</th>
-        </tr>
-      </thead>
-      <tbody id="rankTable"></tbody>
-    </table>
+
+  <div class="an-panel">
+    <div class="metric-row" id="metricRow">
+      <button class="metric active" data-metric="profit" onclick="selectMetric('profit')">
+        <span class="metric-label">総利益</span><span class="metric-value" id="mv-profit">—</span>
+      </button>
+      <button class="metric" data-metric="count" onclick="selectMetric('count')">
+        <span class="metric-label">購入数</span><span class="metric-value" id="mv-count">—</span>
+      </button>
+      <button class="metric" data-metric="rate" onclick="selectMetric('rate')">
+        <span class="metric-label">平均利益率</span><span class="metric-value" id="mv-rate">—</span>
+      </button>
+      <button class="metric" data-metric="days" onclick="selectMetric('days')">
+        <span class="metric-label">平均売却期間</span><span class="metric-value" id="mv-days">—</span>
+      </button>
+    </div>
+    <div class="an-chart"><canvas id="chartMain"></canvas></div>
+  </div>
+
+  <div class="an-grid">
+    <div class="chart-box">
+      <h3>キーワード別 ランキング</h3>
+      <table class="rank-table">
+        <thead>
+          <tr>
+            <th>順位</th>
+            <th>キーワード</th>
+            <th>購入</th>
+            <th>売却</th>
+            <th>総利益</th>
+            <th>利益率</th>
+            <th>期間</th>
+          </tr>
+        </thead>
+        <tbody id="rankTable"></tbody>
+      </table>
+      <div class="empty" id="rankEmpty" style="display:none;padding:28px">まだデータがありません</div>
+    </div>
+    <div class="chart-box">
+      <h3>購入数の内訳</h3>
+      <div style="height:260px"><canvas id="chartCount"></canvas></div>
+    </div>
   </div>
 </div>
 </div>
@@ -764,7 +838,7 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 <!-- ===== 出品文生成モーダル ===== -->
 <div class="modal-overlay" id="listingModal">
   <div class="modal" style="width:520px">
-    <h3>✍️ 出品文を生成</h3>
+    <h3>出品文を生成</h3>
     <div class="modal-name" id="listing-name"></div>
     <label>状態</label>
     <select id="listing-condition" style="width:100%;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px 10px;color:#e6edf3;font-size:0.9em;font-family:inherit">
@@ -790,7 +864,7 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
     <label>追加メモ（任意）</label>
     <input type="text" id="listing-memo" placeholder="例: 背面に小さな傷あり">
     <div class="modal-btns" style="margin-top:14px">
-      <button class="modal-ok" id="listing-gen-btn" onclick="generateListing()">✨ 生成する</button>
+      <button class="modal-ok" id="listing-gen-btn" onclick="generateListing()">生成する</button>
       <button class="modal-cancel" onclick="closeListingModal()">閉じる</button>
     </div>
     <div id="listing-result" style="display:none;margin-top:16px">
@@ -815,7 +889,7 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 <!-- ===== 買い負けモーダル ===== -->
 <div class="modal-overlay" id="missModal">
   <div class="modal">
-    <h3>😢 買い負け記録</h3>
+    <h3>買い負け記録</h3>
     <div class="modal-name" id="miss-name"></div>
     <label>カテゴリ（キーワード）</label>
     <select id="miss-keyword" style="width:100%;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px 10px;color:#e6edf3;font-size:0.9em;font-family:inherit">
@@ -834,7 +908,7 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 <!-- ===== 購入モーダル ===== -->
 <div class="modal-overlay" id="purchaseModal">
   <div class="modal">
-    <h3>💰 購入記録</h3>
+    <h3>購入記録</h3>
     <div class="modal-name" id="modal-name"></div>
     <input type="hidden" id="modal-data">
     <label>カテゴリ（キーワード）</label>
@@ -860,7 +934,7 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
   </div>
 </div>
 
-<div class="toast" id="toast">✅ 保存しました</div>
+<div class="toast" id="toast">保存しました</div>
 
 <script>
 // ===== タブ切り替え =====
@@ -868,7 +942,10 @@ function switchTab(name) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
-  event.target.classList.add('active');
+  // ボタン内のSVGアイコンをクリックすると event.target が svg 要素になるため、
+  // closest() で必ずボタン自体を掴む
+  const clicked = event.target.closest('.tab-btn');
+  if (clicked) clicked.classList.add('active');
   if (name === 'profit' || name === 'analytics') loadPurchases();
   if (name === 'miss') loadMisses();
   if (name === 'settings') loadSettings();
@@ -912,7 +989,7 @@ function renderKwList() {
           <span>上限¥</span>
           <input class="kw-price-input" type="number" value="${d.price}" onchange="_kwData[${i}].price=parseInt(this.value)||0">
         </div>
-        <button class="kw-del-btn" onclick="_kwData.splice(${i},1);renderKwList()" title="削除">🗑</button>
+        <button class="kw-del-btn" onclick="_kwData.splice(${i},1);renderKwList()" title="削除"><svg class="ico ico-sm" viewBox="0 0 24 24"><polyline points="3 6 21 6"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
       </div>
       <div class="tag-row">
         <span class="tag-row-label label-req">必須</span>
@@ -983,7 +1060,7 @@ async function saveSettings() {
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({ webhook_url: webhook, claude_api_key: claudeApiKey, searches, ng_words: _globalNg })
   });
-  showToast('✅ 保存しました');
+  showToast('保存しました');
 }
 
 async function doStart() { await fetch('/api/start'); }
@@ -1010,7 +1087,7 @@ async function lookupUrl() {
   const url = document.getElementById('urlInput').value.trim();
   const status = document.getElementById('urlStatus');
   if (!url) return;
-  status.textContent = '🔍 取得中...';
+  status.textContent = '取得中...';
   status.style.color = '#a3b0bd';
   try {
     const r = await fetch('/api/item_lookup', {
@@ -1019,8 +1096,8 @@ async function lookupUrl() {
       body: JSON.stringify({ url })
     });
     const data = await r.json();
-    if (!data.ok) { status.textContent = '❌ ' + data.error; status.style.color = '#f85149'; return; }
-    status.textContent = data.name ? '✅ 取得成功: ' + data.name : '⚠️ 商品名を手動で入力してください';
+    if (!data.ok) { status.textContent = data.error; status.style.color = '#f85149'; return; }
+    status.textContent = data.name ? '取得成功: ' + data.name : '商品名を手動で入力してください';
     status.style.color = '#3fb950';
     document.getElementById('urlInput').value = '';
     // ヒットとして扱いモーダルを開く
@@ -1028,7 +1105,7 @@ async function lookupUrl() {
                  thumbnail: data.thumbnail, keyword: 'URL追加', time: '-' });
     openModal(_hits.length - 1);
   } catch(e) {
-    status.textContent = '❌ エラー: ' + e.message;
+    status.textContent = 'エラー: ' + e.message;
     status.style.color = '#f85149';
   }
 }
@@ -1041,7 +1118,7 @@ async function restoreSettings() {
     await loadSettings();
     showToast('↩ 元の設定に戻しました');
   } else {
-    showToast('⚠ ' + (res.error || 'バックアップなし'));
+    showToast(res.error || 'バックアップなし');
   }
 }
 
@@ -1050,7 +1127,7 @@ let _hits = [];
 function renderHits(hits) {
   _hits = hits;
   const el = document.getElementById('hitList');
-  if (!hits.length) { el.innerHTML = '<div class="empty">📭 まだ検知がありません</div>'; return; }
+  if (!hits.length) { el.innerHTML = '<div class="empty">まだ検知がありません</div>'; return; }
   el.innerHTML = hits.map((h, i) => `
     <div class="hit-item">
       <div class="hit-top">
@@ -1062,9 +1139,9 @@ function renderHits(hits) {
         </div>
       </div>
       <div class="hit-actions">
-        <button class="buy-btn"  onclick="openModal(${i})">💰 購入</button>
-        <button class="miss-btn" onclick="recordMiss(${i})">😢 買い負け</button>
-        <button class="ng-btn"   onclick="quickNG(${i})">🚫 NG追加</button>
+        <button class="buy-btn"  onclick="openModal(${i})"><svg class="ico ico-sm" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>購入</button>
+        <button class="miss-btn" onclick="recordMiss(${i})"><svg class="ico ico-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>買い負け</button>
+        <button class="ng-btn"   onclick="quickNG(${i})"><svg class="ico ico-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/></svg>NG追加</button>
       </div>
     </div>
   `).join('');
@@ -1107,7 +1184,7 @@ async function saveMiss() {
     body: JSON.stringify({ ..._missHit, keyword, price, memo })
   });
   closeMissModal();
-  showToast('😢 買い負け記録しました');
+  showToast('買い負け記録しました');
 }
 
 async function quickNG(i) {
@@ -1120,7 +1197,7 @@ async function quickNG(i) {
     body: JSON.stringify({ word: word.trim() })
   });
   const res = await r.json();
-  if (res.ok) showToast('🚫 NGワード追加: ' + word.trim());
+  if (res.ok) showToast('NGワード追加: ' + word.trim());
 }
 
 function colorLog(line) {
@@ -1210,7 +1287,7 @@ async function savePurchase() {
     })
   });
   closeModal();
-  showToast('💰 購入記録しました');
+  showToast('購入記録しました');
 }
 
 // ===== 収益管理タブ =====
@@ -1280,7 +1357,7 @@ function renderPurchases(purchases) {
         <td style="color:#a3b0bd;font-size:0.92em">${isSold && p.sold_at ? daysBetween(p.bought_at, p.sold_at) + '日' : '-'}</td>
         <td><input class="memo-input" value="${p.memo}" onchange="updateMemo('${p.id}', this.value)" placeholder="メモ"></td>
         <td>
-          <button class="action-btn" style="background:#4a2d6b;color:#c084fc" onclick='openListingModal(${JSON.stringify({name:p.name,keyword:p.keyword})})'>✍️ 出品文</button>
+          <button class="action-btn" style="background:#21262d;color:#c3ccd6;border:1px solid #30363d" onclick='openListingModal(${JSON.stringify({name:p.name,keyword:p.keyword})})'><svg class="ico ico-sm" viewBox="0 0 24 24" style="vertical-align:-2px;margin-right:4px"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>出品文</button>
           ${!isSold ? `<button class="action-btn sell-btn" onclick="markSold('${p.id}')">売却済</button>` : ''}
           <button class="action-btn del-btn" onclick="deletePurchase('${p.id}')">削除</button>
         </td>
@@ -1313,7 +1390,7 @@ async function updateSellPrice(id, val) {
     body: JSON.stringify({ sell_price })
   });
   loadPurchases();
-  showToast('💴 売値を更新しました');
+  showToast('売値を更新しました');
 }
 
 async function deletePurchase(id) {
@@ -1328,7 +1405,7 @@ function openListingModal(item) {
   _listingItem = item;
   document.getElementById('listing-name').textContent = item.name;
   document.getElementById('listing-result').style.display = 'none';
-  document.getElementById('listing-gen-btn').textContent = '✨ 生成する';
+  document.getElementById('listing-gen-btn').textContent = '生成する';
   document.getElementById('listing-gen-btn').disabled = false;
   document.getElementById('listingModal').classList.add('open');
 }
@@ -1338,7 +1415,7 @@ function closeListingModal() {
 async function generateListing() {
   if (!_listingItem) return;
   const btn = document.getElementById('listing-gen-btn');
-  btn.textContent = '⏳ 生成中...';
+  btn.textContent = '生成中...';
   btn.disabled = true;
   const r = await fetch('/api/generate_listing', {
     method: 'POST',
@@ -1353,16 +1430,16 @@ async function generateListing() {
     })
   });
   const res = await r.json();
-  btn.textContent = '🔄 再生成';
+  btn.textContent = '再生成';
   btn.disabled = false;
-  if (!res.ok) { showToast('❌ ' + res.error); return; }
+  if (!res.ok) { showToast(res.error); return; }
   document.getElementById('listing-title-text').textContent = res.title;
   document.getElementById('listing-desc-text').textContent  = res.description;
   document.getElementById('listing-result').style.display = 'block';
 }
 function copyText(id) {
   const text = document.getElementById(id).textContent;
-  navigator.clipboard.writeText(text).then(() => showToast('📋 コピーしました'));
+  navigator.clipboard.writeText(text).then(() => showToast('コピーしました'));
 }
 
 // ===== 買い負けタブ =====
@@ -1407,71 +1484,131 @@ async function loadMisses() {
 const _charts = {};
 function destroyChart(id) { if (_charts[id]) { _charts[id].destroy(); delete _charts[id]; } }
 
+// 分析タブは集計結果を保持しておき、指標を切り替えても再集計しない
+let _anData   = null;
+let _anMetric = 'profit';
+
+const yen = v => (v < 0 ? '−¥' : '¥') + Math.abs(Math.round(v)).toLocaleString();
+
+// 指標の定義。profit / rate / days は売却済みの実績のみを対象にする
+const AN_METRICS = {
+  profit: { label: '実現利益',     fmt: v => yen(v) },
+  count:  { label: '購入数',       fmt: v => v + ' 件' },
+  rate:   { label: '平均利益率',   fmt: v => v + ' %' },
+  days:   { label: '平均売却期間', fmt: v => v + ' 日' },
+};
+
+function selectMetric(m) {
+  _anMetric = m;
+  document.querySelectorAll('#metricRow .metric')
+    .forEach(b => b.classList.toggle('active', b.dataset.metric === m));
+  drawMainChart();
+}
+
+function drawMainChart() {
+  if (!_anData) return;
+  const { labels, value } = _anData;
+  const meta = AN_METRICS[_anMetric];
+  const vals = labels.map(k => value(k, _anMetric));
+  // 損益に関わる指標だけ正負で色分けし、それ以外は単色に抑える
+  const signed = _anMetric === 'profit' || _anMetric === 'rate';
+  const colors = vals.map(v => signed ? (v >= 0 ? '#2ea043' : '#da3633') : '#1f6feb');
+
+  destroyChart('main');
+  _charts['main'] = new Chart(document.getElementById('chartMain'), {
+    type: 'bar',
+    data: { labels, datasets: [{ data: vals, backgroundColor: colors, borderRadius: 4, maxBarThickness: 26 }] },
+    options: {
+      // キーワード名が日本語で長いため横棒にして読めるようにする
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => meta.label + ': ' + meta.fmt(c.parsed.x) } }
+      },
+      scales: {
+        x: { ticks: { color: '#8b97a5', font: { size: 11 } }, grid: { color: '#21262d' }, border: { display: false } },
+        y: { ticks: { color: '#c3ccd6', font: { size: 12 } }, grid: { display: false }, border: { display: false } }
+      }
+    }
+  });
+}
+
 function buildAnalytics(purchases) {
   // キーワード別集計
   const kw = {};
   for (const p of purchases) {
     const k = p.keyword || 'その他';
-    if (!kw[k]) kw[k] = { profit: 0, count: 0, soldCount: 0, rates: [], days: [] };
-    const profit = calcPurchaseProfit(p);
-    kw[k].profit += profit;
+    if (!kw[k]) kw[k] = { realized: 0, count: 0, soldCount: 0, rates: [], days: [] };
     kw[k].count++;
     if (p.status === 'sold') {
+      const profit = calcPurchaseProfit(p);
+      kw[k].realized += profit;
       kw[k].soldCount++;
       if (p.buy_price > 0) kw[k].rates.push(profit / p.buy_price * 100);
       const d = daysBetween(p.bought_at, p.sold_at);
       if (d !== null) kw[k].days.push(d);
     }
   }
-  const labels = Object.keys(kw).sort((a, b) => kw[b].profit - kw[a].profit);
   const avg = arr => arr.length ? Math.round(arr.reduce((s,v)=>s+v,0)/arr.length*10)/10 : 0;
-  const COLORS = ['#1f6feb','#238636','#da3633','#f0c040','#9b59b6','#1abc9c','#e67e22','#e91e63'];
-  const cfg = (type, labels, data, label, color, opts={}) => ({
-    type, data: { labels, datasets: [{ label, data, backgroundColor: color, borderColor: color, borderWidth: 1, borderRadius: 4 }] },
-    options: { responsive: true, plugins: { legend: { display: type==='doughnut', labels: { color:'#e6edf3', font:{size:11} } } },
-      scales: type!=='doughnut' ? { x:{ticks:{color:'#a3b0bd'}}, y:{ticks:{color:'#a3b0bd'}, grid:{color:'#21262d'}} } : undefined,
-      ...opts }
-  });
+  const labels = Object.keys(kw).sort((a, b) => kw[b].realized - kw[a].realized);
+  const value = (k, m) => m === 'profit' ? kw[k].realized
+                        : m === 'count'  ? kw[k].count
+                        : m === 'rate'   ? avg(kw[k].rates)
+                        :                  avg(kw[k].days);
+  _anData = { kw, labels, avg, value };
 
-  // 利益グラフ
-  destroyChart('profit');
-  _charts['profit'] = new Chart(document.getElementById('chartProfit'), cfg(
-    'bar', labels, labels.map(k=>kw[k].profit), '総利益(円)',
-    labels.map(k => kw[k].profit >= 0 ? '#238636' : '#da3633')
-  ));
+  // ── 冒頭の要約文 ──
+  const bought   = labels.reduce((s,k) => s + kw[k].count, 0);
+  const sold     = labels.reduce((s,k) => s + kw[k].soldCount, 0);
+  const realized = labels.reduce((s,k) => s + kw[k].realized, 0);
+  const allRates = labels.flatMap(k => kw[k].rates);
+  const allDays  = labels.flatMap(k => kw[k].days);
 
-  // 購入数円グラフ
+  const head = document.getElementById('anHeadline');
+  const sub  = document.getElementById('anSubline');
+  if (!bought) {
+    head.textContent = 'まだ購入記録がありません';
+    sub.textContent  = '「収益管理」タブで商品を登録すると、ここに分析が表示されます。';
+  } else if (!sold) {
+    head.textContent = `${bought} 件を仕入れ、まだ 1 件も売却していません`;
+    sub.textContent  = `監視キーワード ${labels.length} 件。売却を記録すると利益の分析が表示されます。`;
+  } else {
+    head.textContent = `売却した ${sold} 件で ${yen(realized)} の利益が出ています`;
+    sub.textContent  = `購入 ${bought} 件 ・ 未売却 ${bought - sold} 件 ・ キーワード ${labels.length} 件`;
+  }
+
+  // ── 指標カードの数値 ──
+  document.getElementById('mv-profit').textContent = yen(realized);
+  document.getElementById('mv-count').textContent  = bought + ' 件';
+  document.getElementById('mv-rate').textContent   = avg(allRates) + ' %';
+  document.getElementById('mv-days').textContent   = allDays.length ? avg(allDays) + ' 日' : '—';
+
+  // ── メイングラフ ──
+  drawMainChart();
+
+  // ── 購入数の内訳（青系の濃淡で色数を抑える）──
+  const COLORS = ['#1f6feb','#3b82f6','#58a6ff','#79c0ff','#a5d6ff','#c9e2ff','#7d8590','#545d68'];
   destroyChart('count');
   _charts['count'] = new Chart(document.getElementById('chartCount'), {
     type: 'doughnut',
     data: { labels, datasets: [{ data: labels.map(k=>kw[k].count), backgroundColor: COLORS, borderWidth: 0 }] },
-    options: { responsive: true, plugins: { legend: { position:'right', labels:{color:'#e6edf3',font:{size:11}} } } }
+    options: { responsive: true, maintainAspectRatio: false, cutout: '58%',
+      plugins: { legend: { position:'right', labels:{ color:'#c3ccd6', font:{size:11}, boxWidth:10, boxHeight:10, padding:10, usePointStyle:true } } } }
   });
 
-  // 利益率グラフ
-  destroyChart('rate');
-  _charts['rate'] = new Chart(document.getElementById('chartRate'), cfg(
-    'bar', labels, labels.map(k=>avg(kw[k].rates)), '平均利益率(%)',
-    labels.map(k => avg(kw[k].rates) >= 0 ? '#1f6feb' : '#da3633')
-  ));
-
-  // 売却期間グラフ
-  destroyChart('days');
-  _charts['days'] = new Chart(document.getElementById('chartDays'), cfg(
-    'bar', labels, labels.map(k=>avg(kw[k].days)), '平均売却期間(日)', '#9b59b6'
-  ));
-
-  // ランキングテーブル
+  // ── ランキングテーブル ──
   const tbody = document.getElementById('rankTable');
+  document.getElementById('rankEmpty').style.display = labels.length ? 'none' : '';
   tbody.innerHTML = labels.map((k, i) => `
     <tr>
-      <td class="rank-num">${['🥇','🥈','🥉'][i] || i+1}</td>
+      <td><span class="rank-num ${i < 3 ? 'top' + (i+1) : ''}">${i+1}</span></td>
       <td>${k}</td>
-      <td>${kw[k].count}個</td>
-      <td>${kw[k].soldCount}個</td>
-      <td class="${kw[k].profit>=0?'profit-pos':'profit-neg'}">¥${kw[k].profit.toLocaleString()}</td>
+      <td>${kw[k].count}</td>
+      <td>${kw[k].soldCount}</td>
+      <td class="${kw[k].realized>=0?'profit-pos':'profit-neg'}">${yen(kw[k].realized)}</td>
       <td class="${avg(kw[k].rates)>=0?'profit-pos':'profit-neg'}">${avg(kw[k].rates)}%</td>
-      <td style="color:#a3b0bd">${avg(kw[k].days) || '-'}${avg(kw[k].days)?'日':''}</td>
+      <td style="color:#a3b0bd">${kw[k].days.length ? avg(kw[k].days)+'日' : '-'}</td>
     </tr>`).join('');
 }
 
