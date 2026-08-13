@@ -404,6 +404,7 @@ button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 .header { background: #161b22; padding: 16px 24px; border-bottom: 1px solid #30363d; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 200; }
 .header h1 { font-size: 1.3em; font-weight: 700; letter-spacing: 0.05em; }
 .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.app-ver { font-size: 0.78em; font-weight: 600; color: #8b97a5; background: #21262d; border: 1px solid #30363d; padding: 1px 8px; border-radius: 20px; }
 
 .tab-nav { display: flex; gap: 4px; background: #161b22; padding: 8px 24px 0; border-bottom: 1px solid #30363d; overflow-x: auto; }
 .tab-btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; border: none; border-radius: 8px 8px 0 0; background: transparent; color: #b6c2ce; font-size: 1em; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; font-family: inherit; }
@@ -642,6 +643,8 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
     <svg class="ico" viewBox="0 0 24 24" style="width:17px;height:17px"><circle cx="9" cy="20" r="1.4"/><circle cx="19" cy="20" r="1.4"/><path d="M2 3h3l2.4 11.2a1.8 1.8 0 0 0 1.8 1.4h8.6a1.8 1.8 0 0 0 1.8-1.4L21.4 7H6"/></svg>
   </span>
   <h1>MeriWatch</h1>
+  <!-- 差し替えたかどうかを画面で判別できるようにする。変更するたびに上げる -->
+  <span class="app-ver">v6</span>
   <div class="header-right">
     <div class="badge stopped" id="statusBadge">
       <span class="dot"></span>
@@ -1563,7 +1566,7 @@ const yen = v => (v < 0 ? '−¥' : '¥') + Math.abs(Math.round(v)).toLocaleStri
 const reduceMotion = () =>
   window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const AN_DURATION = 900;
+const AN_DURATION = 1100;
 
 // 0→1 の進捗を easeOutCubic で流す共通の駆動部。数値もグラフもこれを使うので、
 // 同じタイミングで呼べば必ず歩調が揃う
