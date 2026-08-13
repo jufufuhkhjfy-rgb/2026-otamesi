@@ -507,6 +507,17 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 .metric-value { display: block; margin-top: 5px; font-size: 1.45em; font-weight: 700; color: #e6edf3; font-variant-numeric: tabular-nums; }
 .an-chart { height: 330px; padding: 20px; }
 .an-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; align-items: start; }
+.an-grid.even { grid-template-columns: 1fr 1fr; }
+.h3-note { font-weight: 400; font-size: 0.85em; color: #8b97a5; margin-left: 8px; }
+/* 滞留・買い負けの明細行 */
+.mini-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 2px; border-bottom: 1px solid #21262d; font-size: 0.95em; }
+.mini-row:last-child { border-bottom: none; }
+.mini-row .lbl { color: #c3ccd6; }
+.mini-row .val { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mini-row .sub { color: #8b97a5; font-size: 0.88em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mini-row.warn .lbl, .mini-row.warn .val { color: #e3b341; }
+.mini-note { margin-top: 12px; padding-top: 12px; border-top: 1px solid #21262d; color: #a3b0bd; font-size: 0.9em; line-height: 1.8; }
+.mini-note b { color: #e6edf3; font-variant-numeric: tabular-nums; }
 @media (max-width: 1080px) {
   .an-grid { grid-template-columns: 1fr; }
   .metric-row { grid-template-columns: repeat(2, 1fr); }
@@ -644,7 +655,7 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
   </span>
   <h1>MeriWatch</h1>
   <!-- 差し替えたかどうかを画面で判別できるようにする。変更するたびに上げる -->
-  <span class="app-ver">v6</span>
+  <span class="app-ver">v7</span>
   <div class="header-right">
     <div class="badge stopped" id="statusBadge">
       <span class="dot"></span>
@@ -891,6 +902,22 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
     <div class="chart-box">
       <h3>購入数の内訳</h3>
       <div style="height:260px"><canvas id="chartCount"></canvas></div>
+    </div>
+  </div>
+
+  <div class="chart-box" style="margin-top:18px">
+    <h3>月別の推移 <span class="h3-note">仕入れは購入日、利益は売却日で集計</span></h3>
+    <div style="height:280px"><canvas id="chartMonthly"></canvas></div>
+  </div>
+
+  <div class="an-grid even" style="margin-top:18px">
+    <div class="chart-box">
+      <h3>在庫の滞留 <span class="h3-note">未売却のまま何日経ったか</span></h3>
+      <div id="agingBody"></div>
+    </div>
+    <div class="chart-box">
+      <h3>買い負け分析 <span class="h3-note">競り負けた商品との比較</span></h3>
+      <div id="missBody"></div>
     </div>
   </div>
 </div>
@@ -1362,8 +1389,10 @@ async function savePurchase() {
 
 // ===== 収益管理タブ =====
 async function loadPurchases() {
-  const r = await fetch('/api/purchases');
+  // 買い負けは分析タブの「獲得率」で購入と突き合わせるため一緒に取る
+  const [r, mr] = await Promise.all([fetch('/api/purchases'), fetch('/api/misses')]);
   const purchases = await r.json();
+  _anMisses = await mr.json();
   renderPurchases(purchases);
   renderSummary(purchases);
   buildAnalytics(purchases);
@@ -1558,6 +1587,7 @@ function destroyChart(id) { if (_charts[id]) { _charts[id].destroy(); delete _ch
 // 分析タブは集計結果を保持しておき、指標を切り替えても再集計しない
 let _anData    = null;
 let _anMetric  = 'profit';
+let _anMisses  = [];   // 買い負け記録。獲得率の算出に使う
 // loadPurchases は収益管理タブとも共用のため、分析タブを開いた直後だけ立てる
 let _anAnimate = false;
 
@@ -1757,6 +1787,133 @@ function buildAnalytics(purchases) {
       <td class="${avg(kw[k].rates)>=0?'profit-pos':'profit-neg'}">${avg(kw[k].rates)}%</td>
       <td style="color:#a3b0bd">${kw[k].days.length ? avg(kw[k].days)+'日' : '-'}</td>
     </tr>`).join('');
+
+  buildMonthly(purchases, animating);
+  buildAging(purchases);
+  buildMissAnalysis(purchases, _anMisses);
+}
+
+// 日付文字列 "YYYY-MM-DD HH:MM" から年月を取り出す
+const monthOf = s => (s || '').slice(0, 7);
+// 購入日から今日までの経過日数
+const daysHeld = s => {
+  const d = new Date((s || '').replace(' ', 'T'));
+  return isNaN(d) ? null : Math.floor((Date.now() - d.getTime()) / 86400000);
+};
+
+// ── 月別の推移：仕入れは購入日、利益は売却日で振り分ける ──
+function buildMonthly(purchases, animate) {
+  const cost = {}, profit = {};
+  for (const p of purchases) {
+    const bm = monthOf(p.bought_at);
+    if (bm) cost[bm] = (cost[bm] || 0) + p.buy_price;
+    if (p.status === 'sold') {
+      const sm = monthOf(p.sold_at);
+      if (sm) profit[sm] = (profit[sm] || 0) + calcPurchaseProfit(p);
+    }
+  }
+  // 直近12ヶ月ぶんだけ出す
+  const months = [...new Set([...Object.keys(cost), ...Object.keys(profit)])].sort().slice(-12);
+  const costs   = months.map(m => cost[m]   || 0);
+  const profits = months.map(m => profit[m] || 0);
+  const moving  = !!animate && !reduceMotion();
+
+  destroyChart('monthly');
+  const chart = new Chart(document.getElementById('chartMonthly'), {
+    type: 'bar',
+    data: { labels: months.map(m => m.replace('-', '/')), datasets: [
+      { label: '仕入れ額', data: moving ? costs.map(() => 0) : costs,
+        backgroundColor: '#30475e', borderRadius: 3, maxBarThickness: 34 },
+      { label: '実現利益', data: moving ? profits.map(() => 0) : profits,
+        backgroundColor: profits.map(v => v >= 0 ? '#2ea043' : '#da3633'), borderRadius: 3, maxBarThickness: 34 },
+    ]},
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: {
+        legend: { position: 'top', align: 'end',
+                  labels: { color: '#c3ccd6', font: { size: 11 }, boxWidth: 10, boxHeight: 10, usePointStyle: true } },
+        tooltip: { callbacks: { label: c => c.dataset.label + ': ' + yen(c.parsed.y) } }
+      },
+      scales: {
+        x: { ticks: { color: '#c3ccd6', font: { size: 11 } }, grid: { display: false }, border: { display: false } },
+        y: { suggestedMin: Math.min(0, ...profits),
+             suggestedMax: Math.max(0, ...costs, ...profits),
+             ticks: { color: '#8b97a5', font: { size: 11 }, callback: v => yen(v) },
+             grid: { color: '#21262d' }, border: { display: false } }
+      }
+    }
+  });
+  _charts['monthly'] = chart;
+
+  if (moving) {
+    animateProgress(e => {
+      if (_charts['monthly'] !== chart) return;
+      chart.data.datasets[0].data = costs.map(v => v * e);
+      chart.data.datasets[1].data = profits.map(v => v * e);
+      chart.update('none');
+    });
+  }
+}
+
+// ── 在庫の滞留：未売却の資金がどれだけ寝ているか ──
+function buildAging(purchases) {
+  const el = document.getElementById('agingBody');
+  const stock = purchases.filter(p => p.status !== 'sold');
+  if (!stock.length) { el.innerHTML = '<div class="empty" style="padding:26px">未売却の在庫はありません</div>'; return; }
+
+  const BANDS = [
+    { lbl: '7日以内',    hit: d => d <= 7 },
+    { lbl: '8〜30日',    hit: d => d > 7  && d <= 30 },
+    { lbl: '31〜60日',   hit: d => d > 30 && d <= 60 },
+    { lbl: '61日以上',   hit: d => d > 60, warn: true },
+  ];
+  const withDays = stock.map(p => ({ p, d: daysHeld(p.bought_at) })).filter(x => x.d !== null);
+  const rows = BANDS.map(b => {
+    const hit = withDays.filter(x => b.hit(x.d));
+    const sum = hit.reduce((s, x) => s + x.p.buy_price, 0);
+    return `<div class="mini-row ${b.warn && hit.length ? 'warn' : ''}">
+      <span class="lbl">${b.lbl}</span>
+      <span><span class="val">${hit.length} 件</span> <span class="sub">${yen(sum)}</span></span>
+    </div>`;
+  }).join('');
+
+  const total  = withDays.reduce((s, x) => s + x.p.buy_price, 0);
+  const oldest = withDays.slice().sort((a, b) => b.d - a.d)[0];
+  el.innerHTML = rows + `<div class="mini-note">
+    寝ている仕入れ資金は <b>${yen(total)}</b>（${withDays.length} 件）。<br>
+    最も長い在庫は「${oldest.p.name}」で <b>${oldest.d} 日</b>経過。
+  </div>`;
+}
+
+// ── 買い負け分析：競り負けた相手の価格と、獲得できた割合 ──
+function buildMissAnalysis(purchases, misses) {
+  const el = document.getElementById('missBody');
+  if (!misses.length) { el.innerHTML = '<div class="empty" style="padding:26px">買い負けの記録がありません</div>'; return; }
+
+  const stat = {};
+  const touch = k => (stat[k] = stat[k] || { win: 0, lose: 0, winSum: 0, loseSum: 0 });
+  for (const p of purchases) { const s = touch(p.keyword || 'その他'); s.win++;  s.winSum  += p.buy_price; }
+  for (const m of misses)    { const s = touch(m.keyword || 'その他'); s.lose++; s.loseSum += m.price; }
+
+  // 買い負けが多い順。取りこぼしの大きいキーワードから見たい
+  const keys = Object.keys(stat).filter(k => stat[k].lose > 0).sort((a, b) => stat[b].lose - stat[a].lose).slice(0, 6);
+  const rows = keys.map(k => {
+    const s = stat[k], total = s.win + s.lose;
+    const rate = total ? Math.round(s.win / total * 1000) / 10 : 0;
+    return `<div class="mini-row">
+      <span class="lbl">${k}</span>
+      <span><span class="val">${rate}%</span> <span class="sub">${s.win} / ${total} 件</span></span>
+    </div>`;
+  }).join('');
+
+  const allWin  = purchases.length ? Math.round(purchases.reduce((s, p) => s + p.buy_price, 0) / purchases.length) : 0;
+  const allLose = Math.round(misses.reduce((s, m) => s + m.price, 0) / misses.length);
+  const diff    = allLose - allWin;
+  el.innerHTML = rows + `<div class="mini-note">
+    買い負けた商品の平均価格は <b>${yen(allLose)}</b>、購入できた平均は <b>${yen(allWin)}</b>。<br>
+    ${diff > 0 ? `相手は平均で <b>${yen(diff)}</b> 高く出しています。`
+               : `価格では負けていないので、判断の速さが要因です。`}
+  </div>`;
 }
 
 function showToast(msg) {
