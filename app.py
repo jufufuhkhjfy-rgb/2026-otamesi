@@ -521,6 +521,22 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 .rank-num.top1 { background: #3a3116; color: #e3b341; }
 .rank-num.top2 { background: #2d323a; color: #c9d1d9; }
 .rank-num.top3 { background: #33251a; color: #d18d5b; }
+
+/* 分析タブを開いたときの入場。上から順に立ち上がり、数値とグラフの
+   カウントアップに視線が向くようにする */
+@keyframes an-rise { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
+.an-animate .an-hero,
+.an-animate .an-panel,
+.an-animate .an-grid > * { animation: an-rise .45s ease-out both; }
+.an-animate .an-panel        { animation-delay: .07s; }
+.an-animate .an-grid > *:nth-child(1) { animation-delay: .14s; }
+.an-animate .an-grid > *:nth-child(2) { animation-delay: .21s; }
+/* 動きを減らす設定の環境では止める */
+@media (prefers-reduced-motion: reduce) {
+  .an-animate .an-hero,
+  .an-animate .an-panel,
+  .an-animate .an-grid > * { animation: none; }
+}
 .summary-card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 20px; text-align: center; }
 .summary-label { font-size: 0.95em; font-weight: 600; color: #b6c2ce; margin-bottom: 9px; letter-spacing: 0.02em; }
 .summary-value { font-size: 1.6em; font-weight: 700; color: #e6edf3; letter-spacing: 0.02em; }
@@ -959,6 +975,14 @@ function switchTab(name) {
   // closest() で必ずボタン自体を掴む
   const clicked = event.target.closest('.tab-btn');
   if (clicked) clicked.classList.add('active');
+  if (name === 'analytics') {
+    _anAnimate = true;
+    // クラスを付け直すだけでは再生されないため、間に reflow を挟んで作り直す
+    const pane = document.getElementById('tab-analytics');
+    pane.classList.remove('an-animate');
+    void pane.offsetWidth;
+    pane.classList.add('an-animate');
+  }
   if (name === 'profit' || name === 'analytics') loadPurchases();
   if (name === 'miss') loadMisses();
   if (name === 'settings') loadSettings();
@@ -1499,10 +1523,31 @@ const _charts = {};
 function destroyChart(id) { if (_charts[id]) { _charts[id].destroy(); delete _charts[id]; } }
 
 // 分析タブは集計結果を保持しておき、指標を切り替えても再集計しない
-let _anData   = null;
-let _anMetric = 'profit';
+let _anData    = null;
+let _anMetric  = 'profit';
+// loadPurchases は収益管理タブとも共用のため、分析タブを開いた直後だけ立てる
+let _anAnimate = false;
 
 const yen = v => (v < 0 ? '−¥' : '¥') + Math.abs(Math.round(v)).toLocaleString();
+
+const reduceMotion = () =>
+  window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// 0 から実値まで数値を動かす。分析タブのメーター表現に使う
+function animateValue(el, to, fmt, decimals) {
+  if (el._anRaf) { cancelAnimationFrame(el._anRaf); el._anRaf = null; }
+  if (reduceMotion() || !isFinite(to)) { el.textContent = fmt(to); return; }
+  const DURATION = 900, t0 = performance.now();
+  el.textContent = fmt(0);   // 最初の1フレームに前回値が残らないようにする
+  const step = now => {
+    const p = Math.min(1, (now - t0) / DURATION);
+    const eased = 1 - Math.pow(1 - p, 3);   // easeOutCubic: 勢いよく出て静かに止まる
+    const v = to * eased;
+    el.textContent = fmt(decimals ? Math.round(v * 10) / 10 : Math.round(v));
+    el._anRaf = p < 1 ? requestAnimationFrame(step) : null;
+  };
+  el._anRaf = requestAnimationFrame(step);
+}
 
 // 指標の定義。profit / rate / days は売却済みの実績のみを対象にする
 const AN_METRICS = {
@@ -1536,6 +1581,12 @@ function drawMainChart() {
       // キーワード名が日本語で長いため横棒にして読めるようにする
       indexAxis: 'y',
       responsive: true, maintainAspectRatio: false,
+      // 棒が基準線から順に伸びていく。上位から少しずつ遅らせて視線を誘導する
+      animation: reduceMotion() ? false : {
+        duration: 850,
+        easing: 'easeOutCubic',
+        delay: ctx => (ctx.type === 'data' && ctx.mode === 'default') ? ctx.dataIndex * 55 : 0,
+      },
       plugins: {
         legend: { display: false },
         tooltip: { callbacks: { label: c => meta.label + ': ' + meta.fmt(c.parsed.x) } }
@@ -1593,10 +1644,20 @@ function buildAnalytics(purchases) {
   }
 
   // ── 指標カードの数値 ──
-  document.getElementById('mv-profit').textContent = yen(realized);
-  document.getElementById('mv-count').textContent  = bought + ' 件';
-  document.getElementById('mv-rate').textContent   = avg(allRates) + ' %';
-  document.getElementById('mv-days').textContent   = allDays.length ? avg(allDays) + ' 日' : '—';
+  // 分析タブを開いた直後だけ 0 から数え上げる。収益管理タブ経由の
+  // 再描画では即座に確定値を入れる
+  const animating = _anAnimate;
+  _anAnimate = false;
+  const setMetric = (id, to, fmt, decimals) => {
+    const el = document.getElementById(id);
+    if (animating) animateValue(el, to, fmt, decimals);
+    else el.textContent = fmt(to);
+  };
+  setMetric('mv-profit', realized,       yen,            0);
+  setMetric('mv-count',  bought,         v => v + ' 件', 0);
+  setMetric('mv-rate',   avg(allRates),  v => v + ' %',  1);
+  if (allDays.length) setMetric('mv-days', avg(allDays), v => v + ' 日', 1);
+  else document.getElementById('mv-days').textContent = '—';
 
   // ── メイングラフ ──
   drawMainChart();
@@ -1608,6 +1669,8 @@ function buildAnalytics(purchases) {
     type: 'doughnut',
     data: { labels, datasets: [{ data: labels.map(k=>kw[k].count), backgroundColor: COLORS, borderWidth: 0 }] },
     options: { responsive: true, maintainAspectRatio: false, cutout: '58%',
+      animation: reduceMotion() ? false
+        : { duration: 900, easing: 'easeOutCubic', animateRotate: true, animateScale: true },
       plugins: { legend: { position:'right', labels:{ color:'#c3ccd6', font:{size:11}, boxWidth:10, boxHeight:10, padding:10, usePointStyle:true } } } }
   });
 
