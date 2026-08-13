@@ -543,6 +543,9 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 .summary-value.green { color: #3fb950; }
 .summary-value.red { color: #f85149; }
 
+/* 表の見出し行。件数を右に添える */
+.table-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #21262d; }
+.count-pill { background: #21262d; color: #b6c2ce; border: 1px solid #30363d; font-size: 0.88em; font-weight: 700; padding: 2px 11px; border-radius: 20px; font-variant-numeric: tabular-nums; }
 .purchase-table { width: 100%; border-collapse: collapse; font-size: 0.95em; }
 /* 11列あるため、見出しやバッジが単語の途中で折り返さないよう nowrap で固定する */
 .purchase-table th { text-align: left; padding: 11px 9px; color: #b6c2ce; font-weight: 700; border-bottom: 1px solid #30363d; font-size: 0.92em; letter-spacing: 0.02em; white-space: nowrap; }
@@ -558,9 +561,6 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 .profit-neg { color: #f85149; font-weight: 700; }
 .rate-cell { color: #c3ccd6; font-weight: 600; }
 .rate-cell.neg { color: #f85149; }
-.status-badge { padding: 4px 10px; border-radius: 10px; font-size: 0.95em; font-weight: 600; white-space: nowrap; }
-.status-bought { background: #1c2431; color: #79c0ff; }
-.status-sold { background: #1b2a22; color: #56d364; }
 .action-btn { display: inline-flex; align-items: center; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.95em; font-weight: 600; margin-right: 5px; white-space: nowrap; }
 /* 一覧に何度も並ぶ操作はべた塗りにせず、面と枠線で示す */
 .sell-btn { background: #21262d; color: #56d364; border: 1px solid #2f4a38; }
@@ -725,8 +725,38 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
       <div class="summary-value" id="s-counts">0 / 0</div>
     </div>
   </div>
+  <!-- 未売却＝これから動かす在庫。売却済とは別の表にして、状態列を省く -->
   <div class="card">
-    <div class="card-title">購入履歴</div>
+    <div class="table-head">
+      <span class="card-title" style="margin:0;padding:0;border:none">在庫（未売却）</span>
+      <span class="count-pill" id="stockCount">0</span>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="purchase-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>商品名</th>
+            <th>仕入れ値</th>
+            <th>想定売値</th>
+            <th>送料</th>
+            <th>想定利益</th>
+            <th>利益率</th>
+            <th>メモ</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="purchaseList"></tbody>
+      </table>
+      <div class="empty" id="purchaseEmpty" style="display:none">未売却の在庫はありません</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="table-head">
+      <span class="card-title" style="margin:0;padding:0;border:none">売却済み</span>
+      <span class="count-pill" id="soldCount">0</span>
+    </div>
     <div style="overflow-x:auto">
       <table class="purchase-table">
         <thead>
@@ -738,15 +768,14 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
             <th>送料</th>
             <th>利益</th>
             <th>利益率</th>
-            <th>状態</th>
             <th>期間</th>
             <th>メモ</th>
             <th>操作</th>
           </tr>
         </thead>
-        <tbody id="purchaseList"></tbody>
+        <tbody id="soldList"></tbody>
       </table>
-      <div class="empty" id="purchaseEmpty" style="display:none">まだ購入記録がありません</div>
+      <div class="empty" id="soldEmpty" style="display:none">まだ売却済みの記録がありません</div>
     </div>
   </div>
 </div>
@@ -1368,21 +1397,12 @@ function renderSummary(purchases) {
   document.getElementById('s-counts').textContent = `${purchases.length} / ${sold.length}`;
 }
 
-function renderPurchases(purchases) {
-  const tbody = document.getElementById('purchaseList');
-  const empty = document.getElementById('purchaseEmpty');
-  if (!purchases.length) {
-    tbody.innerHTML = '';
-    empty.style.display = 'block';
-    return;
-  }
-  empty.style.display = 'none';
-  tbody.innerHTML = purchases.map(p => {
-    const profit = Math.round(p.sell_price * 0.9) - p.buy_price - p.shipping;
-    const rate   = p.buy_price > 0 ? Math.round(profit / p.buy_price * 1000) / 10 : 0;
-    const pClass = profit >= 0 ? 'profit-pos' : 'profit-neg';
-    const isSold = p.status === 'sold';
-    return `
+// 1行分のセル。売却済かどうかで期間列と売却済ボタンの有無だけが変わる
+function purchaseRow(p, isSold) {
+  const profit = Math.round(p.sell_price * 0.9) - p.buy_price - p.shipping;
+  const rate   = p.buy_price > 0 ? Math.round(profit / p.buy_price * 1000) / 10 : 0;
+  const pClass = profit >= 0 ? 'profit-pos' : 'profit-neg';
+  return `
       <tr>
         <td>${p.thumbnail ? `<img class="p-thumb" src="${p.thumbnail}" onerror="this.style.display='none'">` : '<div class="p-thumb"></div>'}</td>
         <td class="p-name"><a href="${p.url}" target="_blank">${p.name}</a><br><span style="font-size:0.75em;color:#a3b0bd">${p.bought_at}</span></td>
@@ -1391,8 +1411,7 @@ function renderPurchases(purchases) {
         <td class="nowrap">¥${p.shipping.toLocaleString()}</td>
         <td class="nowrap ${pClass}">¥${profit.toLocaleString()}</td>
         <td class="nowrap rate-cell ${profit < 0 ? 'neg' : ''}">${rate}%</td>
-        <td class="nowrap"><span class="status-badge ${isSold ? 'status-sold' : 'status-bought'}">${isSold ? '売却済' : '購入済'}</span></td>
-        <td class="nowrap" style="color:#a3b0bd;font-size:0.92em">${isSold && p.sold_at ? daysBetween(p.bought_at, p.sold_at) + '日' : '-'}</td>
+        ${isSold ? `<td class="nowrap" style="color:#a3b0bd;font-size:0.92em">${p.sold_at ? daysBetween(p.bought_at, p.sold_at) + '日' : '-'}</td>` : ''}
         <td><input class="memo-input" value="${p.memo}" onchange="updateMemo('${p.id}', this.value)" placeholder="メモ"></td>
         <td class="nowrap">
           <button class="action-btn listing-btn" onclick='openListingModal(${JSON.stringify({name:p.name,keyword:p.keyword})})'><svg class="ico ico-sm" viewBox="0 0 24 24" style="vertical-align:-2px;margin-right:4px"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>出品文</button>
@@ -1400,7 +1419,18 @@ function renderPurchases(purchases) {
           <button class="action-btn del-btn" onclick="deletePurchase('${p.id}')">削除</button>
         </td>
       </tr>`;
-  }).join('');
+}
+
+function renderPurchases(purchases) {
+  const stock = purchases.filter(p => p.status !== 'sold');
+  const sold  = purchases.filter(p => p.status === 'sold');
+  const fill = (listId, emptyId, countId, rows, isSold) => {
+    document.getElementById(listId).innerHTML = rows.map(p => purchaseRow(p, isSold)).join('');
+    document.getElementById(emptyId).style.display = rows.length ? 'none' : 'block';
+    document.getElementById(countId).textContent = rows.length;
+  };
+  fill('purchaseList', 'purchaseEmpty', 'stockCount', stock, false);
+  fill('soldList',     'soldEmpty',     'soldCount',  sold,  true);
 }
 
 async function markSold(id) {
