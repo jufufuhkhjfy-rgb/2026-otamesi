@@ -1563,20 +1563,33 @@ const yen = v => (v < 0 ? '−¥' : '¥') + Math.abs(Math.round(v)).toLocaleStri
 const reduceMotion = () =>
   window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+const AN_DURATION = 900;
+
+// 0→1 の進捗を easeOutCubic で流す共通の駆動部。数値もグラフもこれを使うので、
+// 同じタイミングで呼べば必ず歩調が揃う
+function animateProgress(onFrame) {
+  if (reduceMotion()) { onFrame(1); return; }
+  const t0 = performance.now();
+  const step = now => {
+    const p = Math.min(1, (now - t0) / AN_DURATION);
+    onFrame(1 - Math.pow(1 - p, 3));   // 勢いよく出て静かに止まる
+    if (p < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
 // 0 から実値まで数値を動かす。分析タブのメーター表現に使う
 function animateValue(el, to, fmt, decimals) {
-  if (el._anRaf) { cancelAnimationFrame(el._anRaf); el._anRaf = null; }
   if (reduceMotion() || !isFinite(to)) { el.textContent = fmt(to); return; }
-  const DURATION = 900, t0 = performance.now();
   el.textContent = fmt(0);   // 最初の1フレームに前回値が残らないようにする
-  const step = now => {
-    const p = Math.min(1, (now - t0) / DURATION);
-    const eased = 1 - Math.pow(1 - p, 3);   // easeOutCubic: 勢いよく出て静かに止まる
-    const v = to * eased;
+  // 続けて呼ばれたら古い方は捨てる
+  const token = (el._anToken || 0) + 1;
+  el._anToken = token;
+  animateProgress(e => {
+    if (el._anToken !== token) return;
+    const v = to * e;
     el.textContent = fmt(decimals ? Math.round(v * 10) / 10 : Math.round(v));
-    el._anRaf = p < 1 ? requestAnimationFrame(step) : null;
-  };
-  el._anRaf = requestAnimationFrame(step);
+  });
 }
 
 // 指標の定義。profit / rate / days は売却済みの実績のみを対象にする
@@ -1591,10 +1604,10 @@ function selectMetric(m) {
   _anMetric = m;
   document.querySelectorAll('#metricRow .metric')
     .forEach(b => b.classList.toggle('active', b.dataset.metric === m));
-  drawMainChart();
+  drawMainChart(true);
 }
 
-function drawMainChart() {
+function drawMainChart(animate) {
   if (!_anData) return;
   const { labels, value } = _anData;
   const meta = AN_METRICS[_anMetric];
@@ -1602,28 +1615,44 @@ function drawMainChart() {
   // 損益に関わる指標だけ正負で色分けし、それ以外は単色に抑える
   const signed = _anMetric === 'profit' || _anMetric === 'rate';
   const colors = vals.map(v => signed ? (v >= 0 ? '#2ea043' : '#da3633') : '#1f6feb');
+  const moving = !!animate && !reduceMotion();
 
   destroyChart('main');
-  _charts['main'] = new Chart(document.getElementById('chartMain'), {
+  const chart = new Chart(document.getElementById('chartMain'), {
     type: 'bar',
-    data: { labels, datasets: [{ data: vals, backgroundColor: colors, borderRadius: 4, maxBarThickness: 26 }] },
+    // 伸ばす場合は 0 から描き始める
+    data: { labels, datasets: [{ data: moving ? vals.map(() => 0) : vals,
+                                 backgroundColor: colors, borderRadius: 4, maxBarThickness: 26 }] },
     options: {
       // キーワード名が日本語で長いため横棒にして読めるようにする
       indexAxis: 'y',
       responsive: true, maintainAspectRatio: false,
-      // 棒は基準線から伸びる。数値のカウントアップと歩調を合わせたいので
-      // 時間と減速の仕方を animateValue と揃え、ずらさず一斉に立ち上げる
-      animation: reduceMotion() ? false : { duration: 900, easing: 'easeOutCubic' },
+      // Chart.js 内蔵の演出は使わず、数値のカウントアップと同じ駆動部で伸ばす。
+      // こうすると両者が必ず同じ速さ・同じ減速で動く
+      animation: false,
       plugins: {
         legend: { display: false },
         tooltip: { callbacks: { label: c => meta.label + ': ' + meta.fmt(c.parsed.x) } }
       },
       scales: {
-        x: { ticks: { color: '#8b97a5', font: { size: 11 } }, grid: { color: '#21262d' }, border: { display: false } },
+        // 目盛りを最終値の幅で固定する。これをしないと軸が棒と一緒に
+        // 広がってしまい、伸びているように見えない
+        x: { suggestedMin: Math.min(0, ...vals), suggestedMax: Math.max(0, ...vals),
+             ticks: { color: '#8b97a5', font: { size: 11 } }, grid: { color: '#21262d' }, border: { display: false } },
         y: { ticks: { color: '#c3ccd6', font: { size: 12 } }, grid: { display: false }, border: { display: false } }
       }
     }
   });
+  _charts['main'] = chart;
+
+  if (moving) {
+    animateProgress(e => {
+      // 途中で描き直された場合は、古い方の更新を捨てる
+      if (_charts['main'] !== chart) return;
+      chart.data.datasets[0].data = vals.map(v => v * e);
+      chart.update('none');
+    });
+  }
 }
 
 function buildAnalytics(purchases) {
@@ -1687,19 +1716,30 @@ function buildAnalytics(purchases) {
   else document.getElementById('mv-days').textContent = '—';
 
   // ── メイングラフ ──
-  drawMainChart();
+  drawMainChart(animating);
 
   // ── 購入数の内訳（青系の濃淡で色数を抑える）──
   const COLORS = ['#1f6feb','#3b82f6','#58a6ff','#79c0ff','#a5d6ff','#c9e2ff','#7d8590','#545d68'];
   destroyChart('count');
-  _charts['count'] = new Chart(document.getElementById('chartCount'), {
+  const donut = new Chart(document.getElementById('chartCount'), {
     type: 'doughnut',
     data: { labels, datasets: [{ data: labels.map(k=>kw[k].count), backgroundColor: COLORS, borderWidth: 0 }] },
     options: { responsive: true, maintainAspectRatio: false, cutout: '58%',
-      animation: reduceMotion() ? false
-        : { duration: 900, easing: 'easeOutCubic', animateRotate: true, animateScale: true },
+      // 棒グラフと同じく内蔵の演出は使わず、円弧の角度を自前で開いていく
+      animation: false,
       plugins: { legend: { position:'right', labels:{ color:'#c3ccd6', font:{size:11}, boxWidth:10, boxHeight:10, padding:10, usePointStyle:true } } } }
   });
+  _charts['count'] = donut;
+
+  if (animating && !reduceMotion()) {
+    donut.options.circumference = 0;
+    donut.update('none');
+    animateProgress(e => {
+      if (_charts['count'] !== donut) return;
+      donut.options.circumference = 360 * e;
+      donut.update('none');
+    });
+  }
 
   // ── ランキングテーブル ──
   const tbody = document.getElementById('rankTable');
