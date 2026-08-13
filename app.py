@@ -1611,12 +1611,9 @@ function drawMainChart() {
       // キーワード名が日本語で長いため横棒にして読めるようにする
       indexAxis: 'y',
       responsive: true, maintainAspectRatio: false,
-      // 棒が基準線から順に伸びていく。上位から少しずつ遅らせて視線を誘導する
-      animation: reduceMotion() ? false : {
-        duration: 850,
-        easing: 'easeOutCubic',
-        delay: ctx => (ctx.type === 'data' && ctx.mode === 'default') ? ctx.dataIndex * 55 : 0,
-      },
+      // 棒は基準線から伸びる。数値のカウントアップと歩調を合わせたいので
+      // 時間と減速の仕方を animateValue と揃え、ずらさず一斉に立ち上げる
+      animation: reduceMotion() ? false : { duration: 900, easing: 'easeOutCubic' },
       plugins: {
         legend: { display: false },
         tooltip: { callbacks: { label: c => meta.label + ': ' + meta.fmt(c.parsed.x) } }
