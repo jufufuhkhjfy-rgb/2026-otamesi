@@ -1,3 +1,5 @@
-# Windows のバッチは CRLF でないと複数行ブロックが壊れることがある
-*.bat text eol=crlf
-*.vbs text eol=crlf
+# バッチとVBSはCRLFでないと cmd が複数行ブロックを誤解釈することがある。
+# text eol=crlf だとリポジトリにはLFで保存され、raw ではLFのまま配信されて
+# しまうため、-text で変換自体を無効にしてCRLFのバイト列をそのまま保つ。
+*.bat -text
+*.vbs -text
