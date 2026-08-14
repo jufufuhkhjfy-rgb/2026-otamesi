@@ -671,7 +671,7 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
   </span>
   <h1>MeriWatch</h1>
   <!-- 差し替えたかどうかを画面で判別できるようにする。変更するたびに上げる -->
-  <span class="app-ver">v9</span>
+  <span class="app-ver">v10</span>
   <div class="header-right">
     <div class="badge stopped" id="statusBadge">
       <span class="dot"></span>
@@ -1441,10 +1441,15 @@ async function savePurchase() {
 
 // ===== 収益管理タブ =====
 async function loadPurchases() {
-  // 買い負けは分析タブの「獲得率」で購入と突き合わせるため一緒に取る
-  const [r, mr] = await Promise.all([fetch('/api/purchases'), fetch('/api/misses')]);
+  // 買い負けは分析タブの「獲得率」で購入と突き合わせるため一緒に取る。
+  // 設定も取るのは、設定タブを開かないまま分析タブに来ても
+  // 月間目標が反映されるようにするため（loadSettings は設定タブでしか走らない）
+  const [r, mr, sr] = await Promise.all([
+    fetch('/api/purchases'), fetch('/api/misses'), fetch('/api/settings')
+  ]);
   const purchases = await r.json();
   _anMisses = await mr.json();
+  _monthlyGoal = parseInt((await sr.json()).monthly_goal) || 0;
   renderPurchases(purchases);
   renderSummary(purchases);
   buildAnalytics(purchases);
@@ -1916,8 +1921,13 @@ function buildGoal(animate) {
     + row(remain > 0 ? '残り必要額' : '目標超過', yen(Math.abs(remain)));
 
   // ── フィードバック ──
+  // 「◯ポイント」だと意味が伝わらないので、今日までに稼げているはずの
+  // 金額（目標を日割りした額）と実績を並べて、過不足を円で示す
+  const onTrack = _monthlyGoal * dayNow / daysIn;   // 今日時点の目安額
+  const gap     = earned - onTrack;                 // 正なら先行、負なら不足
   const note = document.getElementById('goalNote');
   const diff = Math.round(rate - pace);
+  const base = `今日までの目安は <b>${yen(onTrack)}</b>、実績は <b>${yen(earned)}</b>。`;
   if (earned >= _monthlyGoal) {
     note.innerHTML = `目標を達成しています。残り <b>${daysLeft}</b> 日、超過分は <b>${yen(-remain)}</b>。`;
   } else if (daysLeft <= 0) {
@@ -1925,12 +1935,14 @@ function buildGoal(animate) {
   } else if (earned < 0) {
     note.innerHTML = `今月はここまで赤字です。残り <b>${daysLeft}</b> 日で <b>${yen(remain)}</b> 必要なので、まず損切りを止めて利益の出る仕入れに絞るのが先です。`;
   } else if (diff >= 5) {
-    note.innerHTML = `経過日数より <b>${diff} ポイント</b>先行しています。このペースなら月末は <b>${yen(forecast)}</b>、目標の <b>${Math.round(forecast / _monthlyGoal * 100)}%</b> です。`;
+    note.innerHTML = base + ` <b>${yen(gap)}</b> 先行しています。`
+                   + `このペースなら月末は <b>${yen(forecast)}</b>、目標の <b>${Math.round(forecast / _monthlyGoal * 100)}%</b> です。`;
   } else if (diff <= -5) {
-    note.innerHTML = `経過日数より <b>${-diff} ポイント</b>遅れています。残り <b>${daysLeft}</b> 日で <b>${yen(remain)}</b>、`
-                   + `1日あたり <b>${yen(needPerDay)}</b> 必要です（今の実績は1日 ${yen(perDay)}）。`;
+    note.innerHTML = base + ` <b>${yen(-gap)}</b> 足りません。`
+                   + `残り <b>${daysLeft}</b> 日で <b>${yen(remain)}</b>、1日あたり <b>${yen(needPerDay)}</b> 必要です（今の実績は1日 ${yen(perDay)}）。`;
   } else {
-    note.innerHTML = `ほぼ計画どおりです。残り <b>${daysLeft}</b> 日で <b>${yen(remain)}</b>、1日あたり <b>${yen(needPerDay)}</b> のペースを保てば届きます。`;
+    note.innerHTML = base + ` ほぼ計画どおりです。`
+                   + `残り <b>${daysLeft}</b> 日で <b>${yen(remain)}</b>、1日あたり <b>${yen(needPerDay)}</b> のペースを保てば届きます。`;
   }
 }
 
