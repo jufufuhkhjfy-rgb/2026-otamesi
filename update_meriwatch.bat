@@ -1,54 +1,61 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-chcp 65001 >nul
+
+REM ---------------------------------------------------------------
+REM  MeriWatch updater
+REM  Keep this file ASCII-only. cmd.exe reads .bat in the system
+REM  codepage (CP932 on Japanese Windows), so UTF-8 Japanese text
+REM  turns into garbage and gets executed as a command.
+REM ---------------------------------------------------------------
 
 echo ================================
-echo  MeriWatch アップデート
+echo   MeriWatch Updater
 echo ================================
 echo.
 
 if not exist run.bat (
-  echo このファイルは MeriWatch フォルダーに置いて実行してください。
-  echo 今の場所: %CD%
+  echo [NG] Put this file in the MeriWatch folder and run it there.
+  echo      Current folder: %CD%
+  echo.
   pause
   exit /b 1
 )
 
-REM ブラウザ経由だとキャッシュされた古い内容を掴むため、
-REM no-cache ヘッダを付けて curl で直接取得する
-set H=-H "Cache-Control: no-cache" -H "Pragma: no-cache"
+REM Browser caching served stale copies, so fetch with no-cache headers.
 set URL=https://raw.githubusercontent.com/jufufuhkhjfy-rgb/2026-otamesi/main/app.py
 
-echo 最新の app.py を取得しています...
-curl -L -f %H% -o app.py.new "%URL%"
+echo Downloading latest app.py ...
+curl -L -f -H "Cache-Control: no-cache" -H "Pragma: no-cache" -o app.py.new "%URL%"
 if errorlevel 1 (
   echo.
-  echo 取得に失敗しました。ネット接続を確認してください。
+  echo [NG] Download failed. Check your internet connection.
   del /q app.py.new 2>nul
+  echo.
   pause
   exit /b 1
 )
 
-REM 取得した中身が壊れていないか、大きさで簡易確認する
+REM Sanity check: a truncated download must not replace a working file.
 for %%A in (app.py.new) do set SIZE=%%~zA
 if %SIZE% LSS 50000 (
   echo.
-  echo 取得したファイルが小さすぎます ^(%SIZE% バイト^)。中断しました。
+  echo [NG] Downloaded file is too small ^(%SIZE% bytes^). Aborted.
   del /q app.py.new 2>nul
+  echo.
   pause
   exit /b 1
 )
 
-REM 差し替え前に現物を退避しておく。設定や購入履歴には触れない
+REM Keep the previous file. settings.json / purchases.json are untouched.
 if exist app.py copy /y app.py app.py.bak >nul
 move /y app.py.new app.py >nul
 
 echo.
-echo 更新しました： %SIZE% バイト
-echo 元のファイルは app.py.bak に残しています。
+echo [OK] Updated: %SIZE% bytes
+echo      Previous version saved as app.py.bak
 echo.
-echo MeriWatch が起動中の場合は、先にウィンドウを閉じてください。
-echo 閉じたら Enter を押すと起動します。
+echo Close the MeriWatch window if it is still open,
+echo then press any key to start it.
 pause >nul
 start "" run.bat
