@@ -31,7 +31,8 @@ DEFAULT_SETTINGS = {
     },
     "ng_words": ["ジャンク", "壊れ", "オークション"],
     "wait_min": 5,
-    "wait_max": 15
+    "wait_max": 15,
+    "monthly_goal": 0
 }
 
 # ===== 状態管理 =====
@@ -509,6 +510,19 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 .an-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; align-items: start; }
 .an-grid.even { grid-template-columns: 1fr 1fr; }
 .h3-note { font-weight: 400; font-size: 0.85em; color: #8b97a5; margin-left: 8px; }
+/* ── 今月の目標 ── */
+.goal-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.goal-amount { font-size: 1.25em; font-weight: 700; font-variant-numeric: tabular-nums; }
+.goal-bar { height: 10px; border-radius: 6px; background: #21262d; overflow: hidden; }
+/* 経過日数の位置を示す目印。棒がこれより右なら前倒し、左なら遅れ */
+.goal-bar { position: relative; }
+.goal-pace { position: absolute; top: -3px; width: 2px; height: 16px; background: #8b97a5; }
+.goal-fill { height: 100%; border-radius: 6px; background: #2ea043; transition: width .3s ease; }
+.goal-fill.behind { background: #e3b341; }
+.goal-fill.neg { background: #da3633; }
+.goal-rows { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 4px 18px; margin-top: 14px; }
+.goal-rows .k { color: #8b97a5; font-size: 0.9em; }
+.goal-rows .v { font-weight: 700; font-variant-numeric: tabular-nums; }
 /* 滞留・買い負けの明細行 */
 .mini-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 2px; border-bottom: 1px solid #21262d; font-size: 0.95em; }
 .mini-row:last-child { border-bottom: none; }
@@ -657,7 +671,7 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
   </span>
   <h1>MeriWatch</h1>
   <!-- 差し替えたかどうかを画面で判別できるようにする。変更するたびに上げる -->
-  <span class="app-ver">v8</span>
+  <span class="app-ver">v9</span>
   <div class="header-right">
     <div class="badge stopped" id="statusBadge">
       <span class="dot"></span>
@@ -817,7 +831,19 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
   <div class="card">
     <div class="card-title">Claude API キー <span style="font-size:0.92em;font-weight:400;color:#a3b0bd">— 出品文の自動生成に使用</span></div>
     <input type="password" id="claudeApiKey" placeholder="sk-ant-...">
-    <div style="font-size:0.78em;color:#a3b0bd;margin-top:6px">取得先: <a href="https://console.anthropic.com/" target="_blank" style="color:#58a6ff">console.anthropic.com</a>（無料枠あり）</div>
+    <div style="font-size:0.92em;color:#a3b0bd;margin-top:6px">
+      取得先: <a href="https://console.anthropic.com/" target="_blank" style="color:#58a6ff">console.anthropic.com</a>
+      ／ 使用モデルは Claude Haiku 4.5（入力 $1・出力 $5 / 100万トークン）で、出品文1件あたり概ね 0.5 円前後です。
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">今月の目標利益 <span style="font-size:0.92em;font-weight:400;color:#a3b0bd">— 分析タブに進捗とペースを表示します</span></div>
+    <div class="kw-price-wrap" style="display:inline-flex">
+      <span>¥</span>
+      <input class="kw-price-input" type="number" id="monthlyGoal" min="0" step="1000" value="0" style="width:120px">
+    </div>
+    <div style="font-size:0.92em;color:#a3b0bd;margin-top:6px">0 のままなら表示しません。売却日が今月の実現利益を集計します。</div>
   </div>
 
   <div class="card">
@@ -866,6 +892,17 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
   <div class="an-hero">
     <h2 id="anHeadline">読み込み中…</h2>
     <p id="anSubline"></p>
+  </div>
+
+  <!-- 月間目標。設定タブで 0 のままなら丸ごと隠す -->
+  <div class="chart-box goal-box" id="goalBox" style="display:none;margin-bottom:18px">
+    <div class="goal-head">
+      <h3 style="margin:0">今月の目標</h3>
+      <span class="goal-amount" id="goalAmount"></span>
+    </div>
+    <div class="goal-bar"><div class="goal-fill" id="goalFill"></div></div>
+    <div class="goal-rows" id="goalRows"></div>
+    <div class="mini-note" id="goalNote"></div>
   </div>
 
   <div class="an-panel">
@@ -1069,6 +1106,8 @@ async function loadSettings() {
   const s = await r.json();
   document.getElementById('webhookUrl').value   = s.webhook_url    || '';
   document.getElementById('claudeApiKey').value = s.claude_api_key || '';
+  document.getElementById('monthlyGoal').value  = s.monthly_goal   || 0;
+  _monthlyGoal = parseInt(s.monthly_goal) || 0;
   _kwData = Object.entries(s.searches || {}).map(([k, v]) => {
     if (typeof v === 'object') return { kw: k, price: v.max_price, required: [...(v.required||[])], ng_extra: [...(v.ng_extra||[])] };
     return { kw: k, price: parseInt(v)||0, required: [], ng_extra: [] };
@@ -1157,6 +1196,8 @@ function addSuggestNG(w) {
 async function saveSettings() {
   const webhook      = document.getElementById('webhookUrl').value.trim();
   const claudeApiKey = document.getElementById('claudeApiKey').value.trim();
+  const monthlyGoal  = parseInt(document.getElementById('monthlyGoal').value) || 0;
+  _monthlyGoal = monthlyGoal;
   const searches = {};
   for (const d of _kwData) {
     if (d.kw.trim()) searches[d.kw.trim()] = { max_price: d.price, required: d.required, ng_extra: d.ng_extra };
@@ -1164,9 +1205,10 @@ async function saveSettings() {
   await fetch('/api/settings', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ webhook_url: webhook, claude_api_key: claudeApiKey, searches, ng_words: _globalNg })
+    body: JSON.stringify({ webhook_url: webhook, claude_api_key: claudeApiKey, searches, ng_words: _globalNg, monthly_goal: monthlyGoal })
   });
   showToast('保存しました');
+  buildGoal();   // 目標を変えたら分析タブの進捗も追従させる
 }
 
 async function doStart() { await fetch('/api/start'); }
@@ -1600,6 +1642,8 @@ function destroyChart(id) { if (_charts[id]) { _charts[id].destroy(); delete _ch
 let _anData    = null;
 let _anMetric  = 'profit';
 let _anMisses  = [];   // 買い負け記録。獲得率の算出に使う
+let _anAll     = [];   // 目標の再計算に使うため購入履歴を保持する
+let _monthlyGoal = 0;  // 設定タブの月間目標利益
 // loadPurchases は収益管理タブとも共用のため、分析タブを開いた直後だけ立てる
 let _anAnimate = false;
 
@@ -1814,6 +1858,80 @@ function buildAnalytics(purchases) {
   buildMonthly(purchases, animating);
   buildAging(purchases);
   buildMissAnalysis(purchases, _anMisses);
+  _anAll = purchases;
+  buildGoal(animating);
+}
+
+// ── 今月の目標：進捗と、経過日数に対するペースを出す ──
+function buildGoal(animate) {
+  const box = document.getElementById('goalBox');
+  if (!_monthlyGoal || _monthlyGoal <= 0) { box.style.display = 'none'; return; }
+  box.style.display = '';
+
+  const now      = new Date();
+  const thisMon  = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  const daysIn   = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const dayNow   = now.getDate();
+  const daysLeft = daysIn - dayNow;
+
+  // 売却日が今月のものだけを実現利益として数える
+  const earned = _anAll
+    .filter(p => p.status === 'sold' && monthOf(p.sold_at) === thisMon)
+    .reduce((s, p) => s + calcPurchaseProfit(p), 0);
+
+  const rate     = _monthlyGoal ? earned / _monthlyGoal * 100 : 0;
+  const pace     = dayNow / daysIn * 100;             // 経過日数の割合
+  const perDay   = earned / dayNow;                   // 今月の1日あたり実績
+  const forecast = perDay * daysIn;                   // このペースで月末に届く額
+  const remain   = _monthlyGoal - earned;
+  const needPerDay = daysLeft > 0 ? remain / daysLeft : remain;
+
+  document.getElementById('goalAmount').innerHTML =
+    `<span class="${earned >= 0 ? 'profit-pos' : 'profit-neg'}">${yen(earned)}</span>`
+    + ` <span style="color:#8b97a5;font-weight:400;font-size:.8em">/ ${yen(_monthlyGoal)}</span>`;
+
+  const fill = document.getElementById('goalFill');
+  const shown = Math.max(0, Math.min(100, rate));
+  // 目標に届いていて、かつ経過日数のペースを上回っていれば緑。下回れば黄。赤字なら赤
+  fill.className = 'goal-fill' + (earned < 0 ? ' neg' : (rate < pace ? ' behind' : ''));
+  if (animate && !reduceMotion()) {
+    fill.style.width = '0%';
+    animateProgress(e => { fill.style.width = (shown * e).toFixed(1) + '%'; });
+  } else {
+    fill.style.width = shown.toFixed(1) + '%';
+  }
+  // 経過日数の目印
+  const bar = fill.parentElement;
+  let mark = bar.querySelector('.goal-pace');
+  if (!mark) { mark = document.createElement('div'); mark.className = 'goal-pace'; bar.appendChild(mark); }
+  mark.style.left = pace.toFixed(1) + '%';
+  mark.title = `${dayNow} / ${daysIn} 日経過`;
+
+  const row = (k, v) => `<div><div class="k">${k}</div><div class="v">${v}</div></div>`;
+  document.getElementById('goalRows').innerHTML =
+      row('達成率', (Math.round(rate * 10) / 10) + ' %')
+    + row('経過', `${dayNow} / ${daysIn} 日`)
+    + row('1日あたり実績', yen(perDay))
+    + row('このペースの着地', yen(forecast))
+    + row(remain > 0 ? '残り必要額' : '目標超過', yen(Math.abs(remain)));
+
+  // ── フィードバック ──
+  const note = document.getElementById('goalNote');
+  const diff = Math.round(rate - pace);
+  if (earned >= _monthlyGoal) {
+    note.innerHTML = `目標を達成しています。残り <b>${daysLeft}</b> 日、超過分は <b>${yen(-remain)}</b>。`;
+  } else if (daysLeft <= 0) {
+    note.innerHTML = `今月は終了。<b>${yen(remain)}</b> 届きませんでした。来月は1日あたり <b>${yen(_monthlyGoal / daysIn)}</b> が目安です。`;
+  } else if (earned < 0) {
+    note.innerHTML = `今月はここまで赤字です。残り <b>${daysLeft}</b> 日で <b>${yen(remain)}</b> 必要なので、まず損切りを止めて利益の出る仕入れに絞るのが先です。`;
+  } else if (diff >= 5) {
+    note.innerHTML = `経過日数より <b>${diff} ポイント</b>先行しています。このペースなら月末は <b>${yen(forecast)}</b>、目標の <b>${Math.round(forecast / _monthlyGoal * 100)}%</b> です。`;
+  } else if (diff <= -5) {
+    note.innerHTML = `経過日数より <b>${-diff} ポイント</b>遅れています。残り <b>${daysLeft}</b> 日で <b>${yen(remain)}</b>、`
+                   + `1日あたり <b>${yen(needPerDay)}</b> 必要です（今の実績は1日 ${yen(perDay)}）。`;
+  } else {
+    note.innerHTML = `ほぼ計画どおりです。残り <b>${daysLeft}</b> 日で <b>${yen(remain)}</b>、1日あたり <b>${yen(needPerDay)}</b> のペースを保てば届きます。`;
+  }
 }
 
 // 日付文字列 "YYYY-MM-DD HH:MM" から年月を取り出す
@@ -2076,6 +2194,11 @@ def api_settings_post():
     for key in ("webhook_url", "claude_api_key", "searches", "ng_words", "wait_min", "wait_max"):
         if key in data:
             settings[key] = data[key]
+    if "monthly_goal" in data:
+        try:
+            settings["monthly_goal"] = max(0, int(data["monthly_goal"] or 0))
+        except (TypeError, ValueError):
+            settings["monthly_goal"] = 0
     save_settings(settings)
     return jsonify({"ok": True})
 
