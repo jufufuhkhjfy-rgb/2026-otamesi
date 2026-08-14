@@ -1,0 +1,96 @@
+{
+  "label": "新着監視ツール",
+  "data_dir": "data",
+  "interval_sec": 600,
+  "jitter_sec": 60,
+  "request_gap_sec": 3,
+  "autostart": true,
+  "notify_first_run": false,
+
+  "_comment_sources": "収集元。優先度は json_api > rss > csv > html。htmlはサイト改修で壊れるので最後の手段。",
+  "sources": [
+    {
+      "_comment": "デモ用。厚労省の報道発表(RSS1.0)。他の確認済みフィード: https://www.data.jma.go.jp/developer/xml/feed/extra.xml (気象庁・Atom)",
+      "name": "厚労省 報道発表",
+      "type": "rss",
+      "url": "https://www.mhlw.go.jp/stf/news.rdf",
+      "enabled": true,
+      "filters": {
+        "ng_words": [],
+        "required_words": [],
+        "require_price": false
+      }
+    },
+    {
+      "name": "サンプルHTML",
+      "type": "html",
+      "enabled": false,
+      "url": "https://example.com/list",
+      "item_selector": ".item-card",
+      "fields": {
+        "title": ".item-title",
+        "url": { "selector": "a", "attr": "href" },
+        "price": ".item-price",
+        "date": ".item-date"
+      },
+      "filters": {
+        "ng_words": ["ジャンク", "訳あり"],
+        "required_words": [],
+        "price_max": 5000,
+        "require_price": true
+      }
+    },
+    {
+      "name": "サンプルAPI",
+      "type": "json_api",
+      "enabled": false,
+      "url": "https://example.com/api/items",
+      "items_path": "data.items",
+      "fields": {
+        "id": "id",
+        "title": "name",
+        "url": "detail_url",
+        "price": "price",
+        "date": "created_at"
+      }
+    },
+    {
+      "name": "サンプルCSV",
+      "type": "csv",
+      "enabled": false,
+      "path": "C:/data/list.csv",
+      "encoding": "cp932",
+      "fields": {
+        "title": "商品名",
+        "url": "URL",
+        "price": "価格",
+        "date": "登録日"
+      }
+    }
+  ],
+
+  "_comment_notify": "複数指定可。1つが失敗しても他は送られる。",
+  "notify": [
+    { "type": "console" },
+    {
+      "type": "discord",
+      "webhook_url": "",
+      "mention": ""
+    },
+    {
+      "type": "email",
+      "host": "smtp.gmail.com",
+      "port": 587,
+      "user": "",
+      "password": "",
+      "from": "",
+      "to": [],
+      "subject": "【自動通知】新着があります"
+    },
+    {
+      "type": "file",
+      "path": "data/output.csv",
+      "encoding": "utf-8-sig"
+    }
+  ]
+}

@@ -16,3 +16,8 @@ trader.log
 dist/
 build/
 *.spec
+
+# toolkit（受注案件）が書き出す顧客データ・案件ごとの設定
+config.json
+data/
+testdata/
