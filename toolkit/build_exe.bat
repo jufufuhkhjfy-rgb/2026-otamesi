@@ -1,81 +1,82 @@
 @echo off
-setlocal enabledelayedexpansion
-chcp 65001 >nul
+setlocal
+title Build exe
 
-REM ============================================================
-REM  納品用 exe ビルド
+REM ---------------------------------------------------------------
+REM  Build the deliverable .exe.
 REM
-REM  案件ごとに変えるのは下の PRODUCT_NAME だけ。
-REM  build.bat（MeriWatch用）をパラメータ化したもの。
+REM  Two rules for this file (same as mw_update.bat):
+REM   1) ASCII only. cmd.exe reads .bat in the system codepage
+REM      (CP932 on Japanese Windows), so UTF-8 Japanese turns into
+REM      garbage and gets executed as commands.
+REM   2) No multi-line ( ) blocks. GitHub raw may serve this file
+REM      with LF endings, and cmd.exe mis-parses blocks that span
+REM      lines. Every conditional below stays on a single line.
 REM
-REM  出力: dist\<PRODUCT_NAME>.exe
-REM  顧客には exe と config.json の2ファイルを渡す。
-REM ============================================================
+REM  Usage:  build_exe.bat [ProductName] [debug]
+REM      ProductName : output name, default "AutoWatch"
+REM      debug       : console build so errors stay visible
+REM
+REM  Output: dist\<ProductName>.exe
+REM  This never touches app.py or any other MeriWatch file.
+REM ---------------------------------------------------------------
 
-set "PRODUCT_NAME=%~1"
-if "%PRODUCT_NAME%"=="" set "PRODUCT_NAME=AutoWatch"
+set PRODUCT=%~1
+if "%PRODUCT%"=="" set PRODUCT=AutoWatch
 
-REM このバッチは toolkit\ にあるので、1つ上（プロジェクトルート）で作業する
-cd /d "%~dp0.." || exit /b 1
+REM This file lives in toolkit\, so work one level up.
+cd /d "%~dp0.."
 
 echo ============================================
-echo  Building: %PRODUCT_NAME%
+echo   Building: %PRODUCT%
 echo ============================================
 echo.
 
-echo [1/4] Checking Python...
+echo [1/4] Checking Python ...
+set PY=python
 where py >nul 2>&1
-if %ERRORLEVEL% EQU 0 (set "PY=py -3") else (set "PY=python")
+if not errorlevel 1 set PY=py -3
+%PY% --version
+if errorlevel 1 echo. & echo [NG] Python not found. Install Python first. & echo. & pause & exit /b 1
 
-echo [2/4] Installing dependencies...
+echo.
+echo [2/4] Installing dependencies ...
 %PY% -m pip install --upgrade pip
 %PY% -m pip install -r toolkit\requirements.txt pyinstaller
-if errorlevel 1 (
-    echo FAILED: Dependency installation failed.
-    pause & exit /b 1
-)
+if errorlevel 1 echo. & echo [NG] Could not install dependencies. & echo. & pause & exit /b 1
 
-REM 第2引数に debug を渡すとコンソール版になる。
-REM --windowed だとエラーが画面に出ないまま落ちるので、原因調査はこちらで行う。
-set "WINMODE=--windowed"
-if /i "%~2"=="debug" set "WINMODE=--console"
-
-echo [3/4] Building .exe... (%WINMODE%)
-if not exist "dist" mkdir dist
-%PY% -m PyInstaller --noconfirm --clean --onefile %WINMODE% ^
-  --name "%PRODUCT_NAME%" --distpath dist ^
-  --hidden-import bs4 ^
-  --hidden-import webview ^
-  --hidden-import webview.platforms.winforms ^
-  --hidden-import clr ^
-  --collect-all webview ^
-  --collect-data certifi ^
-  run_tool.py
-if errorlevel 1 (
-    echo FAILED: Build failed.
-    pause & exit /b 1
-)
-
-echo [4/4] Preparing delivery folder...
-REM config.json は exe と同じ場所に置く（watcher.py の BASE_DIR 参照）
-if not exist "dist\config.json" (
-    if exist "config.json" (
-        copy /y "config.json" "dist\config.json" >nul
-    ) else (
-        copy /y "toolkit\config.example.json" "dist\config.json" >nul
-    )
-)
+REM --windowed hides errors. Pass "debug" as the 2nd argument to see them.
+set WINMODE=--windowed
+if /i "%~2"=="debug" set WINMODE=--console
 
 echo.
-if exist "dist\%PRODUCT_NAME%.exe" (
-    echo SUCCESS: dist\%PRODUCT_NAME%.exe
-    echo.
-    echo === 納品前チェック ===
-    echo  1. Python が入っていない PC で起動すること
-    echo  2. dist\config.json を顧客の設定に書き換えること
-    echo  3. 通知先 ^(Discord Webhook / メール^) が顧客のものになっていること
-    echo  4. data\ フォルダを空にしてから渡すこと ^(テストデータの混入防止^)
-) else (
-    echo FAILED: Check errors above
-)
+echo [3/4] Building .exe  (%WINMODE%)
+if not exist dist mkdir dist
+%PY% -m PyInstaller --noconfirm --clean --onefile %WINMODE% --name "%PRODUCT%" --distpath dist --hidden-import bs4 --hidden-import webview --hidden-import webview.platforms.winforms --hidden-import clr --collect-all webview --collect-data certifi run_tool.py
+if errorlevel 1 echo. & echo [NG] Build failed. Read the messages above. & echo. & pause & exit /b 1
+
+echo.
+echo [4/4] Preparing the delivery folder ...
+REM config.json must sit next to the exe (see toolkit\watcher.py BASE_DIR).
+if exist dist\config.json goto :ready
+if exist config.json copy /y config.json dist\config.json >nul
+if not exist dist\config.json copy /y toolkit\config.example.json dist\config.json >nul
+
+:ready
+echo.
+if not exist "dist\%PRODUCT%.exe" echo [NG] The exe was not created. Read the messages above. & echo. & pause & exit /b 1
+
+echo ============================================
+echo   [OK] dist\%PRODUCT%.exe
+echo ============================================
+echo.
+echo   Next: double click  toolkit\test_clean_env.bat
+echo.
+echo   Before shipping to a client:
+echo     - run it once on a PC without Python
+echo     - edit dist\config.json for that client
+echo     - point notifications at the client's Discord or mail
+echo     - delete the data folder so your test data is not included
+echo.
 pause
+exit /b 0

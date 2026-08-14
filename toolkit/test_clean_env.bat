@@ -1,82 +1,78 @@
 @echo off
 setlocal
-chcp 65001 >nul
+title Clean environment test
 
-REM ============================================================
-REM  クリーン環境での起動テスト
+REM ---------------------------------------------------------------
+REM  Start the exe with Python removed from PATH.
 REM
-REM  Windows Home にはサンドボックスが無いため、
-REM  「PATH から Python を消した状態」を作って exe を起動する。
+REM  Two rules for this file (same as mw_update.bat):
+REM   1) ASCII only. cmd.exe reads .bat in the system codepage
+REM      (CP932 on Japanese Windows), so UTF-8 Japanese turns into
+REM      garbage and gets executed as commands.
+REM   2) No multi-line ( ) blocks. GitHub raw may serve this file
+REM      with LF endings, and cmd.exe mis-parses blocks that span
+REM      lines. Every conditional below stays on a single line.
 REM
-REM  PyInstaller の onefile exe は自分の中にインタプリタとライブラリを
-REM  抱えていて、システムの site-packages は読まない。
-REM  そのため、この方法でも「開発環境に依存していないか」はかなり確認できる。
+REM  Windows Home has no Sandbox, so this is the next best check.
+REM  A PyInstaller onefile exe carries its own interpreter and never
+REM  reads the system site-packages, so this catches most problems.
+REM  It is not proof: run it once on a PC without Python before
+REM  selling anything.
 REM
-REM  ただし完全ではない。売り始める前に一度は、
-REM  Python の入っていない別のPCで動かして確かめること。
-REM
-REM  使い方:  toolkit\test_clean_env.bat [製品名]
-REM ============================================================
+REM  Usage:  test_clean_env.bat [ProductName]
+REM ---------------------------------------------------------------
 
-cd /d "%~dp0.." || exit /b 1
+set PRODUCT=%~1
+if "%PRODUCT%"=="" set PRODUCT=AutoWatch
 
-set "EXE=%~1"
-if "%EXE%"=="" set "EXE=AutoWatch"
+cd /d "%~dp0.."
 
-if not exist "dist\%EXE%.exe" (
-    echo.
-    echo dist\%EXE%.exe が見つかりません。
-    echo 先に次を実行してください:  toolkit\build_exe.bat %EXE%
-    echo.
-    pause & exit /b 1
-)
+if not exist "dist\%PRODUCT%.exe" echo. & echo [NG] dist\%PRODUCT%.exe not found. Run toolkit\build_exe.bat first. & echo. & pause & exit /b 1
 
 echo ============================================
-echo  クリーン環境テスト: %EXE%
+echo   Clean environment test: %PRODUCT%
 echo ============================================
 echo.
 
-REM 別フォルダにコピーして動かす。
-REM リポジトリの中のファイルを勝手に参照していないかを洗い出すため。
-set "TESTDIR=%TEMP%\%EXE%_cleantest"
+REM Copy elsewhere so we also catch any hidden dependency on files
+REM that only exist inside this folder.
+set TESTDIR=%TEMP%\%PRODUCT%_cleantest
 if exist "%TESTDIR%" rmdir /s /q "%TESTDIR%"
 mkdir "%TESTDIR%"
-copy /y "dist\%EXE%.exe" "%TESTDIR%\" >nul
-if exist "dist\config.json" (
-    copy /y "dist\config.json" "%TESTDIR%\config.json" >nul
-) else (
-    copy /y "toolkit\config.example.json" "%TESTDIR%\config.json" >nul
-)
-echo コピー先: %TESTDIR%
+copy /y "dist\%PRODUCT%.exe" "%TESTDIR%\" >nul
+if exist dist\config.json copy /y dist\config.json "%TESTDIR%\config.json" >nul
+if not exist "%TESTDIR%\config.json" copy /y toolkit\config.example.json "%TESTDIR%\config.json" >nul
+echo Copied to: %TESTDIR%
 echo.
 
-REM Python を参照できない環境にする
-set "PATH=%SystemRoot%\system32;%SystemRoot%;%SystemRoot%\System32\Wbem"
-set "PYTHONPATH="
-set "PYTHONHOME="
-set "PYTHONSTARTUP="
+REM Make Python unreachable.
+set PATH=%SystemRoot%\system32;%SystemRoot%;%SystemRoot%\System32\Wbem
+set PYTHONPATH=
+set PYTHONHOME=
+set PYTHONSTARTUP=
 
-where python >nul 2>&1 && (echo [NG] まだ python が見つかります) || (echo [OK] python は PATH にありません)
-where py     >nul 2>&1 && (echo [NG] まだ py が見つかります)     || (echo [OK] py は PATH にありません)
+where python >nul 2>&1
+if errorlevel 1 echo [OK] python is not on PATH
+if not errorlevel 1 echo [NG] python is still reachable
+where py >nul 2>&1
+if errorlevel 1 echo [OK] py is not on PATH
+if not errorlevel 1 echo [NG] py is still reachable
 echo.
 
-echo 起動します。画面が開いて「監視開始」で動けば合格です。
+echo Starting. A window should open.
+echo Press the start button in the app and watch the log fill up.
 echo.
 pushd "%TESTDIR%"
-"%EXE%.exe"
-set "RC=%ERRORLEVEL%"
+"%PRODUCT%.exe"
+set RC=%ERRORLEVEL%
 popd
 
 echo.
-echo 終了コード: %RC%
+echo Exit code: %RC%
 echo.
-if not "%RC%"=="0" (
-    echo -------------------------------------------
-    echo  異常終了しました。
-    echo  --windowed だとエラーが表示されないため、
-    echo  次でコンソール版を作り直すと原因が読めます:
-    echo.
-    echo     toolkit\build_exe.bat %EXE% debug
-    echo -------------------------------------------
-)
+if not "%RC%"=="0" echo [NG] It crashed. --windowed hides the error, so rebuild a console version to read it:
+if not "%RC%"=="0" echo      toolkit\build_exe.bat %PRODUCT% debug
+if "%RC%"=="0" echo [OK] Finished without an error code.
+echo.
 pause
+exit /b 0
