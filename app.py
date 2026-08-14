@@ -497,7 +497,7 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 .an-hero p { margin-top: 7px; color: #a3b0bd; font-size: 0.95em; }
 
 .an-panel { background: #161b22; border: 1px solid #30363d; border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
-.metric-row { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid #21262d; }
+.metric-row { display: grid; grid-template-columns: repeat(5, 1fr); border-bottom: 1px solid #21262d; }
 .metric { background: none; border: none; border-right: 1px solid #21262d; border-bottom: 3px solid transparent; padding: 15px 18px; text-align: left; cursor: pointer; font-family: inherit; color: #a3b0bd; }
 .metric:last-child { border-right: none; }
 .metric:hover { background: #1a2029; }
@@ -524,8 +524,10 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 }
 
 .rank-table { width: 100%; border-collapse: collapse; font-size: 0.95em; }
-.rank-table th { text-align: left; padding: 11px 12px; color: #b6c2ce; font-size: 0.92em; font-weight: 700; letter-spacing: 0.02em; border-bottom: 1px solid #30363d; }
-.rank-table td { padding: 12px; border-bottom: 1px solid #21262d; font-size: 0.98em; }
+/* 列が多いので、見出しと数値は折り返させない */
+.rank-table th { text-align: left; padding: 11px 9px; color: #b6c2ce; font-size: 0.92em; font-weight: 700; letter-spacing: 0.02em; border-bottom: 1px solid #30363d; white-space: nowrap; }
+.rank-table td { padding: 12px 9px; border-bottom: 1px solid #21262d; font-size: 0.98em; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rank-table td:nth-child(2) { white-space: normal; min-width: 8em; }
 .rank-table tr:last-child td { border-bottom: none; }
 .rank-table tr:hover td { background: #1c2129; }
 /* 順位はメダル絵文字ではなく落ち着いたバッジで示す */
@@ -655,7 +657,7 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
   </span>
   <h1>MeriWatch</h1>
   <!-- 差し替えたかどうかを画面で判別できるようにする。変更するたびに上げる -->
-  <span class="app-ver">v7</span>
+  <span class="app-ver">v8</span>
   <div class="header-right">
     <div class="badge stopped" id="statusBadge">
       <span class="dot"></span>
@@ -718,6 +720,10 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
     <div id="urlStatus" style="font-size:0.92em;color:#a3b0bd;margin-top:6px"></div>
   </div>
   <div class="summary-grid">
+    <div class="summary-card">
+      <div class="summary-label">売上（売却済）</div>
+      <div class="summary-value" id="s-revenue">¥0</div>
+    </div>
     <div class="summary-card">
       <div class="summary-label">仕入れ総額</div>
       <div class="summary-value" id="s-cost">¥0</div>
@@ -864,8 +870,11 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 
   <div class="an-panel">
     <div class="metric-row" id="metricRow">
+      <button class="metric" data-metric="revenue" onclick="selectMetric('revenue')">
+        <span class="metric-label">売上</span><span class="metric-value" id="mv-revenue">—</span>
+      </button>
       <button class="metric active" data-metric="profit" onclick="selectMetric('profit')">
-        <span class="metric-label">総利益</span><span class="metric-value" id="mv-profit">—</span>
+        <span class="metric-label">利益</span><span class="metric-value" id="mv-profit">—</span>
       </button>
       <button class="metric" data-metric="count" onclick="selectMetric('count')">
         <span class="metric-label">購入数</span><span class="metric-value" id="mv-count">—</span>
@@ -890,7 +899,8 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
             <th>キーワード</th>
             <th>購入</th>
             <th>売却</th>
-            <th>総利益</th>
+            <th>売上</th>
+            <th>利益</th>
             <th>利益率</th>
             <th>期間</th>
           </tr>
@@ -1418,6 +1428,8 @@ function renderSummary(purchases) {
         return s + (p.buy_price > 0 ? pr / p.buy_price * 100 : 0);
       }, 0) / sold.length * 10) / 10
     : 0;
+  const revenue = sold.reduce((s, p) => s + p.sell_price, 0);
+  document.getElementById('s-revenue').textContent = `¥${revenue.toLocaleString()}`;
   document.getElementById('s-cost').textContent = `¥${totalCost.toLocaleString()}`;
   const rEl = document.getElementById('s-profit');
   rEl.textContent = `¥${realizedProfit.toLocaleString()}`;
@@ -1627,10 +1639,11 @@ function animateValue(el, to, fmt, decimals) {
 
 // 指標の定義。profit / rate / days は売却済みの実績のみを対象にする
 const AN_METRICS = {
-  profit: { label: '実現利益',     fmt: v => yen(v) },
-  count:  { label: '購入数',       fmt: v => v + ' 件' },
-  rate:   { label: '平均利益率',   fmt: v => v + ' %' },
-  days:   { label: '平均売却期間', fmt: v => v + ' 日' },
+  revenue: { label: '売上',         fmt: v => yen(v) },
+  profit:  { label: '実現利益',     fmt: v => yen(v) },
+  count:   { label: '購入数',       fmt: v => v + ' 件' },
+  rate:    { label: '平均利益率',   fmt: v => v + ' %' },
+  days:    { label: '平均売却期間', fmt: v => v + ' 日' },
 };
 
 function selectMetric(m) {
@@ -1693,11 +1706,13 @@ function buildAnalytics(purchases) {
   const kw = {};
   for (const p of purchases) {
     const k = p.keyword || 'その他';
-    if (!kw[k]) kw[k] = { realized: 0, count: 0, soldCount: 0, rates: [], days: [] };
+    if (!kw[k]) kw[k] = { realized: 0, revenue: 0, cost: 0, count: 0, soldCount: 0, rates: [], days: [] };
     kw[k].count++;
     if (p.status === 'sold') {
       const profit = calcPurchaseProfit(p);
       kw[k].realized += profit;
+      kw[k].revenue  += p.sell_price;            // 売上は手数料・送料を引く前の売値
+      kw[k].cost     += p.buy_price + p.shipping;
       kw[k].soldCount++;
       if (p.buy_price > 0) kw[k].rates.push(profit / p.buy_price * 100);
       const d = daysBetween(p.bought_at, p.sold_at);
@@ -1706,16 +1721,20 @@ function buildAnalytics(purchases) {
   }
   const avg = arr => arr.length ? Math.round(arr.reduce((s,v)=>s+v,0)/arr.length*10)/10 : 0;
   const labels = Object.keys(kw).sort((a, b) => kw[b].realized - kw[a].realized);
-  const value = (k, m) => m === 'profit' ? kw[k].realized
-                        : m === 'count'  ? kw[k].count
-                        : m === 'rate'   ? avg(kw[k].rates)
-                        :                  avg(kw[k].days);
+  const value = (k, m) => m === 'profit'  ? kw[k].realized
+                        : m === 'revenue' ? kw[k].revenue
+                        : m === 'count'   ? kw[k].count
+                        : m === 'rate'    ? avg(kw[k].rates)
+                        :                   avg(kw[k].days);
   _anData = { kw, labels, avg, value };
 
   // ── 冒頭の要約文 ──
   const bought   = labels.reduce((s,k) => s + kw[k].count, 0);
   const sold     = labels.reduce((s,k) => s + kw[k].soldCount, 0);
   const realized = labels.reduce((s,k) => s + kw[k].realized, 0);
+  const revenue  = labels.reduce((s,k) => s + kw[k].revenue,  0);
+  const cost     = labels.reduce((s,k) => s + kw[k].cost,     0);
+  const fee      = revenue - Math.round(revenue * 0.9);   // メルカリ手数料 10%
   const allRates = labels.flatMap(k => kw[k].rates);
   const allDays  = labels.flatMap(k => kw[k].days);
 
@@ -1728,8 +1747,10 @@ function buildAnalytics(purchases) {
     head.textContent = `${bought} 件を仕入れ、まだ 1 件も売却していません`;
     sub.textContent  = `監視キーワード ${labels.length} 件。売却を記録すると利益の分析が表示されます。`;
   } else {
-    head.textContent = `売却した ${sold} 件で ${yen(realized)} の利益が出ています`;
-    sub.textContent  = `購入 ${bought} 件 ・ 未売却 ${bought - sold} 件 ・ キーワード ${labels.length} 件`;
+    head.textContent = `売却した ${sold} 件で 売上 ${yen(revenue)}、利益 ${yen(realized)}`;
+    // 売上から何が引かれて利益になったのかを添える
+    sub.textContent  = `手数料 ${yen(fee)} ・ 仕入れと送料 ${yen(cost)} を差し引いた額です`
+                     + ` ／ 購入 ${bought} 件 ・ 未売却 ${bought - sold} 件 ・ キーワード ${labels.length} 件`;
   }
 
   // ── 指標カードの数値 ──
@@ -1742,6 +1763,7 @@ function buildAnalytics(purchases) {
     if (animating) animateValue(el, to, fmt, decimals);
     else el.textContent = fmt(to);
   };
+  setMetric('mv-revenue', revenue,       yen,            0);
   setMetric('mv-profit', realized,       yen,            0);
   setMetric('mv-count',  bought,         v => v + ' 件', 0);
   setMetric('mv-rate',   avg(allRates),  v => v + ' %',  1);
@@ -1783,6 +1805,7 @@ function buildAnalytics(purchases) {
       <td>${k}</td>
       <td>${kw[k].count}</td>
       <td>${kw[k].soldCount}</td>
+      <td>${yen(kw[k].revenue)}</td>
       <td class="${kw[k].realized>=0?'profit-pos':'profit-neg'}">${yen(kw[k].realized)}</td>
       <td class="${avg(kw[k].rates)>=0?'profit-pos':'profit-neg'}">${avg(kw[k].rates)}%</td>
       <td style="color:#a3b0bd">${kw[k].days.length ? avg(kw[k].days)+'日' : '-'}</td>
@@ -1803,29 +1826,35 @@ const daysHeld = s => {
 
 // ── 月別の推移：仕入れは購入日、利益は売却日で振り分ける ──
 function buildMonthly(purchases, animate) {
-  const cost = {}, profit = {};
+  const cost = {}, profit = {}, revenue = {};
   for (const p of purchases) {
     const bm = monthOf(p.bought_at);
     if (bm) cost[bm] = (cost[bm] || 0) + p.buy_price;
     if (p.status === 'sold') {
       const sm = monthOf(p.sold_at);
-      if (sm) profit[sm] = (profit[sm] || 0) + calcPurchaseProfit(p);
+      if (sm) {
+        profit[sm]  = (profit[sm]  || 0) + calcPurchaseProfit(p);
+        revenue[sm] = (revenue[sm] || 0) + p.sell_price;
+      }
     }
   }
   // 直近12ヶ月ぶんだけ出す
   const months = [...new Set([...Object.keys(cost), ...Object.keys(profit)])].sort().slice(-12);
-  const costs   = months.map(m => cost[m]   || 0);
-  const profits = months.map(m => profit[m] || 0);
-  const moving  = !!animate && !reduceMotion();
+  const costs    = months.map(m => cost[m]    || 0);
+  const profits  = months.map(m => profit[m]  || 0);
+  const revenues = months.map(m => revenue[m] || 0);
+  const moving   = !!animate && !reduceMotion();
 
   destroyChart('monthly');
   const chart = new Chart(document.getElementById('chartMonthly'), {
     type: 'bar',
     data: { labels: months.map(m => m.replace('-', '/')), datasets: [
+      { label: '売上', data: moving ? revenues.map(() => 0) : revenues,
+        backgroundColor: '#1f6feb', borderRadius: 3, maxBarThickness: 22 },
       { label: '仕入れ額', data: moving ? costs.map(() => 0) : costs,
-        backgroundColor: '#30475e', borderRadius: 3, maxBarThickness: 34 },
+        backgroundColor: '#30475e', borderRadius: 3, maxBarThickness: 22 },
       { label: '実現利益', data: moving ? profits.map(() => 0) : profits,
-        backgroundColor: profits.map(v => v >= 0 ? '#2ea043' : '#da3633'), borderRadius: 3, maxBarThickness: 34 },
+        backgroundColor: profits.map(v => v >= 0 ? '#2ea043' : '#da3633'), borderRadius: 3, maxBarThickness: 22 },
     ]},
     options: {
       responsive: true, maintainAspectRatio: false, animation: false,
@@ -1837,7 +1866,7 @@ function buildMonthly(purchases, animate) {
       scales: {
         x: { ticks: { color: '#c3ccd6', font: { size: 11 } }, grid: { display: false }, border: { display: false } },
         y: { suggestedMin: Math.min(0, ...profits),
-             suggestedMax: Math.max(0, ...costs, ...profits),
+             suggestedMax: Math.max(0, ...revenues, ...costs, ...profits),
              ticks: { color: '#8b97a5', font: { size: 11 }, callback: v => yen(v) },
              grid: { color: '#21262d' }, border: { display: false } }
       }
@@ -1848,8 +1877,9 @@ function buildMonthly(purchases, animate) {
   if (moving) {
     animateProgress(e => {
       if (_charts['monthly'] !== chart) return;
-      chart.data.datasets[0].data = costs.map(v => v * e);
-      chart.data.datasets[1].data = profits.map(v => v * e);
+      chart.data.datasets[0].data = revenues.map(v => v * e);
+      chart.data.datasets[1].data = costs.map(v => v * e);
+      chart.data.datasets[2].data = profits.map(v => v * e);
       chart.update('none');
     });
   }
