@@ -671,7 +671,7 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
   </span>
   <h1>MeriWatch</h1>
   <!-- 差し替えたかどうかを画面で判別できるようにする。変更するたびに上げる -->
-  <span class="app-ver">v10</span>
+  <span class="app-ver">v11</span>
   <div class="header-right">
     <div class="badge stopped" id="statusBadge">
       <span class="dot"></span>
@@ -730,7 +730,9 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
     <div style="display:flex;gap:8px;align-items:center">
       <input type="text" id="urlInput" placeholder="https://jp.mercari.com/item/m..." style="flex:1">
       <button onclick="lookupUrl()" style="padding:8px 18px;background:#1f6feb;border:none;border-radius:6px;color:#fff;font-weight:600;cursor:pointer;white-space:nowrap">商品を取得</button>
+      <button onclick="openManualAdd()" class="action-btn listing-btn" style="padding:8px 18px;white-space:nowrap">手入力で追加</button>
     </div>
+    <div style="font-size:0.92em;color:#a3b0bd;margin-top:6px">URLが無い商品や、買ったのに記録し忘れた商品は「手入力で追加」から購入日を指定して登録できます。</div>
     <div id="urlStatus" style="font-size:0.92em;color:#a3b0bd;margin-top:6px"></div>
   </div>
   <div class="summary-grid">
@@ -1043,17 +1045,32 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
 <!-- ===== 購入モーダル ===== -->
 <div class="modal-overlay" id="purchaseModal">
   <div class="modal">
-    <h3>購入記録</h3>
+    <h3 id="modal-title">購入記録</h3>
     <div class="modal-name" id="modal-name"></div>
+    <!-- 手入力のときだけ商品名を打てるようにする -->
+    <div id="modal-name-wrap" style="display:none">
+      <label>商品名</label>
+      <input type="text" id="modal-name-input" placeholder="例: 妖怪ウォッチ2 真打">
+    </div>
     <input type="hidden" id="modal-data">
     <label>カテゴリ（キーワード）</label>
     <select id="modal-keyword" style="width:100%;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px 10px;color:#e6edf3;font-size:0.9em;font-family:inherit;margin-bottom:2px"></select>
     <label>仕入れ値（円）</label>
     <input type="number" id="modal-buy" placeholder="0" oninput="updatePreview()">
-    <label>売値予定（円）</label>
+    <label id="modal-sell-label">売値予定（円）</label>
     <input type="number" id="modal-sell" placeholder="0" oninput="updatePreview()">
     <label>送料（円）</label>
     <input type="number" id="modal-ship" value="0" oninput="updatePreview()">
+    <label>購入日</label>
+    <input type="date" id="modal-bought">
+    <label style="display:flex;align-items:center;gap:8px;text-transform:none;cursor:pointer">
+      <input type="checkbox" id="modal-sold-chk" onchange="toggleSoldFields()" style="width:auto;margin:0">
+      すでに売却済み
+    </label>
+    <div id="modal-sold-wrap" style="display:none">
+      <label>売却日</label>
+      <input type="date" id="modal-sold-at">
+    </div>
     <label>メモ</label>
     <input type="text" id="modal-memo" placeholder="状態・購入場所など">
     <div class="profit-preview">
@@ -1376,14 +1393,52 @@ async function update() {
 
 // ===== 購入モーダル =====
 let _modalHit = null;
+// 今日を YYYY-MM-DD で返す（date 入力の初期値用）
+const todayStr = () => {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+};
+
+function toggleSoldFields() {
+  const sold = document.getElementById('modal-sold-chk').checked;
+  document.getElementById('modal-sold-wrap').style.display = sold ? '' : 'none';
+  // 売却済みなら「売値予定」ではなく確定した売値
+  document.getElementById('modal-sell-label').textContent = sold ? '売値（円）' : '売値予定（円）';
+  if (sold && !document.getElementById('modal-sold-at').value) {
+    document.getElementById('modal-sold-at').value = todayStr();
+  }
+}
+
+// 買ったのに記録し忘れた商品を、URLなしで登録する
+async function openManualAdd() {
+  _modalHit = { manual: true, name: '', item_id: '', url: '', thumbnail: '', keyword: '' };
+  document.getElementById('modal-title').textContent = '購入記録を手入力';
+  document.getElementById('modal-name').style.display = 'none';
+  document.getElementById('modal-name-wrap').style.display = '';
+  document.getElementById('modal-name-input').value = '';
+  await prepareModal({ price: '' });
+}
+
 async function openModal(i) {
   const hit = _hits[i];
   _modalHit = hit;
+  document.getElementById('modal-title').textContent = '購入記録';
+  document.getElementById('modal-name').style.display = '';
+  document.getElementById('modal-name-wrap').style.display = 'none';
   document.getElementById('modal-name').textContent = hit.name;
-  document.getElementById('modal-buy').value  = hit.price;
+  await prepareModal(hit);
+}
+
+// 検知リスト経由と手入力で共通の初期化
+async function prepareModal(hit) {
+  document.getElementById('modal-buy').value  = hit.price !== undefined ? hit.price : '';
   document.getElementById('modal-sell').value = '';
   document.getElementById('modal-ship').value = '0';
   document.getElementById('modal-memo').value = '';
+  document.getElementById('modal-bought').value = todayStr();
+  document.getElementById('modal-sold-chk').checked = false;
+  document.getElementById('modal-sold-at').value = '';
+  toggleSoldFields();
 
   // キーワード選択肢を設定
   const r = await fetch('/api/settings');
@@ -1423,20 +1478,39 @@ async function savePurchase() {
   const ship    = parseInt(document.getElementById('modal-ship').value)    || 0;
   const memo    = document.getElementById('modal-memo').value.trim();
   const keyword = document.getElementById('modal-keyword').value;
+  const bought  = document.getElementById('modal-bought').value;
+  const isSold  = document.getElementById('modal-sold-chk').checked;
+  const soldAt  = document.getElementById('modal-sold-at').value;
+
+  // 手入力のときは商品名がまだ無いので、ここで受け取って必須確認する
+  const name = _modalHit.manual
+    ? document.getElementById('modal-name-input').value.trim()
+    : _modalHit.name;
+  if (_modalHit.manual && !name) { showToast('商品名を入力してください'); return; }
+  if (!bought) { showToast('購入日を入力してください'); return; }
+  if (isSold) {
+    if (!soldAt) { showToast('売却日を入力してください'); return; }
+    if (soldAt < bought) { showToast('売却日が購入日より前になっています'); return; }
+  }
+
   await fetch('/api/purchases', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({
       item_id: _modalHit.item_id || '',
-      name: _modalHit.name,
+      name,
       keyword,
-      url: _modalHit.url,
-      thumbnail: _modalHit.thumbnail,
-      buy_price: buy, sell_price: sell, shipping: ship, memo
+      url: _modalHit.url || '',
+      thumbnail: _modalHit.thumbnail || '',
+      buy_price: buy, sell_price: sell, shipping: ship, memo,
+      bought_at: bought,
+      status: isSold ? 'sold' : 'purchased',
+      sold_at: isSold ? soldAt : null
     })
   });
   closeModal();
   showToast('購入記録しました');
+  loadPurchases();   // 一覧と分析にすぐ反映する
 }
 
 // ===== 収益管理タブ =====
@@ -2109,6 +2183,26 @@ setInterval(loadKwOverview, 30000);
 def api_purchases_get():
     return jsonify(load_purchases())
 
+def _norm_date(v):
+    """日付入力(YYYY-MM-DD)を既存レコードと同じ "YYYY-MM-DD HH:MM" に揃える。
+
+    後から登録するとき時刻までは分からないので、日付だけ渡された場合は
+    12:00 を補う。すでに時刻付きならそのまま通す。解釈できなければ
+    None を返し、呼び出し側でサーバー時刻に落とす。
+    """
+    if not v or not isinstance(v, str):
+        return None
+    v = v.strip()
+    try:
+        if len(v) == 10:
+            time.strptime(v, "%Y-%m-%d")
+            return v + " 12:00"
+        time.strptime(v[:16], "%Y-%m-%d %H:%M")
+        return v[:16]
+    except ValueError:
+        return None
+
+
 @flask_app.route("/api/purchases", methods=["POST"])
 def api_purchases_post():
     data = request.json or {}
@@ -2124,10 +2218,12 @@ def api_purchases_post():
         "sell_price": int(data.get("sell_price", 0)),
         "shipping":   int(data.get("shipping", 0)),
         "memo":      data.get("memo", ""),
-        "status":    "purchased",
-        "bought_at": time.strftime("%Y-%m-%d %H:%M"),
+        "status":    "sold" if data.get("status") == "sold" else "purchased",
+        "bought_at": _norm_date(data.get("bought_at")) or time.strftime("%Y-%m-%d %H:%M"),
         "sold_at":   None,
     }
+    if p["status"] == "sold":
+        p["sold_at"] = _norm_date(data.get("sold_at")) or time.strftime("%Y-%m-%d %H:%M")
     purchases.insert(0, p)
     save_purchases(purchases)
     return jsonify({"ok": True})
