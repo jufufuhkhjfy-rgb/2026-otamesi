@@ -67,7 +67,7 @@ KEYEVENTF_KEYUP      = 0x0002
 
 VK = {'A': 0x41, 'D': 0x44}
 
-VERSION = 'v8'   # 入れ替えたか分かるように、窓の題に出す
+VERSION = 'v9'   # 入れ替えたか分かるように、窓の題に出す
 
 CONFIG_PATH = Path(__file__).with_name('medal_clicker.json')
 # 画面が出ているかの判定に使う見本。ここに無いものは座標だけ覚える
@@ -137,6 +137,7 @@ ALIGN_PAD   = 120     # 探す範囲（上下左右にこのピクセルぶん�
 ALIGN_STEP  = 4       # 探すときの粗さ。4 なら 4 ピクセル刻み
 ALIGN_EVERY = 8       # 空振りが何回続いたら探しに行くか
 ALIGN_TIGHT = 0.7     # 探して見つけたと認めるのは、ふだんのゆるさのこの割合まで
+ALIGN_FLAT  = 10      # のっぺりした見本は他の場所とも似るので、探す目印には使わない
 
 
 def cursor_pos():
@@ -605,8 +606,10 @@ class MedalClicker:
             if d is None:
                 lines.append(f'{LABELS[key]}: 画面を読めない')
             else:
-                lines.append(f'{LABELS[key]}: 差 {d:.1f}'
-                             + ('  一致' if d < self.tol else ''))
+                flat = float(np.std(self.anchors[key])) < ALIGN_FLAT
+                lines.append(f'{LABELS[key]} {pos}: 差 {d:.1f}'
+                             + ('  一致' if d < self.tol else '')
+                             + ('  見本がのっぺりで当てにならない' if flat else ''))
         lines.append('')
         lines.append(f'ゆるさ {self.tol} より小さい差が一致になる')
         messagebox.showinfo('判定', '\n'.join(lines))
@@ -681,15 +684,40 @@ class MedalClicker:
             precise_sleep(gap)
 
     # ---------- 画面の見張り ----------
+    def screen_table(self):
+        """見張る画面の一覧。順番は同じくらい似ていたときの優先順位。"""
+        return (
+            ('cash2', self.auto_cash and self.pos_cash2,
+             lambda: self.do_tap('cash2', '精算した', 2.0, stop_keys=True, count='cashes'), 2),
+            ('next',  self.auto_again and self.pos_next,
+             lambda: self.do_tap('next', 'リザルトを送った', 1.5), 2),
+            ('next2', self.auto_again and self.pos_next2,
+             lambda: self.do_tap('next2', 'リザルトを送った', 1.5), 2),
+            ('again', self.auto_again and self.pos_again,
+             lambda: self.do_tap('again', '続けて遊ぶを押した', 2.0), 2),
+            ('game',  self.auto_again and self.pos_game,
+             lambda: self.do_tap('game', '台を選んだ', 2.0, count='replays'), 2),
+            ('play2', self.auto_again and self.pos_play2,
+             lambda: self.do_tap('play2', 'プレイを押した', 1.5), 2),
+            ('rate',  self.auto_again and self.pos_rate,
+             lambda: self.do_tap('rate', 'レートを決めた', 3.0), 2),
+            ('quit',  self.auto_quit and self.pos_quit,
+             lambda: self.do_tap('quit', 'やめるを押した', 1.5, count='quits'), 2),
+            ('limit', self.auto_limit and self.pos_limit and self.pos_cancel,
+             self.do_limit, 2),
+            ('menu',  self.auto_swap and self.pos_menu and self.pos_3000 and self.pos_play
+             and not (self.max_swap and self.swaps >= self.max_swap),
+             self.do_exchange, 2),
+        )
+
     def watch_loop(self):
         """0.7 秒ごとに盤面を見て、いま出ている画面に合った手を打つ。
 
-        並びは優先順位であって手順ではない。どの画面が出ていても、その
-        画面の処理から入れる。どれにも当てはまらない状態が続いたらゲーム
-        中とみなして連打を再開する。精算待ちの間だけは連打に戻さない。
+        当てはまるものが複数あったら、一番よく似ている画面を選ぶ。白い
+        ダイアログ同士は似がちで、順番だけで決めると取り違えるため。
+        どれにも当てはまらない状態が続いたらゲーム中とみなして連打に戻る。
         """
-        keys  = ('cash2', 'next', 'next2', 'again', 'game', 'play2', 'rate',
-                 'quit', 'limit', 'menu')
+        keys  = [e[0] for e in self.screen_table()]
         clear = {k: 0 for k in keys}
         hits  = dict(clear)
         idle  = 0
@@ -711,57 +739,32 @@ class MedalClicker:
                 self.do_tap('cash', '精算を押した', 1.5)
                 continue
 
-            found = None
-            for key, ready, check, act, need in (
-                ('cash2', self.auto_cash and self.pos_cash2,
-                 lambda: self.matches('cash2', self.pos_cash2),
-                 lambda: self.do_tap('cash2', '精算した', 2.0, stop_keys=True, count='cashes'), 2),
-                ('next',  self.auto_again and self.pos_next,
-                 lambda: self.matches('next', self.pos_next),
-                 lambda: self.do_tap('next', 'リザルトを送った', 1.5), 2),
-                ('next2', self.auto_again and self.pos_next2,
-                 lambda: self.matches('next2', self.pos_next2),
-                 lambda: self.do_tap('next2', 'リザルトを送った', 1.5), 2),
-                ('again', self.auto_again and self.pos_again,
-                 lambda: self.matches('again', self.pos_again),
-                 lambda: self.do_tap('again', '続けて遊ぶを押した', 2.0), 2),
-                ('game',  self.auto_again and self.pos_game,
-                 lambda: self.matches('game', self.pos_game),
-                 lambda: self.do_tap('game', '台を選んだ', 2.0, count='replays'), 2),
-                ('play2', self.auto_again and self.pos_play2,
-                 lambda: self.matches('play2', self.pos_play2),
-                 lambda: self.do_tap('play2', 'プレイを押した', 1.5), 2),
-                ('rate',  self.auto_again and self.pos_rate,
-                 lambda: self.matches('rate', self.pos_rate),
-                 lambda: self.do_tap('rate', 'レートを決めた', 3.0), 2),
-                ('quit',  self.auto_quit and self.pos_quit,
-                 lambda: self.matches('quit', self.pos_quit),
-                 lambda: self.do_tap('quit', 'やめるを押した', 1.5, count='quits'), 2),
-                ('limit', self.auto_limit and self.pos_limit and self.pos_cancel,
-                 lambda: self.matches('limit', self.pos_limit), self.do_limit, 2),
-                ('menu',  self.auto_swap and self.pos_menu and self.pos_3000 and self.pos_play
-                 and not (self.max_swap and self.swaps >= self.max_swap),
-                 lambda: self.matches('menu', self.pos_menu), self.do_exchange, 2),
-            ):
+            table  = self.screen_table()
+            scores = {}
+            for order, (key, ready, act, need) in enumerate(table):
                 if not ready:
-                    hits[key] = 0
                     continue
-                if not check():
-                    hits[key] = 0
-                    continue
+                d = self.diff(key, getattr(self, POINTS[key]))
+                if d is not None and d < self.tol:
+                    scores[key] = (d, order)
+
+            if scores:
+                found = min(scores, key=scores.get)
+                for key in hits:
+                    if key != found:
+                        hits[key] = 0
+                hits[found] += 1
                 # 何かの画面が見えている。盤面ではないので連打は止める
-                found = key
                 self.tapping = False
-                hits[key] += 1
+                idle = 0
                 # 一瞬の一致では動かさない。続けて出たら本物とみなす
-                if hits[key] >= need:
+                act, need = next((e[2], e[3]) for e in table if e[0] == found)
+                if hits[found] >= need:
                     hits = dict(clear)
                     act()
-                break
-
-            if found:
-                idle = 0
                 continue
+
+            hits = dict(clear)
 
             # どの画面でもない。しばらく続いたら盤面とみなして連打に戻る
             idle += 1
@@ -771,7 +774,6 @@ class MedalClicker:
 
             # 空振りが続くときは、ゲームの枠ごと動いた疑いがある
             if idle % ALIGN_EVERY == 0 and self.realign():
-                hits = dict(clear)
                 idle = 0
 
     def diff(self, key, pos):
@@ -840,28 +842,51 @@ class MedalClicker:
             return None
         return x0 + bx - ax, y0 + by - ay, best
 
-    def realign(self):
-        """どれか一つでも見つかれば、覚えた座標を全部まとめてずらす。"""
-        for key in ANCHOR_PATHS:
+    def shift_all(self, dx, dy):
+        """ゲームの枠ごと動いたとみて、覚えた座標を全部ずらす。"""
+        for attr in POINTS.values():
+            old = getattr(self, attr)
+            if old:
+                setattr(self, attr, (old[0] + dx, old[1] + dy))
+        self.save_config()
+        self.note = f'位置が {dx:+d},{dy:+d} ずれていたので直した'
+
+    def aim(self, key):
+        """押す直前に見本を探し直して、いま押すべき場所を返す。"""
+        pos = getattr(self, POINTS[key])
+        if key not in ANCHOR_PATHS or not pos:
+            return pos
+        found = self.search(key, pos)
+        if not found:
+            return pos
+        dx, dy, _ = found
+        if dx or dy:
+            self.shift_all(dx, dy)
             pos = getattr(self, POINTS[key])
-            found = self.search(key, pos)
-            if not found:
+        return pos
+
+    def realign(self):
+        """一番よく合う見本を探して、そのずれぶん座標を全部動かす。"""
+        best = None
+        for key in ANCHOR_PATHS:
+            anchor = self.anchors.get(key)
+            pos = getattr(self, POINTS[key])
+            if anchor is None or not pos:
                 continue
-            dx, dy, best = found
-            if dx == 0 and dy == 0:
-                return False
-            for attr in POINTS.values():
-                old = getattr(self, attr)
-                if old:
-                    setattr(self, attr, (old[0] + dx, old[1] + dy))
-            self.save_config()
-            self.note = f'位置が {dx:+d},{dy:+d} ずれていたので直した'
-            return True
-        return False
+            # のっぺりした見本は、どこにでも当てはまってしまう
+            if float(np.std(anchor)) < ALIGN_FLAT:
+                continue
+            found = self.search(key, pos)
+            if found and (best is None or found[2] < best[2]):
+                best = found
+        if best is None or (best[0] == 0 and best[1] == 0):
+            return False
+        self.shift_all(best[0], best[1])
+        return True
 
     def do_tap(self, key, label, wait, stop_keys=False, count=None):
         """記録した場所を一回押して、画面が変わるまで待つ。"""
-        pos = getattr(self, POINTS[key])
+        pos = self.aim(key)
         self.exchanging = True
         self.busy_text  = label
         keep = cursor_pos()
@@ -889,6 +914,7 @@ class MedalClicker:
         keep = cursor_pos()
         try:
             time.sleep(0.2)
+            self.aim('limit')   # ずれていたら、ここで座標をまとめて直す
             click_at(self.pos_limit[0], self.pos_limit[1], 0.03)
             time.sleep(1.2)   # 次のダイアログが開くまで待つ
             click_at(self.pos_cancel[0], self.pos_cancel[1], 0.03)
@@ -909,6 +935,7 @@ class MedalClicker:
         keep = cursor_pos()
         try:
             time.sleep(0.2)
+            self.aim('menu')   # ずれていたら、ここで座標をまとめて直す
             click_at(self.pos_menu[0], self.pos_menu[1], 0.03)
             time.sleep(0.5)
 
