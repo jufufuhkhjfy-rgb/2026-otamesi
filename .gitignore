@@ -21,3 +21,7 @@ build/
 config.json
 data/
 testdata/
+
+# メダル連打ボットが覚えるクリック座標
+medal_clicker.json
+medal_clicker_*.png
