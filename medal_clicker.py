@@ -67,6 +67,8 @@ KEYEVENTF_KEYUP      = 0x0002
 
 VK = {'A': 0x41, 'D': 0x44}
 
+VERSION = 'v8'   # 入れ替えたか分かるように、窓の題に出す
+
 CONFIG_PATH = Path(__file__).with_name('medal_clicker.json')
 # 画面が出ているかの判定に使う見本。ここに無いものは座標だけ覚える
 ANCHOR_PATHS = {
@@ -129,6 +131,13 @@ WATCH_INTERVAL  = 0.7
 WAIT_MIN        = 30  # プレイ上限をさばいてから精算するまでの待ち時間（分）
 IDLE_HITS       = 3   # どの画面にも当てはまらない回数。これで盤面とみなす
 
+# ブラウザの位置やページの送り具合で、ゲームの枠ごと数十ピクセル動く。
+# 空振りが続いたら見本を周りから探し直して、覚えた座標をまとめてずらす。
+ALIGN_PAD   = 120     # 探す範囲（上下左右にこのピクセルぶん）
+ALIGN_STEP  = 4       # 探すときの粗さ。4 なら 4 ピクセル刻み
+ALIGN_EVERY = 8       # 空振りが何回続いたら探しに行くか
+ALIGN_TIGHT = 0.7     # 探して見つけたと認めるのは、ふだんのゆるさのこの割合まで
+
 
 def cursor_pos():
     if not IS_WIN:
@@ -179,10 +188,27 @@ def grab(x, y, w, h):
     return ImageGrab.grab(bbox=(x, y, x + w, y + h))
 
 
+def block_mean(a, n):
+    """n かける n の平均に潰す。間引きと違い、少しのずれでも形が残る。"""
+    h = a.shape[0] // n * n
+    w = a.shape[1] // n * n
+    return a[:h, :w].reshape(h // n, n, w // n, n, -1).mean(axis=(1, 3))
+
+
+def anchor_rect(pos):
+    """見本として切り抜く四角の左上を返す。"""
+    return int(pos[0]) - ANCHOR_W // 2, int(pos[1]) - ANCHOR_H // 2
+
+
+def screen_size():
+    if not IS_WIN:
+        return 1920, 1080
+    return user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
+
+
 def grab_anchor(pos):
     """指定座標を中心にした切り抜きを返す。"""
-    x = int(pos[0]) - ANCHOR_W // 2
-    y = int(pos[1]) - ANCHOR_H // 2
+    x, y = anchor_rect(pos)
     return grab(x, y, ANCHOR_W, ANCHOR_H)
 
 
@@ -233,7 +259,7 @@ class MedalClicker:
         self.load_config()
 
         self.root = tk.Tk()
-        self.root.title('メダル連打')
+        self.root.title(f'メダル連打 {VERSION}')
         self.root.attributes('-topmost', True)
         self.build_ui()
         self.fit_window()
@@ -412,6 +438,8 @@ class MedalClicker:
         row.pack(pady=(4, 2))
         tk.Button(row, text='判定を見る', width=10,
                   command=self.check_screens).pack(side='left', padx=3)
+        tk.Button(row, text='位置合わせ', width=10,
+                  command=self.align_now).pack(side='left', padx=3)
         tk.Label(row, text='ゆるさ').pack(side='left')
         self.var_tol = tk.IntVar(value=self.tol)
         tk.Spinbox(row, from_=2, to=80, width=3, textvariable=self.var_tol,
@@ -421,7 +449,7 @@ class MedalClicker:
         row.pack(pady=(2, 4))
         tk.Button(row, text='登録を全部消す', width=13,
                   command=self.reset_points).pack(side='left', padx=6)
-        tk.Label(row, text='F8 開始/停止\nF10 終了', font=('', 8), fg='gray',
+        tk.Label(row, text=f'{VERSION}\nF8 開始/停止   F10 終了', font=('', 8), fg='gray',
                  justify='left').pack(side='left')
 
         self.refresh()
@@ -554,6 +582,13 @@ class MedalClicker:
                 grab_point()
 
         tick(3)
+
+    def align_now(self):
+        """手動で位置合わせをかける。"""
+        if self.realign():
+            return
+        self.note = 'ずれは見つからなかった'
+        self.root.after(2500, lambda: setattr(self, 'note', ''))
 
     def check_screens(self):
         """いま見えている画面と、覚えた見本の違いを並べて出す。"""
@@ -734,6 +769,11 @@ class MedalClicker:
                 self.tapping = True
                 self.busy_text = ''
 
+            # 空振りが続くときは、ゲームの枠ごと動いた疑いがある
+            if idle % ALIGN_EVERY == 0 and self.realign():
+                hits = dict(clear)
+                idle = 0
+
     def diff(self, key, pos):
         """覚えた見本といまの画面の違いを返す。小さいほど似ている。"""
         anchor = self.anchors.get(key)
@@ -750,6 +790,74 @@ class MedalClicker:
     def matches(self, key, pos):
         d = self.diff(key, pos)
         return d is not None and d < self.tol
+
+    def search(self, key, pos):
+        """覚えた場所の周りを探して、見本が見つかった場所とのずれを返す。"""
+        anchor = self.anchors.get(key)
+        if anchor is None or not pos:
+            return None
+
+        ax, ay = anchor_rect(pos)
+        sw, sh = screen_size()
+        x0 = max(0, ax - ALIGN_PAD)
+        y0 = max(0, ay - ALIGN_PAD)
+        x1 = min(sw, ax + ANCHOR_W + ALIGN_PAD)
+        y1 = min(sh, ay + ANCHOR_H + ALIGN_PAD)
+        if x1 - x0 < ANCHOR_W or y1 - y0 < ANCHOR_H:
+            return None
+
+        try:
+            big = np.asarray(grab(x0, y0, x1 - x0, y1 - y0).convert('RGB'), dtype=np.int16)
+        except (OSError, ValueError):
+            return None
+
+        # まず粗く。平均に潰してから、ずらしながらの差をまとめて出す
+        a = block_mean(anchor, ALIGN_STEP)
+        b = block_mean(big, ALIGN_STEP)
+        th, tw = a.shape[0], a.shape[1]
+        if b.shape[0] < th or b.shape[1] < tw:
+            return None
+        win = np.lib.stride_tricks.sliding_window_view(b, (th, tw, 3))
+        rough = np.abs(win - a).mean(axis=(3, 4, 5))[:, :, 0]
+        iy, ix = np.unravel_index(int(np.argmin(rough)), rough.shape)
+
+        # 次に細かく。当たりを付けた周りを一ピクセルずつ見直す
+        best, by, bx = None, 0, 0
+        for dy in range(-ALIGN_STEP, ALIGN_STEP + 1):
+            for dx in range(-ALIGN_STEP, ALIGN_STEP + 1):
+                y = iy * ALIGN_STEP + dy
+                x = ix * ALIGN_STEP + dx
+                if y < 0 or x < 0:
+                    continue
+                cut = big[y:y + ANCHOR_H, x:x + ANCHOR_W]
+                if cut.shape != anchor.shape:
+                    continue
+                d = float(np.mean(np.abs(cut - anchor)))
+                if best is None or d < best:
+                    best, by, bx = d, y, x
+
+        if best is None or best >= self.tol * ALIGN_TIGHT:
+            return None
+        return x0 + bx - ax, y0 + by - ay, best
+
+    def realign(self):
+        """どれか一つでも見つかれば、覚えた座標を全部まとめてずらす。"""
+        for key in ANCHOR_PATHS:
+            pos = getattr(self, POINTS[key])
+            found = self.search(key, pos)
+            if not found:
+                continue
+            dx, dy, best = found
+            if dx == 0 and dy == 0:
+                return False
+            for attr in POINTS.values():
+                old = getattr(self, attr)
+                if old:
+                    setattr(self, attr, (old[0] + dx, old[1] + dy))
+            self.save_config()
+            self.note = f'位置が {dx:+d},{dy:+d} ずれていたので直した'
+            return True
+        return False
 
     def do_tap(self, key, label, wait, stop_keys=False, count=None):
         """記録した場所を一回押して、画面が変わるまで待つ。"""
