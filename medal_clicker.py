@@ -6,7 +6,7 @@ A（左）と D（右）のキーを連打し、画面を見て次の二つを�
 ・プレイ上限に到達 → プレイ上限数追加 → 自動追加のキャンセル → 連打を停止
 ・自動追加のキャンセルの後は、決めた時間だけ待ってから右上の精算
 ・精算確認 → 精算（ここで A と D は止める）
-・リザルト → 次へ → 続けて遊ぶ → 一覧の三番目 → プレイ → レート決定
+・リザルト → 次へ → 次へ2 → 続けて遊ぶ → 一覧の三番目 → プレイ → レート決定
 そのあと説明の画面を黙って待ち、メダル交換をさばくと連打に戻る。
 F8 開始/停止、F10 終了。ブラウザ側をアクティブにしておくこと。
 """
@@ -70,6 +70,7 @@ ANCHOR_PATHS = {
     'limit': Path(__file__).with_name('medal_clicker_limit.png'),
     'cash2': Path(__file__).with_name('medal_clicker_cash2.png'),
     'next':  Path(__file__).with_name('medal_clicker_next.png'),
+    'next2': Path(__file__).with_name('medal_clicker_next2.png'),
     'again': Path(__file__).with_name('medal_clicker_again.png'),
     'game':  Path(__file__).with_name('medal_clicker_game.png'),
     'play2': Path(__file__).with_name('medal_clicker_play2.png'),
@@ -87,6 +88,7 @@ POINTS = {
     'cash':   'pos_cash',
     'cash2':  'pos_cash2',
     'next':   'pos_next',
+    'next2':  'pos_next2',
     'again':  'pos_again',
     'game':   'pos_game',
     'play2':  'pos_play2',
@@ -169,6 +171,7 @@ class MedalClicker:
         self.pos_cash   = None  # 右上の「精算」
         self.pos_cash2  = None  # 精算確認ダイアログの「精算」
         self.pos_next   = None  # リザルトの「次へ」
+        self.pos_next2  = None  # リザルトがもう一枚あるときの「次へ」
         self.pos_again  = None  # リザルトの「続けて遊ぶ」
         self.pos_game   = None  # ゲーム一覧の三番目
         self.pos_play2  = None  # ゲーム説明の「プレイ」
@@ -253,6 +256,7 @@ class MedalClicker:
             'pos_cash':   list(self.pos_cash)   if self.pos_cash   else None,
             'pos_cash2':  list(self.pos_cash2)  if self.pos_cash2  else None,
             'pos_next':   list(self.pos_next)   if self.pos_next   else None,
+            'pos_next2':  list(self.pos_next2)  if self.pos_next2  else None,
             'pos_again':  list(self.pos_again)  if self.pos_again  else None,
             'pos_game':   list(self.pos_game)   if self.pos_game   else None,
             'pos_play2':  list(self.pos_play2)  if self.pos_play2  else None,
@@ -366,9 +370,9 @@ class MedalClicker:
 
         # 精算のあと、もう一度同じ台に入り直す
         self.var_again = self.section('精算したら同じ台で遊び直す', self.auto_again, self.on_again)
-        self.point_row([('next', '9. 次へ', 9), ('again', '10. 続けて遊ぶ', 12)])
-        self.point_row([('game', '11. 一覧の三番目', 14), ('play2', '12. プレイ', 9)])
-        self.point_row([('rate', '13. レート決定', 12)])
+        self.point_row([('next', '9. 次へ', 9), ('next2', '10. 次へ 2', 10)])
+        self.point_row([('again', '11. 続けて遊ぶ', 12), ('game', '12. 一覧の三番目', 14)])
+        self.point_row([('play2', '13. プレイ', 9), ('rate', '14. レート決定', 12)])
         self.lbl_again = self.info_label()
 
         row = tk.Frame(self.root)
@@ -465,8 +469,8 @@ class MedalClicker:
         self.lbl_cash.config(text=f'登録 {mark_c}   {waiting}   精算 {self.cashes} 回')
 
         mark_a = ''.join('✓' if p else '×' for p in
-                         (self.pos_next, self.pos_again, self.pos_game,
-                          self.pos_play2, self.pos_rate))
+                         (self.pos_next, self.pos_next2, self.pos_again,
+                          self.pos_game, self.pos_play2, self.pos_rate))
         self.lbl_again.config(text=f'登録 {mark_a}   遊び直し {self.replays} 回')
 
         self.root.after(200, self.refresh)
@@ -479,7 +483,8 @@ class MedalClicker:
                   'limit': 'プレイ上限数追加', 'cancel': '自動追加のキャンセル',
                   'cash': '右上の精算',
                   'cash2': '精算確認の精算', 'next': 'リザルトの次へ',
-                  'again': '続けて遊ぶ', 'game': '一覧の三番目',
+                  'next2': '二枚目の次へ', 'again': '続けて遊ぶ',
+                  'game': '一覧の三番目',
                   'play2': 'ゲーム説明のプレイ', 'rate': 'レート決定'}
 
         def grab_point():
@@ -578,7 +583,7 @@ class MedalClicker:
         上から順に見て、最初に見つかったものだけを処理する。保留の判定は
         他の画面が被っているときに誤爆しやすいので一番下に置いてある。
         """
-        keys  = ('cash2', 'next', 'again', 'game', 'play2', 'rate',
+        keys  = ('cash2', 'next', 'next2', 'again', 'game', 'play2', 'rate',
                  'quit', 'limit', 'menu')
         clear = {k: 0 for k in keys}
         hits  = dict(clear)
@@ -603,6 +608,9 @@ class MedalClicker:
                 ('next',  self.auto_again and self.pos_next,
                  lambda: self.matches('next', self.pos_next),
                  lambda: self.do_tap('next', 'リザルトを送った', 1.5), 2),
+                ('next2', self.auto_again and self.pos_next2,
+                 lambda: self.matches('next2', self.pos_next2),
+                 lambda: self.do_tap('next2', 'リザルトを送った', 1.5), 2),
                 ('again', self.auto_again and self.pos_again,
                  lambda: self.matches('again', self.pos_again),
                  lambda: self.do_tap('again', '続けて遊ぶを押した', 2.0), 2),
