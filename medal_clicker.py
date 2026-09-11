@@ -78,6 +78,25 @@ ANCHOR_PATHS = {
     'rate':  Path(__file__).with_name('medal_clicker_rate.png'),
 }
 
+# 記録ボタンの呼び名
+LABELS = {
+    'menu':   '交換画面の 100',
+    '3000':   'スクロール後の 3000',
+    'play':   'プレイ開始',
+    'after':  '開始後に押す場所',
+    'quit':   'コンティニューの やめる',
+    'limit':  'プレイ上限数追加',
+    'cancel': '自動追加のキャンセル',
+    'cash':   '右上の精算',
+    'cash2':  '精算確認の精算',
+    'next':   'リザルトの次へ',
+    'next2':  '二枚目の次へ',
+    'again':  '続けて遊ぶ',
+    'game':   '一覧の三番目',
+    'play2':  'ゲーム説明のプレイ',
+    'rate':   'レート決定',
+}
+
 # 記録ボタンと、それをしまう変数の対応
 POINTS = {
     'menu':   'pos_menu',
@@ -180,6 +199,7 @@ class MedalClicker:
         self.pos_play2  = None  # ゲーム説明の「プレイ」
         self.pos_rate   = None  # レート選択の「レート決定」
         self.wait_min   = WAIT_MIN  # 上限をさばいてから精算するまでの待ち時間
+        self.tol        = MATCH_THRESHOLD  # 画面の見分けのゆるさ
         self.scrolls  = 2
         self.max_swap = 5
         self.cps      = 100.0
@@ -239,6 +259,7 @@ class MedalClicker:
             self.auto_cash  = bool(data.get('auto_cash', self.auto_cash))
             self.auto_again = bool(data.get('auto_again', self.auto_again))
             self.wait_min   = int(data.get('wait_min', self.wait_min))
+            self.tol        = int(data.get('tol', self.tol))
         if HAS_VISION:
             for key, path in ANCHOR_PATHS.items():
                 if not path.exists():
@@ -266,6 +287,7 @@ class MedalClicker:
             'pos_play2':  list(self.pos_play2)  if self.pos_play2  else None,
             'pos_rate':   list(self.pos_rate)   if self.pos_rate   else None,
             'wait_min':   self.wait_min,
+            'tol':        self.tol,
             'cps':       self.cps,
             'keys':      self.keys,
             'scrolls':   self.scrolls,
@@ -380,8 +402,18 @@ class MedalClicker:
         self.point_row([('play2', '13. プレイ', 9), ('rate', '14. レート決定', 12)])
         self.lbl_again = self.info_label()
 
+        ttk.Separator(self.root, orient='horizontal').pack(fill='x', padx=10, pady=3)
         row = tk.Frame(self.root)
-        row.pack(pady=(6, 4))
+        row.pack(pady=(4, 2))
+        tk.Button(row, text='判定を見る', width=10,
+                  command=self.check_screens).pack(side='left', padx=3)
+        tk.Label(row, text='ゆるさ').pack(side='left')
+        self.var_tol = tk.IntVar(value=self.tol)
+        tk.Spinbox(row, from_=2, to=80, width=3, textvariable=self.var_tol,
+                   command=self.on_tol).pack(side='left', padx=2)
+
+        row = tk.Frame(self.root)
+        row.pack(pady=(2, 4))
         tk.Button(row, text='登録を全部消す', width=13,
                   command=self.reset_points).pack(side='left', padx=6)
         tk.Label(row, text='F8 開始/停止\nF10 終了', font=('', 8), fg='gray',
@@ -411,6 +443,13 @@ class MedalClicker:
 
     def on_cash(self):
         self.auto_cash = self.var_cash.get()
+        self.save_config()
+
+    def on_tol(self):
+        try:
+            self.tol = int(self.var_tol.get())
+        except (tk.TclError, ValueError):
+            return
         self.save_config()
 
     def on_wait(self):
@@ -444,6 +483,18 @@ class MedalClicker:
             return
         self.save_config()
 
+    def marks(self, *keys):
+        """× 未登録、▲ 場所はあるが見本がない、✓ そろっている。"""
+        out = ''
+        for key in keys:
+            if not getattr(self, POINTS[key]):
+                out += '×'
+            elif key in ANCHOR_PATHS and self.anchors.get(key) is None:
+                out += '▲'
+            else:
+                out += '✓'
+        return out
+
     def refresh(self):
         if self.exchanging:
             self.lbl_state.config(text=self.busy_text, fg='darkorange')
@@ -455,18 +506,17 @@ class MedalClicker:
         self.lbl_cps.config(text=f'{self.cps:.0f} 回/秒')
         self.lbl_note.config(text=self.note)
 
-        marks = ''.join('✓' if p else '×' for p in
-                        (self.pos_menu, self.pos_3000, self.pos_play, self.pos_after))
+        marks = self.marks('menu', '3000', 'play', 'after')
         limit = '無制限' if self.max_swap == 0 else f'{self.max_swap} 回まで'
         self.lbl_swap.config(text=f'登録 {marks}   交換 {self.swaps} 回 / {limit}')
 
-        mark_q = '✓' if self.pos_quit else '×'
+        mark_q = self.marks('quit')
         self.lbl_quit.config(text=f'登録 {mark_q}   やめる {self.quits} 回')
 
-        mark_l = ''.join('✓' if p else '×' for p in (self.pos_limit, self.pos_cancel))
+        mark_l = self.marks('limit', 'cancel')
         self.lbl_limit.config(text=f'登録 {mark_l}   上限追加 {self.limits} 回')
 
-        mark_c = ''.join('✓' if p else '×' for p in (self.pos_cash, self.pos_cash2))
+        mark_c = self.marks('cash', 'cash2')
         if self.cash_at:
             left = max(0, int(self.cash_at - time.monotonic()))
             waiting = f'精算まで あと {left // 60} 分 {left % 60:02d} 秒'
@@ -474,9 +524,7 @@ class MedalClicker:
             waiting = '待機なし'
         self.lbl_cash.config(text=f'登録 {mark_c}   {waiting}   精算 {self.cashes} 回')
 
-        mark_a = ''.join('✓' if p else '×' for p in
-                         (self.pos_next, self.pos_next2, self.pos_again,
-                          self.pos_game, self.pos_play2, self.pos_rate))
+        mark_a = self.marks('next', 'next2', 'again', 'game', 'play2', 'rate')
         self.lbl_again.config(text=f'登録 {mark_a}   遊び直し {self.replays} 回')
 
         self.root.after(200, self.refresh)
@@ -484,33 +532,44 @@ class MedalClicker:
     # ---------- 記録 ----------
     def record(self, which):
         """3 秒数えてからカーソル位置を覚える。押したあと目的の場所へ移す。"""
-        labels = {'menu': '交換画面の 100', '3000': 'スクロール後の 3000',
-                  'play': 'プレイ開始', 'after': '開始後に押す場所',
-                  'quit': 'コンティニューの やめる',
-                  'limit': 'プレイ上限数追加', 'cancel': '自動追加のキャンセル',
-                  'cash': '右上の精算',
-                  'cash2': '精算確認の精算', 'next': 'リザルトの次へ',
-                  'next2': '二枚目の次へ', 'again': '続けて遊ぶ',
-                  'game': '一覧の三番目',
-                  'play2': 'ゲーム説明のプレイ', 'rate': 'レート決定'}
-
         def grab_point():
             pos = cursor_pos()
             setattr(self, POINTS[which], pos)
             if which in ANCHOR_PATHS:
                 self.save_anchor(which, pos)
             self.save_config()
-            self.note = f'{labels[which]} {pos} を記録'
+            self.note = f'{LABELS[which]} {pos} を記録'
             self.root.after(2500, lambda: setattr(self, 'note', ''))
 
         def tick(left):
             if left:
-                self.note = f'{labels[which]} の上へ   あと {left}'
+                self.note = f'{LABELS[which]} の上へ   あと {left}'
                 self.root.after(1000, tick, left - 1)
             else:
                 grab_point()
 
         tick(3)
+
+    def check_screens(self):
+        """いま見えている画面と、覚えた見本の違いを並べて出す。"""
+        lines = []
+        for key in ANCHOR_PATHS:
+            pos = getattr(self, POINTS[key])
+            if not pos:
+                lines.append(f'{LABELS[key]}: 未登録')
+                continue
+            if self.anchors.get(key) is None:
+                lines.append(f'{LABELS[key]}: 見本がない。登録し直して')
+                continue
+            d = self.diff(key, pos)
+            if d is None:
+                lines.append(f'{LABELS[key]}: 画面を読めない')
+            else:
+                lines.append(f'{LABELS[key]}: 差 {d:.1f}'
+                             + ('  一致' if d < self.tol else ''))
+        lines.append('')
+        lines.append(f'ゆるさ {self.tol} より小さい差が一致になる')
+        messagebox.showinfo('判定', '\n'.join(lines))
 
     def reset_points(self):
         """覚えた場所と見本を捨てて、登録前の状態に戻す。"""
@@ -648,6 +707,23 @@ class MedalClicker:
                     hits = dict(clear)
                     act()
                     break
+
+    def diff(self, key, pos):
+        """覚えた見本といまの画面の違いを返す。小さいほど似ている。"""
+        anchor = self.anchors.get(key)
+        if anchor is None or not pos:
+            return None
+        try:
+            cur = np.asarray(grab_anchor(pos).convert('RGB'), dtype=np.int16)
+        except (OSError, ValueError):
+            return None
+        if cur.shape != anchor.shape:
+            return None
+        return float(np.mean(np.abs(cur - anchor)))
+
+    def matches(self, key, pos):
+        d = self.diff(key, pos)
+        return d is not None and d < self.tol
 
     def do_tap(self, key, label, wait, stop_keys=False, count=None):
         """記録した場所を一回押して、画面が変わるまで待つ。"""
