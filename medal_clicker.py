@@ -3,6 +3,7 @@
 A（左）と D（右）のキーを連打し、画面を見て次の二つを自動でさばく。
 ・メダル交換ダイアログ → 100 のプルダウン → 3000 を選ぶ → プレイ開始
 　→ 説明の画面を閉じる一押し → ここから連打を再開
+・盤面に赤いボタンが出ている間は、そこを叩き続ける
 ・コンティニューチャンス → やめる
 ・プレイ上限に到達 → プレイ上限数追加 → 自動追加のキャンセル → 連打を停止
 ・自動追加のキャンセルの後は、決めた時間だけ待ってから右上の精算
@@ -67,7 +68,7 @@ KEYEVENTF_KEYUP      = 0x0002
 
 VK = {'A': 0x41, 'D': 0x44}
 
-VERSION = 'v11'   # 入れ替えたか分かるように、窓の題に出す
+VERSION = 'v12'   # 入れ替えたか分かるように、窓の題に出す
 
 CONFIG_PATH = Path(__file__).with_name('medal_clicker.json')
 # 画面が出ているかの判定に使う見本。ここに無いものは座標だけ覚える
@@ -82,6 +83,7 @@ ANCHOR_PATHS = {
     'game':  Path(__file__).with_name('medal_clicker_game.png'),
     'play2': Path(__file__).with_name('medal_clicker_play2.png'),
     'rate':  Path(__file__).with_name('medal_clicker_rate.png'),
+    'red':   Path(__file__).with_name('medal_clicker_red.png'),
 }
 
 # 記録ボタンの呼び名
@@ -101,6 +103,7 @@ LABELS = {
     'game':   '一覧の三番目',
     'play2':  'ゲーム説明のプレイ',
     'rate':   'レート決定',
+    'red':    '盤面の赤いボタン',
 }
 
 # 記録ボタンと、それをしまう変数の対応
@@ -120,6 +123,7 @@ POINTS = {
     'play2':  'pos_play2',
     'rate':   'pos_rate',
     'after':  'pos_after',
+    'red':    'pos_red',
 }
 
 MAX_PRESS   = 0.025   # キーを押している時間の上限。速度を上げると自動で短くなる
@@ -130,6 +134,8 @@ MATCH_THRESHOLD = 14  # 画素差の平均がこれ未満なら「同じ画面�
 WATCH_INTERVAL  = 0.7
 WAIT_MIN        = 30  # プレイ上限をさばいてから精算するまでの待ち時間（分）
 IDLE_HITS       = 3   # どの画面にも当てはまらない回数。これで盤面とみなす
+RED_CPS         = 15  # 赤いボタンを叩く速さ（回/秒）
+RED_MAX         = 30  # 叩き続ける上限（秒）。見間違いで延々押さないための保険
 
 # ブラウザの位置やページの送り具合で、ゲームの枠ごと数十ピクセル動く。
 # 空振りが続いたら見本を周りから探し直して、覚えた座標をまとめてずらす。
@@ -219,6 +225,7 @@ class MedalClicker:
         self.pos_3000 = None    # スクロール後の「3000」
         self.pos_play = None    # 「プレイ開始」
         self.pos_after  = None  # プレイ開始の後に一度押す場所
+        self.pos_red    = None  # 盤面に出る赤いボタン
         self.pos_quit = None    # コンティニューチャンスの「やめる」
         self.pos_limit  = None  # プレイ上限到達の「プレイ上限数追加」
         self.pos_cancel = None  # その次の画面の「自動追加のキャンセル」
@@ -241,6 +248,7 @@ class MedalClicker:
         self.auto_limit = True
         self.auto_cash  = True
         self.auto_again = True
+        self.auto_red   = True
 
         self.running    = False   # ボット全体が動いているか
         self.tapping    = False   # いま A と D を叩いてよいか
@@ -252,6 +260,7 @@ class MedalClicker:
         self.limits     = 0
         self.cashes     = 0
         self.replays    = 0
+        self.reds       = 0
         self.limit_at   = 0     # プレイ上限をさばいた時刻
         self.cash_at    = 0     # この時刻になったら精算する。0 なら待っていない
         self.anchors    = {}
@@ -290,6 +299,7 @@ class MedalClicker:
             self.auto_limit = bool(data.get('auto_limit', self.auto_limit))
             self.auto_cash  = bool(data.get('auto_cash', self.auto_cash))
             self.auto_again = bool(data.get('auto_again', self.auto_again))
+            self.auto_red   = bool(data.get('auto_red', self.auto_red))
             self.wait_min   = int(data.get('wait_min', self.wait_min))
             self.tol        = int(data.get('tol', self.tol))
         if HAS_VISION:
@@ -307,6 +317,7 @@ class MedalClicker:
             'pos_3000':  list(self.pos_3000) if self.pos_3000 else None,
             'pos_play':  list(self.pos_play) if self.pos_play else None,
             'pos_after': list(self.pos_after) if self.pos_after else None,
+            'pos_red':   list(self.pos_red)   if self.pos_red   else None,
             'pos_quit':   list(self.pos_quit)   if self.pos_quit   else None,
             'pos_limit':  list(self.pos_limit)  if self.pos_limit  else None,
             'pos_cancel': list(self.pos_cancel) if self.pos_cancel else None,
@@ -329,6 +340,7 @@ class MedalClicker:
             'auto_limit': self.auto_limit,
             'auto_cash': self.auto_cash,
             'auto_again': self.auto_again,
+            'auto_red': self.auto_red,
         }
         try:
             CONFIG_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
@@ -404,6 +416,11 @@ class MedalClicker:
                    command=self.on_nums).pack(side='left', padx=2)
         self.lbl_swap = self.info_label()
 
+        # 盤面の赤いボタン
+        self.var_red = self.section('赤ボタンが出ている間は叩く', self.auto_red, self.on_red)
+        self.point_row([('red', '16. 赤ボタン', 13)])
+        self.lbl_red = self.info_label()
+
         # コンティニューチャンス
         self.var_quit = self.section('コンティニューは やめる を押す', self.auto_quit, self.on_quit)
         self.point_row([('quit', '4. やめる', 10)])
@@ -461,6 +478,10 @@ class MedalClicker:
 
     def on_keys(self):
         self.keys = self.var_keys.get()
+        self.save_config()
+
+    def on_red(self):
+        self.auto_red = self.var_red.get()
         self.save_config()
 
     def on_swap(self):
@@ -543,6 +564,8 @@ class MedalClicker:
         marks = self.marks('menu', '3000', 'play', 'after')
         limit = '無制限' if self.max_swap == 0 else f'{self.max_swap} 回まで'
         self.lbl_swap.config(text=f'登録 {marks}   交換 {self.swaps} 回 / {limit}')
+
+        self.lbl_red.config(text=f'登録 {self.marks("red")}   赤 {self.reds} 回')
 
         mark_q = self.marks('quit')
         self.lbl_quit.config(text=f'登録 {mark_q}   やめる {self.quits} 回')
@@ -664,6 +687,7 @@ class MedalClicker:
             self.quits  = 0
             self.limits = 0
             self.cashes = 0
+            self.reds   = 0
 
     def on_key(self, key):
         if key == pynput_keyboard.Key.f8:
@@ -752,6 +776,11 @@ class MedalClicker:
             hits.update(dict.fromkeys(hits, 0))
             self.do_tap('cash', '精算を押した', 1.5)
             return idle
+
+        # 赤いボタンは盤面に重なって出る。見えている間は叩き続ける
+        if self.auto_red and self.pos_red and self.matches('red', self.pos_red):
+            self.hit_red()
+            return 0
 
         table  = self.screen_table()
         scores = {}
@@ -902,6 +931,28 @@ class MedalClicker:
             return False
         self.shift_all(best[0], best[1])
         return True
+
+    def hit_red(self):
+        """赤いボタンが見えている間、そこを叩き続ける。
+
+        一巡ぶんだけ叩いて戻る。消えていれば次の巡回で止まる。A と D の
+        連打は止めない。投入しながら押す場面なので、どちらも要る。
+        """
+        pos = self.aim('red')
+        if not pos:
+            return
+        self.busy_text = '赤ボタンを叩いている'
+        end = time.monotonic() + RED_MAX
+        gap = 1.0 / RED_CPS
+        n   = 0
+        while self.running and time.monotonic() < end:
+            click_at(pos[0], pos[1], 0.02)
+            self.reds += 1
+            precise_sleep(gap)
+            # 消えていないか折々に見て、無くなったらすぐ止める
+            n += 1
+            if n % 5 == 0 and not self.matches('red', pos):
+                break
 
     def do_tap(self, key, label, wait, stop_keys=False, count=None):
         """記録した場所を一回押して、画面が変わるまで待つ。"""
