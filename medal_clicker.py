@@ -68,7 +68,7 @@ KEYEVENTF_KEYUP      = 0x0002
 
 VK = {'A': 0x41, 'D': 0x44}
 
-VERSION = 'v12'   # 入れ替えたか分かるように、窓の題に出す
+VERSION = 'v13'   # 入れ替えたか分かるように、窓の題に出す
 
 CONFIG_PATH = Path(__file__).with_name('medal_clicker.json')
 # 画面が出ているかの判定に使う見本。ここに無いものは座標だけ覚える
@@ -128,9 +128,14 @@ POINTS = {
 
 MAX_PRESS   = 0.025   # キーを押している時間の上限。速度を上げると自動で短くなる
 JITTER      = 0.15    # 間隔を ±15% 揺らす
-ANCHOR_W    = 140     # 交換ダイアログ判定に使う切り抜きの大きさ
-ANCHOR_H    = 44
+# 見本はボタンだけでなく周りごと切り取る。青いボタン同士は形も色も似て
+# いて、ボタンだけでは見分けがつかないため。大きさは画面ごとに選べる。
+# 背景が動く場所では小さめ、似たダイアログの見分けには大きめが向く。
+ANCHOR_SIZE = 320     # 新しく取る見本の一辺（ピクセル）
+ANCHOR_W    = ANCHOR_SIZE
+ANCHOR_H    = ANCHOR_SIZE
 MATCH_THRESHOLD = 14  # 画素差の平均がこれ未満なら「同じ画面」とみなす
+GRID            = 8   # 見本を縦横この数に区切り、食い違いの大きい区画を見る
 WATCH_INTERVAL  = 0.7
 WAIT_MIN        = 30  # プレイ上限をさばいてから精算するまでの待ち時間（分）
 IDLE_HITS       = 3   # どの画面にも当てはまらない回数。これで盤面とみなす
@@ -140,7 +145,7 @@ RED_MAX         = 30  # 叩き続ける上限（秒）。見間違いで延々�
 # ブラウザの位置やページの送り具合で、ゲームの枠ごと数十ピクセル動く。
 # 空振りが続いたら見本を周りから探し直して、覚えた座標をまとめてずらす。
 ALIGN_PAD   = 120     # 探す範囲（上下左右にこのピクセルぶん）
-ALIGN_STEP  = 4       # 探すときの粗さ。4 なら 4 ピクセル刻み
+ALIGN_STEP  = 8       # 探すときの粗さ。8 なら 8 ピクセル刻みで当たりを付ける
 ALIGN_EVERY = 8       # 空振りが何回続いたら探しに行くか
 ALIGN_TIGHT = 0.7     # 探して見つけたと認めるのは、ふだんのゆるさのこの割合まで
 ALIGN_FLAT  = 10      # のっぺりした見本は他の場所とも似るので、探す目印には使わない
@@ -202,9 +207,9 @@ def block_mean(a, n):
     return a[:h, :w].reshape(h // n, n, w // n, n, -1).mean(axis=(1, 3))
 
 
-def anchor_rect(pos):
+def anchor_rect(pos, w=ANCHOR_W, h=ANCHOR_H):
     """見本として切り抜く四角の左上を返す。"""
-    return int(pos[0]) - ANCHOR_W // 2, int(pos[1]) - ANCHOR_H // 2
+    return int(pos[0]) - w // 2, int(pos[1]) - h // 2
 
 
 def screen_size():
@@ -213,10 +218,10 @@ def screen_size():
     return user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
 
 
-def grab_anchor(pos):
-    """指定座標を中心にした切り抜きを返す。"""
-    x, y = anchor_rect(pos)
-    return grab(x, y, ANCHOR_W, ANCHOR_H)
+def grab_anchor(pos, w=ANCHOR_W, h=ANCHOR_H):
+    """指定座標を中心にした切り抜きを返す。大きさは見本に合わせられる。"""
+    x, y = anchor_rect(pos, w, h)
+    return grab(x, y, w, h)
 
 
 class MedalClicker:
@@ -239,6 +244,7 @@ class MedalClicker:
         self.pos_rate   = None  # レート選択の「レート決定」
         self.wait_min   = WAIT_MIN  # 上限をさばいてから精算するまでの待ち時間
         self.tol        = MATCH_THRESHOLD  # 画面の見分けのゆるさ
+        self.anchor_size = ANCHOR_SIZE     # これから取る見本の一辺
         self.scrolls  = 2
         self.max_swap = 5
         self.cps      = 100.0
@@ -302,6 +308,7 @@ class MedalClicker:
             self.auto_red   = bool(data.get('auto_red', self.auto_red))
             self.wait_min   = int(data.get('wait_min', self.wait_min))
             self.tol        = int(data.get('tol', self.tol))
+            self.anchor_size = int(data.get('anchor_size', self.anchor_size))
         if HAS_VISION:
             for key, path in ANCHOR_PATHS.items():
                 if not path.exists():
@@ -331,6 +338,7 @@ class MedalClicker:
             'pos_rate':   list(self.pos_rate)   if self.pos_rate   else None,
             'wait_min':   self.wait_min,
             'tol':        self.tol,
+            'anchor_size': self.anchor_size,
             'cps':       self.cps,
             'keys':      self.keys,
             'scrolls':   self.scrolls,
@@ -462,6 +470,10 @@ class MedalClicker:
         self.var_tol = tk.IntVar(value=self.tol)
         tk.Spinbox(row, from_=2, to=80, width=3, textvariable=self.var_tol,
                    command=self.on_tol).pack(side='left', padx=2)
+        tk.Label(row, text='見本').pack(side='left')
+        self.var_size = tk.IntVar(value=self.anchor_size)
+        tk.Spinbox(row, from_=80, to=400, increment=40, width=4,
+                   textvariable=self.var_size, command=self.on_size).pack(side='left', padx=2)
 
         row = tk.Frame(self.root)
         row.pack(pady=(2, 4))
@@ -503,6 +515,13 @@ class MedalClicker:
     def on_tol(self):
         try:
             self.tol = int(self.var_tol.get())
+        except (tk.TclError, ValueError):
+            return
+        self.save_config()
+
+    def on_size(self):
+        try:
+            self.anchor_size = int(self.var_size.get())
         except (tk.TclError, ValueError):
             return
         self.save_config()
@@ -630,7 +649,10 @@ class MedalClicker:
                 lines.append(f'{LABELS[key]}: 画面を読めない')
                 continue
 
-            line = f'{LABELS[key]} {pos[0]},{pos[1]}: 差 {d:.1f}'
+            side = self.anchors[key].shape[0]
+            worst = self.compare(key, pos)
+            worst = worst[1] if worst else 0.0
+            line = f'{LABELS[key]} {pos[0]},{pos[1]} 見本{side}: 差 {d:.1f} 一角 {worst:.1f}'
             if d < self.tol:
                 line += ' 一致'
             else:
@@ -670,7 +692,7 @@ class MedalClicker:
         if not (HAS_VISION and IS_WIN):
             return
         try:
-            img = grab_anchor(pos)
+            img = grab_anchor(pos, self.anchor_size, self.anchor_size)
             img.save(ANCHOR_PATHS[key])
             self.anchors[key] = np.asarray(img.convert('RGB'), dtype=np.int16)
         except (OSError, ValueError):
@@ -787,9 +809,10 @@ class MedalClicker:
         for order, (key, ready, act, need) in enumerate(table):
             if not ready:
                 continue
-            d = self.diff(key, getattr(self, POINTS[key]))
-            if d is not None and d < self.tol:
-                scores[key] = (d, order)
+            both = self.compare(key, getattr(self, POINTS[key]))
+            if both and both[0] < self.tol:
+                # 全体の差で絞り、食い違う一角の小ささで優劣を付ける
+                scores[key] = (both[1], both[0], order)
 
         if scores:
             found = min(scores, key=scores.get)
@@ -819,18 +842,41 @@ class MedalClicker:
             return 0
         return idle
 
-    def diff(self, key, pos):
-        """覚えた見本といまの画面の違いを返す。小さいほど似ている。"""
+    def compare(self, key, pos):
+        """覚えた見本といまの画面を比べ、(全体の差, 一番違う一角の差) を返す。
+
+        全体の差は、見本を広く取るほど小さな違いが薄まる。似たダイアログ
+        同士を分けるために、八つに区切った中で食い違いの大きい区画だけを
+        平均した値も一緒に出す。
+
+        切り抜く大きさは見本に合わせる。前の版で取った小さい見本もその
+        まま使えるようにするため。
+        """
         anchor = self.anchors.get(key)
         if anchor is None or not pos:
             return None
+        h, w = anchor.shape[0], anchor.shape[1]
         try:
-            cur = np.asarray(grab_anchor(pos).convert('RGB'), dtype=np.int16)
+            cur = np.asarray(grab_anchor(pos, w, h).convert('RGB'), dtype=np.int16)
         except (OSError, ValueError):
             return None
         if cur.shape != anchor.shape:
             return None
-        return float(np.mean(np.abs(cur - anchor)))
+
+        gap = np.abs(cur - anchor).mean(axis=2)
+        overall = float(gap.mean())
+        gh = gap.shape[0] // GRID * GRID
+        gw = gap.shape[1] // GRID * GRID
+        if gh < GRID or gw < GRID:
+            return overall, overall
+        blocks = gap[:gh, :gw].reshape(GRID, gh // GRID, GRID, gw // GRID).mean(axis=(1, 3))
+        worst = float(np.sort(blocks, axis=None)[-GRID:].mean())
+        return overall, worst
+
+    def diff(self, key, pos):
+        """全体の差だけを返す。"""
+        both = self.compare(key, pos)
+        return None if both is None else both[0]
 
     def matches(self, key, pos):
         d = self.diff(key, pos)
@@ -846,13 +892,14 @@ class MedalClicker:
         if anchor is None or not pos:
             return None
 
-        ax, ay = anchor_rect(pos)
+        ah, aw = anchor.shape[0], anchor.shape[1]
+        ax, ay = anchor_rect(pos, aw, ah)
         sw, sh = screen_size()
         x0 = max(0, ax - ALIGN_PAD)
         y0 = max(0, ay - ALIGN_PAD)
-        x1 = min(sw, ax + ANCHOR_W + ALIGN_PAD)
-        y1 = min(sh, ay + ANCHOR_H + ALIGN_PAD)
-        if x1 - x0 < ANCHOR_W or y1 - y0 < ANCHOR_H:
+        x1 = min(sw, ax + aw + ALIGN_PAD)
+        y1 = min(sh, ay + ah + ALIGN_PAD)
+        if x1 - x0 < aw or y1 - y0 < ah:
             return None
 
         try:
@@ -878,7 +925,7 @@ class MedalClicker:
                 x = ix * ALIGN_STEP + dx
                 if y < 0 or x < 0:
                     continue
-                cut = big[y:y + ANCHOR_H, x:x + ANCHOR_W]
+                cut = big[y:y + ah, x:x + aw]
                 if cut.shape != anchor.shape:
                     continue
                 d = float(np.mean(np.abs(cut - anchor)))
