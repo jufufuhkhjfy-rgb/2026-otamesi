@@ -67,7 +67,7 @@ KEYEVENTF_KEYUP      = 0x0002
 
 VK = {'A': 0x41, 'D': 0x44}
 
-VERSION = 'v9'   # 入れ替えたか分かるように、窓の題に出す
+VERSION = 'v10'   # 入れ替えたか分かるように、窓の題に出す
 
 CONFIG_PATH = Path(__file__).with_name('medal_clicker.json')
 # 画面が出ているかの判定に使う見本。ここに無いものは座標だけ覚える
@@ -605,13 +605,22 @@ class MedalClicker:
             d = self.diff(key, pos)
             if d is None:
                 lines.append(f'{LABELS[key]}: 画面を読めない')
+                continue
+
+            line = f'{LABELS[key]} {pos[0]},{pos[1]}: 差 {d:.1f}'
+            if d < self.tol:
+                line += ' 一致'
             else:
-                flat = float(np.std(self.anchors[key])) < ALIGN_FLAT
-                lines.append(f'{LABELS[key]} {pos}: 差 {d:.1f}'
-                             + ('  一致' if d < self.tol else '')
-                             + ('  見本がのっぺりで当てにならない' if flat else ''))
+                # その場では合わなくても、近くにあるかもしれない
+                found = self.search(key, pos, strict=False)
+                if found:
+                    line += f' / 探すと {found[0]:+d},{found[1]:+d} で {found[2]:.1f}'
+            if float(np.std(self.anchors[key])) < ALIGN_FLAT:
+                line += ' のっぺり'
+            lines.append(line)
         lines.append('')
         lines.append(f'ゆるさ {self.tol} より小さい差が一致になる')
+        lines.append(f'探して直すのは {self.tol * ALIGN_TIGHT:.0f} より小さいとき')
         messagebox.showinfo('判定', '\n'.join(lines))
 
     def reset_points(self):
@@ -793,8 +802,12 @@ class MedalClicker:
         d = self.diff(key, pos)
         return d is not None and d < self.tol
 
-    def search(self, key, pos):
-        """覚えた場所の周りを探して、見本が見つかった場所とのずれを返す。"""
+    def search(self, key, pos, strict=True):
+        """覚えた場所の周りを探して、見本が見つかった場所とのずれを返す。
+
+        strict を外すと、似ていなくても一番ましだった場所と点数を返す。
+        様子を見るときに使う。
+        """
         anchor = self.anchors.get(key)
         if anchor is None or not pos:
             return None
@@ -838,7 +851,7 @@ class MedalClicker:
                 if best is None or d < best:
                     best, by, bx = d, y, x
 
-        if best is None or best >= self.tol * ALIGN_TIGHT:
+        if best is None or (strict and best >= self.tol * ALIGN_TIGHT):
             return None
         return x0 + bx - ax, y0 + by - ay, best
 
