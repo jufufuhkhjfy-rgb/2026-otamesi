@@ -2,6 +2,7 @@
 メダルゲーム連打ボット（GAPOLI バベルのメダルタワーW 想定）
 A（左）と D（右）のキーを連打し、画面を見て次の二つを自動でさばく。
 ・メダル交換ダイアログ → 100 のプルダウン → 3000 を選ぶ → プレイ開始
+　→ 説明の画面を閉じる一押し → ここから連打を再開
 ・コンティニューチャンス → やめる
 ・プレイ上限に到達 → プレイ上限数追加 → 自動追加のキャンセル → 連打を停止
 ・自動追加のキャンセルの後は、決めた時間だけ待ってから右上の精算
@@ -93,6 +94,7 @@ POINTS = {
     'game':   'pos_game',
     'play2':  'pos_play2',
     'rate':   'pos_rate',
+    'after':  'pos_after',
 }
 
 MAX_PRESS   = 0.025   # キーを押している時間の上限。速度を上げると自動で短くなる
@@ -165,6 +167,7 @@ class MedalClicker:
         self.pos_menu = None    # 交換ダイアログの「100」プルダウン
         self.pos_3000 = None    # スクロール後の「3000」
         self.pos_play = None    # 「プレイ開始」
+        self.pos_after  = None  # プレイ開始の後に一度押す場所
         self.pos_quit = None    # コンティニューチャンスの「やめる」
         self.pos_limit  = None  # プレイ上限到達の「プレイ上限数追加」
         self.pos_cancel = None  # その次の画面の「自動追加のキャンセル」
@@ -250,6 +253,7 @@ class MedalClicker:
             'pos_menu':  list(self.pos_menu) if self.pos_menu else None,
             'pos_3000':  list(self.pos_3000) if self.pos_3000 else None,
             'pos_play':  list(self.pos_play) if self.pos_play else None,
+            'pos_after': list(self.pos_after) if self.pos_after else None,
             'pos_quit':   list(self.pos_quit)   if self.pos_quit   else None,
             'pos_limit':  list(self.pos_limit)  if self.pos_limit  else None,
             'pos_cancel': list(self.pos_cancel) if self.pos_cancel else None,
@@ -333,6 +337,7 @@ class MedalClicker:
         self.var_swap = self.section('メダル交換を自動でやる', self.auto_swap, self.on_swap)
         self.point_row([('menu', '1. 100', 7), ('3000', '2. 3000', 7),
                         ('play', '3. プレイ開始', 11)])
+        self.point_row([('after', '15. 開始後の一押し', 16)])
         row = tk.Frame(self.root)
         row.pack(pady=1)
         tk.Label(row, text='スクロール').pack(side='left')
@@ -450,7 +455,8 @@ class MedalClicker:
         self.lbl_cps.config(text=f'{self.cps:.0f} 回/秒')
         self.lbl_note.config(text=self.note)
 
-        marks = ''.join('✓' if p else '×' for p in (self.pos_menu, self.pos_3000, self.pos_play))
+        marks = ''.join('✓' if p else '×' for p in
+                        (self.pos_menu, self.pos_3000, self.pos_play, self.pos_after))
         limit = '無制限' if self.max_swap == 0 else f'{self.max_swap} 回まで'
         self.lbl_swap.config(text=f'登録 {marks}   交換 {self.swaps} 回 / {limit}')
 
@@ -479,7 +485,8 @@ class MedalClicker:
     def record(self, which):
         """3 秒数えてからカーソル位置を覚える。押したあと目的の場所へ移す。"""
         labels = {'menu': '交換画面の 100', '3000': 'スクロール後の 3000',
-                  'play': 'プレイ開始', 'quit': 'コンティニューの やめる',
+                  'play': 'プレイ開始', 'after': '開始後に押す場所',
+                  'quit': 'コンティニューの やめる',
                   'limit': 'プレイ上限数追加', 'cancel': '自動追加のキャンセル',
                   'cash': '右上の精算',
                   'cash2': '精算確認の精算', 'next': 'リザルトの次へ',
@@ -705,6 +712,11 @@ class MedalClicker:
             click_at(self.pos_play[0], self.pos_play[1], 0.03)
             self.swaps += 1
             time.sleep(2.5)   # ゲーム画面が戻るまで待つ
+
+            # 台に入った直後は説明の画面が被る。どこか一度押して閉じる
+            if self.pos_after:
+                click_at(self.pos_after[0], self.pos_after[1], 0.03)
+                time.sleep(1.5)
         finally:
             user32.SetCursorPos(int(keep[0]), int(keep[1]))
             # プレイ開始まで押せたので、ここから連打に戻る
