@@ -67,7 +67,7 @@ KEYEVENTF_KEYUP      = 0x0002
 
 VK = {'A': 0x41, 'D': 0x44}
 
-VERSION = 'v10'   # 入れ替えたか分かるように、窓の題に出す
+VERSION = 'v11'   # 入れ替えたか分かるように、窓の題に出す
 
 CONFIG_PATH = Path(__file__).with_name('medal_clicker.json')
 # 画面が出ているかの判定に使う見本。ここに無いものは座標だけ覚える
@@ -332,7 +332,7 @@ class MedalClicker:
         }
         try:
             CONFIG_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
-        except OSError:
+        except (OSError, TypeError, ValueError):
             pass
 
     # ---------- UI ----------
@@ -720,70 +720,75 @@ class MedalClicker:
         )
 
     def watch_loop(self):
-        """0.7 秒ごとに盤面を見て、いま出ている画面に合った手を打つ。
+        """見張りの本体。一巡ごとに包んで、何かあっても糸ごと死なせない。"""
+        hits = {e[0]: 0 for e in self.screen_table()}
+        idle = 0
+        while True:
+            time.sleep(WATCH_INTERVAL)
+            try:
+                idle = self.watch_once(hits, idle)
+            except Exception as err:
+                self.note = f'見張りでエラー {type(err).__name__}'
+                time.sleep(2)
+
+    def watch_once(self, hits, idle):
+        """一巡ぶんの見張り。いま出ている画面に合った手を打つ。
 
         当てはまるものが複数あったら、一番よく似ている画面を選ぶ。白い
         ダイアログ同士は似がちで、順番だけで決めると取り違えるため。
         どれにも当てはまらない状態が続いたらゲーム中とみなして連打に戻る。
         """
-        keys  = [e[0] for e in self.screen_table()]
-        clear = {k: 0 for k in keys}
-        hits  = dict(clear)
-        idle  = 0
-        while True:
-            time.sleep(WATCH_INTERVAL)
-            if not (self.running and IS_WIN and HAS_VISION) or self.exchanging:
-                hits = dict(clear)
-                idle = 0
+        if not (self.running and IS_WIN and HAS_VISION) or self.exchanging:
+            hits.update(dict.fromkeys(hits, 0))
+            return 0
+
+        # 精算待ちの間は投入できないので、連打には戻さない
+        if self.cash_at:
+            self.tapping = False
+
+        # 待ち時間が過ぎていたら、画面を見るより先に精算へ入る
+        if self.cash_at and time.monotonic() >= self.cash_at and self.pos_cash:
+            self.cash_at = 0
+            hits.update(dict.fromkeys(hits, 0))
+            self.do_tap('cash', '精算を押した', 1.5)
+            return idle
+
+        table  = self.screen_table()
+        scores = {}
+        for order, (key, ready, act, need) in enumerate(table):
+            if not ready:
                 continue
+            d = self.diff(key, getattr(self, POINTS[key]))
+            if d is not None and d < self.tol:
+                scores[key] = (d, order)
 
-            # 精算待ちの間は投入できないので、連打には戻さない
-            if self.cash_at:
-                self.tapping = False
+        if scores:
+            found = min(scores, key=scores.get)
+            for key in hits:
+                if key != found:
+                    hits[key] = 0
+            hits[found] += 1
+            # 何かの画面が見えている。盤面ではないので連打は止める
+            self.tapping = False
+            # 一瞬の一致では動かさない。続けて出たら本物とみなす
+            act, need = next((e[2], e[3]) for e in table if e[0] == found)
+            if hits[found] >= need:
+                hits.update(dict.fromkeys(hits, 0))
+                act()
+            return 0
 
-            # 待ち時間が過ぎていたら、画面を見るより先に精算へ入る
-            if self.cash_at and time.monotonic() >= self.cash_at and self.pos_cash:
-                self.cash_at = 0
-                hits = dict(clear)
-                self.do_tap('cash', '精算を押した', 1.5)
-                continue
+        hits.update(dict.fromkeys(hits, 0))
 
-            table  = self.screen_table()
-            scores = {}
-            for order, (key, ready, act, need) in enumerate(table):
-                if not ready:
-                    continue
-                d = self.diff(key, getattr(self, POINTS[key]))
-                if d is not None and d < self.tol:
-                    scores[key] = (d, order)
+        # どの画面でもない。しばらく続いたら盤面とみなして連打に戻る
+        idle += 1
+        if idle >= IDLE_HITS and not self.cash_at and not self.tapping:
+            self.tapping = True
+            self.busy_text = ''
 
-            if scores:
-                found = min(scores, key=scores.get)
-                for key in hits:
-                    if key != found:
-                        hits[key] = 0
-                hits[found] += 1
-                # 何かの画面が見えている。盤面ではないので連打は止める
-                self.tapping = False
-                idle = 0
-                # 一瞬の一致では動かさない。続けて出たら本物とみなす
-                act, need = next((e[2], e[3]) for e in table if e[0] == found)
-                if hits[found] >= need:
-                    hits = dict(clear)
-                    act()
-                continue
-
-            hits = dict(clear)
-
-            # どの画面でもない。しばらく続いたら盤面とみなして連打に戻る
-            idle += 1
-            if idle >= IDLE_HITS and not self.cash_at and not self.tapping:
-                self.tapping = True
-                self.busy_text = ''
-
-            # 空振りが続くときは、ゲームの枠ごと動いた疑いがある
-            if idle % ALIGN_EVERY == 0 and self.realign():
-                idle = 0
+        # 空振りが続くときは、ゲームの枠ごと動いた疑いがある
+        if idle % ALIGN_EVERY == 0 and self.realign():
+            return 0
+        return idle
 
     def diff(self, key, pos):
         """覚えた見本といまの画面の違いを返す。小さいほど似ている。"""
@@ -853,14 +858,15 @@ class MedalClicker:
 
         if best is None or (strict and best >= self.tol * ALIGN_TIGHT):
             return None
-        return x0 + bx - ax, y0 + by - ay, best
+        # numpy の数のままだと設定を保存できないので、素の int にして返す
+        return int(x0 + bx - ax), int(y0 + by - ay), best
 
     def shift_all(self, dx, dy):
         """ゲームの枠ごと動いたとみて、覚えた座標を全部ずらす。"""
         for attr in POINTS.values():
             old = getattr(self, attr)
             if old:
-                setattr(self, attr, (old[0] + dx, old[1] + dy))
+                setattr(self, attr, (int(old[0]) + dx, int(old[1]) + dy))
         self.save_config()
         self.note = f'位置が {dx:+d},{dy:+d} ずれていたので直した'
 
