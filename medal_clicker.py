@@ -68,9 +68,10 @@ KEYEVENTF_KEYUP      = 0x0002
 
 VK = {'A': 0x41, 'D': 0x44}
 
-VERSION = 'v14'   # 入れ替えたか分かるように、窓の題に出す
+VERSION = 'v15'   # 入れ替えたか分かるように、窓の題に出す
 
 CONFIG_PATH = Path(__file__).with_name('medal_clicker.json')
+BACKUP_PATH = Path(__file__).with_name('medal_clicker.bak.json')
 # 画面が出ているかの判定に使う見本。ここに無いものは座標だけ覚える
 ANCHOR_PATHS = {
     'menu':  Path(__file__).with_name('medal_clicker_anchor.png'),
@@ -146,7 +147,7 @@ RED_MAX         = 30  # 叩き続ける上限（秒）。見間違いで延々�
 # 空振りが続いたら見本を周りから探し直して、覚えた座標をまとめてずらす。
 ALIGN_PAD   = 120     # 探す範囲（上下左右にこのピクセルぶん）
 ALIGN_STEP  = 8       # 探すときの粗さ。8 なら 8 ピクセル刻みで当たりを付ける
-ALIGN_EVERY = 6       # 空振りが何回続いたら探しに行くか
+AIM_MAX     = 40      # 見つけた画面を押す前に直してよいずれの上限
 ALIGN_TIGHT = 0.7     # 探して見つけたと認めるのは、ふだんのゆるさのこの割合まで
 ALIGN_FLAT  = 10      # のっぺりした見本は他の場所とも似るので、探す目印には使わない
 
@@ -478,7 +479,9 @@ class MedalClicker:
         row = tk.Frame(self.root)
         row.pack(pady=(2, 4))
         tk.Button(row, text='登録を全部消す', width=13,
-                  command=self.reset_points).pack(side='left', padx=6)
+                  command=self.reset_points).pack(side='left', padx=3)
+        tk.Button(row, text='控えに戻す', width=10,
+                  command=self.restore_points).pack(side='left', padx=3)
         tk.Label(row, text=f'{VERSION}\nF8 開始/停止   F10 終了', font=('', 8), fg='gray',
                  justify='left').pack(side='left')
 
@@ -610,6 +613,13 @@ class MedalClicker:
         """3 秒数えてからカーソル位置を覚える。押したあと目的の場所へ移す。"""
         def grab_point():
             pos = cursor_pos()
+            # 手で登録した状態を控えておく。あとで戻せるようにするため
+            try:
+                if CONFIG_PATH.exists():
+                    BACKUP_PATH.write_text(CONFIG_PATH.read_text(encoding='utf-8'),
+                                           encoding='utf-8')
+            except OSError:
+                pass
             setattr(self, POINTS[which], pos)
             if which in ANCHOR_PATHS:
                 self.save_anchor(which, pos)
@@ -625,6 +635,24 @@ class MedalClicker:
                 grab_point()
 
         tick(3)
+
+    def restore_points(self):
+        """手で登録した最後の状態に戻す。"""
+        if not BACKUP_PATH.exists():
+            self.note = '控えがない'
+            self.root.after(2500, lambda: setattr(self, 'note', ''))
+            return
+        if not messagebox.askyesno('確認', 'いまの座標を捨てて、手で登録した最後の状態に戻します。'):
+            return
+        try:
+            CONFIG_PATH.write_text(BACKUP_PATH.read_text(encoding='utf-8'), encoding='utf-8')
+        except OSError:
+            return
+        self.running = False
+        self.tapping = False
+        self.load_config()
+        self.note = '手で登録した状態に戻した'
+        self.root.after(3000, lambda: setattr(self, 'note', ''))
 
     def align_now(self):
         """手動で位置合わせをかける。"""
@@ -837,9 +865,8 @@ class MedalClicker:
             self.tapping = True
             self.busy_text = ''
 
-        # 空振りが続くときは、ゲームの枠ごと動いた疑いがある
-        if idle % ALIGN_EVERY == 0 and self.realign():
-            return 0
+        # ここで勝手に位置合わせはしない。見えている画面が分からないまま
+        # 探すと、盤面の動く絵にたまたま当たって座標を壊してしまう
         return idle
 
     def compare(self, key, pos):
@@ -947,7 +974,11 @@ class MedalClicker:
         self.note = f'位置が {dx:+d},{dy:+d} ずれていたので直した'
 
     def aim(self, key):
-        """押す直前に見本を探し直して、いま押すべき場所を返す。"""
+        """押す直前に見本を探し直して、いま押すべき場所を返す。
+
+        この画面だと見分けが付いた直後にだけ呼ぶ。それでも大きく動かすと
+        当てずっぽうの上書きになるので、直すのは少しのずれまでに限る。
+        """
         pos = getattr(self, POINTS[key])
         if key not in ANCHOR_PATHS or not pos:
             return pos
@@ -955,7 +986,7 @@ class MedalClicker:
         if not found:
             return pos
         dx, dy, _ = found
-        if dx or dy:
+        if (dx or dy) and abs(dx) <= AIM_MAX and abs(dy) <= AIM_MAX:
             self.shift_all(dx, dy)
             pos = getattr(self, POINTS[key])
         return pos
