@@ -68,7 +68,7 @@ KEYEVENTF_KEYUP      = 0x0002
 
 VK = {'A': 0x41, 'D': 0x44}
 
-VERSION = 'v13'   # 入れ替えたか分かるように、窓の題に出す
+VERSION = 'v14'   # 入れ替えたか分かるように、窓の題に出す
 
 CONFIG_PATH = Path(__file__).with_name('medal_clicker.json')
 # 画面が出ているかの判定に使う見本。ここに無いものは座標だけ覚える
@@ -146,7 +146,7 @@ RED_MAX         = 30  # 叩き続ける上限（秒）。見間違いで延々�
 # 空振りが続いたら見本を周りから探し直して、覚えた座標をまとめてずらす。
 ALIGN_PAD   = 120     # 探す範囲（上下左右にこのピクセルぶん）
 ALIGN_STEP  = 8       # 探すときの粗さ。8 なら 8 ピクセル刻みで当たりを付ける
-ALIGN_EVERY = 8       # 空振りが何回続いたら探しに行くか
+ALIGN_EVERY = 6       # 空振りが何回続いたら探しに行くか
 ALIGN_TIGHT = 0.7     # 探して見つけたと認めるのは、ふだんのゆるさのこの割合まで
 ALIGN_FLAT  = 10      # のっぺりした見本は他の場所とも似るので、探す目印には使わない
 
@@ -961,7 +961,11 @@ class MedalClicker:
         return pos
 
     def realign(self):
-        """一番よく合う見本を探して、そのずれぶん座標を全部動かす。"""
+        """一番よく合う見本を探して、そのずれぶん座標を全部動かす。
+
+        見本が大きいと一枚あたり百ミリ秒近くかかる。文句なしの当たりが
+        出た時点で打ち切り、全部を探し尽くさない。
+        """
         best = None
         for key in ANCHOR_PATHS:
             anchor = self.anchors.get(key)
@@ -974,6 +978,8 @@ class MedalClicker:
             found = self.search(key, pos)
             if found and (best is None or found[2] < best[2]):
                 best = found
+                if found[2] < self.tol * 0.35:
+                    break
         if best is None or (best[0] == 0 and best[1] == 0):
             return False
         self.shift_all(best[0], best[1])
