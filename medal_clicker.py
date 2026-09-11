@@ -17,7 +17,7 @@ import random
 import ctypes
 import threading
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 from pathlib import Path
 
 from pynput import keyboard as pynput_keyboard
@@ -373,7 +373,9 @@ class MedalClicker:
         self.lbl_again = self.info_label()
 
         tk.Label(self.root, text='F8 開始/停止   F10 終了',
-                 font=('', 8), fg='gray').pack(side='bottom', pady=6)
+                 font=('', 8), fg='gray').pack(side='bottom', pady=(0, 6))
+        tk.Button(self.root, text='登録を全部消す', width=14,
+                  command=self.reset_points).pack(side='bottom', pady=(6, 2))
 
         self.refresh()
 
@@ -446,7 +448,7 @@ class MedalClicker:
 
     # ---------- 記録 ----------
     def record(self, which):
-        """3 秒後のカーソル位置を覚える。押してから目的の場所へカーソルを移す。"""
+        """3 秒数えてからカーソル位置を覚える。押したあと目的の場所へ移す。"""
         labels = {'menu': '交換画面の 100', '3000': 'スクロール後の 3000',
                   'play': 'プレイ開始', 'quit': 'コンティニューの やめる',
                   'limit': 'プレイ上限数追加', 'cancel': '自動追加のキャンセル',
@@ -467,8 +469,34 @@ class MedalClicker:
             self.note = f'{labels[which]} {pos} を記録'
             self.root.after(2500, lambda: setattr(self, 'note', ''))
 
-        self.note = f'3 秒以内に{labels[which]}の上へ'
-        self.root.after(3000, grab_point)
+        def tick(left):
+            if left:
+                self.note = f'{labels[which]} の上へ   あと {left}'
+                self.root.after(1000, tick, left - 1)
+            else:
+                grab_point()
+
+        tick(3)
+
+    def reset_points(self):
+        """覚えた場所と見本を捨てて、登録前の状態に戻す。"""
+        if not messagebox.askyesno('確認', '登録した場所を全部消します。よろしいですか。'):
+            return
+        self.running = False
+        self.tapping = False
+        for attr in POINTS.values():
+            setattr(self, attr, None)
+        self.hold_base = 0
+        self.hold_now  = 0
+        self.anchors   = {}
+        for path in ANCHOR_PATHS.values():
+            try:
+                path.unlink()
+            except OSError:
+                pass
+        self.save_config()
+        self.note = '登録を全部消した'
+        self.root.after(3000, lambda: setattr(self, 'note', ''))
 
     def save_anchor(self, key, pos):
         """その画面が出ているかの判定用に、ボタン周りの見た目を保存する。"""
