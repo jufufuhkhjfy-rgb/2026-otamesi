@@ -9,6 +9,10 @@ A（左）と D（右）のキーを連打し、画面を見て次の二つを�
 ・精算確認 → 精算（ここで A と D は止める）
 ・リザルト → 次へ → 次へ2 → 続けて遊ぶ → 一覧の三番目 → プレイ → レート決定
 そのあと説明の画面を黙って待ち、メダル交換をさばくと連打に戻る。
+
+決まった順になぞるのではなく、毎回いまの盤面を見て手を選ぶ。どれにも
+当てはまらない画面が続いたらゲーム中とみなして連打に入るので、途中で
+止めて別の画面を触ってから戻ってきても、その場から続けられる。
 F8 開始/停止、F10 終了。ブラウザ側をアクティブにしておくこと。
 """
 import sys
@@ -123,6 +127,7 @@ ANCHOR_H    = 44
 MATCH_THRESHOLD = 14  # 画素差の平均がこれ未満なら「同じ画面」とみなす
 WATCH_INTERVAL  = 0.7
 WAIT_MIN        = 30  # プレイ上限をさばいてから精算するまでの待ち時間（分）
+IDLE_HITS       = 3   # どの画面にも当てはまらない回数。これで盤面とみなす
 
 
 def cursor_pos():
@@ -607,8 +612,6 @@ class MedalClicker:
         self.tapping = self.running
         if self.running:
             self.note = ''
-        else:
-            self.cash_at = 0
             self.taps   = 0
             self.swaps  = 0
             self.quits  = 0
@@ -644,20 +647,27 @@ class MedalClicker:
 
     # ---------- 画面の見張り ----------
     def watch_loop(self):
-        """0.7 秒ごとに画面を見て、見つけた画面に応じた手を打つ。
+        """0.7 秒ごとに盤面を見て、いま出ている画面に合った手を打つ。
 
-        上から順に見て、最初に見つかったものだけを処理する。保留の判定は
-        他の画面が被っているときに誤爆しやすいので一番下に置いてある。
+        並びは優先順位であって手順ではない。どの画面が出ていても、その
+        画面の処理から入れる。どれにも当てはまらない状態が続いたらゲーム
+        中とみなして連打を再開する。精算待ちの間だけは連打に戻さない。
         """
         keys  = ('cash2', 'next', 'next2', 'again', 'game', 'play2', 'rate',
                  'quit', 'limit', 'menu')
         clear = {k: 0 for k in keys}
         hits  = dict(clear)
+        idle  = 0
         while True:
             time.sleep(WATCH_INTERVAL)
             if not (self.running and IS_WIN and HAS_VISION) or self.exchanging:
                 hits = dict(clear)
+                idle = 0
                 continue
+
+            # 精算待ちの間は投入できないので、連打には戻さない
+            if self.cash_at:
+                self.tapping = False
 
             # 待ち時間が過ぎていたら、画面を見るより先に精算へ入る
             if self.cash_at and time.monotonic() >= self.cash_at and self.pos_cash:
@@ -666,7 +676,7 @@ class MedalClicker:
                 self.do_tap('cash', '精算を押した', 1.5)
                 continue
 
-            play = self.tapping   # ゲーム中にだけ出る画面かどうかの目安
+            found = None
             for key, ready, check, act, need in (
                 ('cash2', self.auto_cash and self.pos_cash2,
                  lambda: self.matches('cash2', self.pos_cash2),
@@ -689,10 +699,10 @@ class MedalClicker:
                 ('rate',  self.auto_again and self.pos_rate,
                  lambda: self.matches('rate', self.pos_rate),
                  lambda: self.do_tap('rate', 'レートを決めた', 3.0), 2),
-                ('quit',  self.auto_quit and play and self.pos_quit,
+                ('quit',  self.auto_quit and self.pos_quit,
                  lambda: self.matches('quit', self.pos_quit),
                  lambda: self.do_tap('quit', 'やめるを押した', 1.5, count='quits'), 2),
-                ('limit', self.auto_limit and play and self.pos_limit and self.pos_cancel,
+                ('limit', self.auto_limit and self.pos_limit and self.pos_cancel,
                  lambda: self.matches('limit', self.pos_limit), self.do_limit, 2),
                 ('menu',  self.auto_swap and self.pos_menu and self.pos_3000 and self.pos_play
                  and not (self.max_swap and self.swaps >= self.max_swap),
@@ -701,12 +711,28 @@ class MedalClicker:
                 if not ready:
                     hits[key] = 0
                     continue
+                if not check():
+                    hits[key] = 0
+                    continue
+                # 何かの画面が見えている。盤面ではないので連打は止める
+                found = key
+                self.tapping = False
+                hits[key] += 1
                 # 一瞬の一致では動かさない。続けて出たら本物とみなす
-                hits[key] = hits[key] + 1 if check() else 0
                 if hits[key] >= need:
                     hits = dict(clear)
                     act()
-                    break
+                break
+
+            if found:
+                idle = 0
+                continue
+
+            # どの画面でもない。しばらく続いたら盤面とみなして連打に戻る
+            idle += 1
+            if idle >= IDLE_HITS and not self.cash_at and not self.tapping:
+                self.tapping = True
+                self.busy_text = ''
 
     def diff(self, key, pos):
         """覚えた見本といまの画面の違いを返す。小さいほど似ている。"""
