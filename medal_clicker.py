@@ -4,7 +4,7 @@ A（左）と D（右）のキーを連打し、画面を見て次の二つを�
 ・メダル交換ダイアログ → 100 のプルダウン → 3000 を選ぶ → プレイ開始
 ・コンティニューチャンス → やめる
 ・プレイ上限に到達 → プレイ上限数追加 → 自動追加のキャンセル → 連打を停止
-・保留の緑が消えた → 右上の精算
+・自動追加のキャンセルの後は、決めた時間だけ待ってから右上の精算
 ・精算確認 → 精算（ここで A と D は止める）
 ・リザルト → 次へ → 続けて遊ぶ → 一覧の三番目 → プレイ → レート決定
 そのあと説明の画面を黙って待ち、メダル交換をさばくと連打に戻る。
@@ -84,7 +84,6 @@ POINTS = {
     'quit':   'pos_quit',
     'limit':  'pos_limit',
     'cancel': 'pos_cancel',
-    'hold':   'pos_hold',
     'cash':   'pos_cash',
     'cash2':  'pos_cash2',
     'next':   'pos_next',
@@ -100,13 +99,7 @@ ANCHOR_W    = 140     # 交換ダイアログ判定に使う切り抜きの大�
 ANCHOR_H    = 44
 MATCH_THRESHOLD = 14  # 画素差の平均がこれ未満なら「同じ画面」とみなす
 WATCH_INTERVAL  = 0.7
-
-HOLD_W       = 260    # 保留の列を見る帯の大きさ
-HOLD_H       = 30
-GREEN_MARGIN = 25     # 緑が赤や青をこれだけ上回った画素を「点いている玉」と数える
-HOLD_RATIO   = 0.2    # 記録時の緑がこの割合を下回ったら消えたとみなす
-HOLD_FLOOR   = 20     # ただし最低でもこの画素数は下回ること
-HOLD_HITS    = 3      # 他の画面が被っている誤判定を避けるため、判定は三回続けて
+WAIT_MIN        = 30  # プレイ上限をさばいてから精算するまでの待ち時間（分）
 
 
 def cursor_pos():
@@ -165,15 +158,6 @@ def grab_anchor(pos):
     return grab(x, y, ANCHOR_W, ANCHOR_H)
 
 
-def count_green(pos):
-    """保留の帯にある緑っぽい画素を数える。玉が消えると一気に減る。"""
-    x = int(pos[0]) - HOLD_W // 2
-    y = int(pos[1]) - HOLD_H // 2
-    a = np.asarray(grab(x, y, HOLD_W, HOLD_H).convert('RGB'), dtype=np.int16)
-    r, g, b = a[:, :, 0], a[:, :, 1], a[:, :, 2]
-    return int(np.count_nonzero(g - np.maximum(r, b) > GREEN_MARGIN))
-
-
 class MedalClicker:
     def __init__(self):
         self.pos_menu = None    # 交換ダイアログの「100」プルダウン
@@ -182,7 +166,6 @@ class MedalClicker:
         self.pos_quit = None    # コンティニューチャンスの「やめる」
         self.pos_limit  = None  # プレイ上限到達の「プレイ上限数追加」
         self.pos_cancel = None  # その次の画面の「自動追加のキャンセル」
-        self.pos_hold   = None  # 保留の列（緑の玉が並ぶ帯）の真ん中
         self.pos_cash   = None  # 右上の「精算」
         self.pos_cash2  = None  # 精算確認ダイアログの「精算」
         self.pos_next   = None  # リザルトの「次へ」
@@ -190,7 +173,7 @@ class MedalClicker:
         self.pos_game   = None  # ゲーム一覧の三番目
         self.pos_play2  = None  # ゲーム説明の「プレイ」
         self.pos_rate   = None  # レート選択の「レート決定」
-        self.hold_base  = 0     # 保留が点いているときの緑の画素数
+        self.wait_min   = WAIT_MIN  # 上限をさばいてから精算するまでの待ち時間
         self.scrolls  = 2
         self.max_swap = 5
         self.cps      = 100.0
@@ -211,7 +194,8 @@ class MedalClicker:
         self.limits     = 0
         self.cashes     = 0
         self.replays    = 0
-        self.hold_now   = 0
+        self.limit_at   = 0     # プレイ上限をさばいた時刻
+        self.cash_at    = 0     # この時刻になったら精算する。0 なら待っていない
         self.anchors    = {}
         self.note       = ''
 
@@ -248,7 +232,7 @@ class MedalClicker:
             self.auto_limit = bool(data.get('auto_limit', self.auto_limit))
             self.auto_cash  = bool(data.get('auto_cash', self.auto_cash))
             self.auto_again = bool(data.get('auto_again', self.auto_again))
-            self.hold_base  = int(data.get('hold_base', self.hold_base))
+            self.wait_min   = int(data.get('wait_min', self.wait_min))
         if HAS_VISION:
             for key, path in ANCHOR_PATHS.items():
                 if not path.exists():
@@ -266,7 +250,6 @@ class MedalClicker:
             'pos_quit':   list(self.pos_quit)   if self.pos_quit   else None,
             'pos_limit':  list(self.pos_limit)  if self.pos_limit  else None,
             'pos_cancel': list(self.pos_cancel) if self.pos_cancel else None,
-            'pos_hold':   list(self.pos_hold)   if self.pos_hold   else None,
             'pos_cash':   list(self.pos_cash)   if self.pos_cash   else None,
             'pos_cash2':  list(self.pos_cash2)  if self.pos_cash2  else None,
             'pos_next':   list(self.pos_next)   if self.pos_next   else None,
@@ -274,7 +257,7 @@ class MedalClicker:
             'pos_game':   list(self.pos_game)   if self.pos_game   else None,
             'pos_play2':  list(self.pos_play2)  if self.pos_play2  else None,
             'pos_rate':   list(self.pos_rate)   if self.pos_rate   else None,
-            'hold_base':  self.hold_base,
+            'wait_min':   self.wait_min,
             'cps':       self.cps,
             'keys':      self.keys,
             'scrolls':   self.scrolls,
@@ -369,16 +352,23 @@ class MedalClicker:
         self.lbl_limit = self.info_label()
 
         # 精算
-        self.var_cash = self.section('保留が消えたら精算する', self.auto_cash, self.on_cash)
-        self.point_row([('hold', '7. 保留の列', 10), ('cash', '8. 精算（右上）', 13)])
-        self.point_row([('cash2', '9. 精算（確認）', 13)])
+        self.var_cash = self.section('上限のあと待ってから精算する', self.auto_cash, self.on_cash)
+        row = tk.Frame(self.root)
+        row.pack(pady=1)
+        tk.Label(row, text='待ち時間').pack(side='left')
+        self.var_wait = tk.IntVar(value=self.wait_min)
+        tk.Spinbox(row, from_=0, to=600, width=4, textvariable=self.var_wait,
+                   command=self.on_wait).pack(side='left', padx=2)
+        tk.Label(row, text='分').pack(side='left')
+        tk.Button(row, text='いま精算', width=8, command=self.cash_now).pack(side='left', padx=8)
+        self.point_row([('cash', '7. 精算（右上）', 13), ('cash2', '8. 精算（確認）', 13)])
         self.lbl_cash = self.info_label()
 
         # 精算のあと、もう一度同じ台に入り直す
         self.var_again = self.section('精算したら同じ台で遊び直す', self.auto_again, self.on_again)
-        self.point_row([('next', '10. 次へ', 9), ('again', '11. 続けて遊ぶ', 12)])
-        self.point_row([('game', '12. 一覧の三番目', 14), ('play2', '13. プレイ', 9)])
-        self.point_row([('rate', '14. レート決定', 12)])
+        self.point_row([('next', '9. 次へ', 9), ('again', '10. 続けて遊ぶ', 12)])
+        self.point_row([('game', '11. 一覧の三番目', 14), ('play2', '12. プレイ', 9)])
+        self.point_row([('rate', '13. レート決定', 12)])
         self.lbl_again = self.info_label()
 
         row = tk.Frame(self.root)
@@ -414,6 +404,25 @@ class MedalClicker:
         self.auto_cash = self.var_cash.get()
         self.save_config()
 
+    def on_wait(self):
+        try:
+            self.wait_min = int(self.var_wait.get())
+        except (tk.TclError, ValueError):
+            return
+        # 待っている最中に変えたら、その場で残り時間を引き直す
+        if self.cash_at:
+            self.cash_at = self.limit_at + self.wait_min * 60
+        self.save_config()
+
+    def cash_now(self):
+        """待ち時間を飛ばして、すぐ精算に入る。"""
+        if not self.pos_cash:
+            self.note = '先に 7 の精算を登録して'
+            self.root.after(2500, lambda: setattr(self, 'note', ''))
+            return
+        self.limit_at = time.monotonic()
+        self.cash_at  = time.monotonic()
+
     def on_again(self):
         self.auto_again = self.var_again.get()
         self.save_config()
@@ -447,12 +456,17 @@ class MedalClicker:
         mark_l = ''.join('✓' if p else '×' for p in (self.pos_limit, self.pos_cancel))
         self.lbl_limit.config(text=f'登録 {mark_l}   上限追加 {self.limits} 回')
 
-        mark_c = ''.join('✓' if p else '×' for p in (self.pos_hold, self.pos_cash, self.pos_cash2))
-        self.lbl_cash.config(
-            text=f'登録 {mark_c}   保留の緑 {self.hold_now} / 基準 {self.hold_base}   精算 {self.cashes} 回')
+        mark_c = ''.join('✓' if p else '×' for p in (self.pos_cash, self.pos_cash2))
+        if self.cash_at:
+            left = max(0, int(self.cash_at - time.monotonic()))
+            waiting = f'精算まで あと {left // 60} 分 {left % 60:02d} 秒'
+        else:
+            waiting = '待機なし'
+        self.lbl_cash.config(text=f'登録 {mark_c}   {waiting}   精算 {self.cashes} 回')
 
         mark_a = ''.join('✓' if p else '×' for p in
-                         (self.pos_next, self.pos_again, self.pos_game, self.pos_play2, self.pos_rate))
+                         (self.pos_next, self.pos_again, self.pos_game,
+                          self.pos_play2, self.pos_rate))
         self.lbl_again.config(text=f'登録 {mark_a}   遊び直し {self.replays} 回')
 
         self.root.after(200, self.refresh)
@@ -463,7 +477,7 @@ class MedalClicker:
         labels = {'menu': '交換画面の 100', '3000': 'スクロール後の 3000',
                   'play': 'プレイ開始', 'quit': 'コンティニューの やめる',
                   'limit': 'プレイ上限数追加', 'cancel': '自動追加のキャンセル',
-                  'hold': '保留の列の真ん中', 'cash': '右上の精算',
+                  'cash': '右上の精算',
                   'cash2': '精算確認の精算', 'next': 'リザルトの次へ',
                   'again': '続けて遊ぶ', 'game': '一覧の三番目',
                   'play2': 'ゲーム説明のプレイ', 'rate': 'レート決定'}
@@ -473,9 +487,6 @@ class MedalClicker:
             setattr(self, POINTS[which], pos)
             if which in ANCHOR_PATHS:
                 self.save_anchor(which, pos)
-            if which == 'hold':
-                # 玉が点いている今の緑の量を基準にする
-                self.hold_base = self.green_now(pos)
             self.save_config()
             self.note = f'{labels[which]} {pos} を記録'
             self.root.after(2500, lambda: setattr(self, 'note', ''))
@@ -497,8 +508,7 @@ class MedalClicker:
         self.tapping = False
         for attr in POINTS.values():
             setattr(self, attr, None)
-        self.hold_base = 0
-        self.hold_now  = 0
+        self.cash_at   = 0
         self.anchors   = {}
         for path in ANCHOR_PATHS.values():
             try:
@@ -526,6 +536,8 @@ class MedalClicker:
         self.tapping = self.running
         if self.running:
             self.note = ''
+        else:
+            self.cash_at = 0
             self.taps   = 0
             self.swaps  = 0
             self.quits  = 0
@@ -567,13 +579,20 @@ class MedalClicker:
         他の画面が被っているときに誤爆しやすいので一番下に置いてある。
         """
         keys  = ('cash2', 'next', 'again', 'game', 'play2', 'rate',
-                 'quit', 'limit', 'menu', 'hold')
+                 'quit', 'limit', 'menu')
         clear = {k: 0 for k in keys}
         hits  = dict(clear)
         while True:
             time.sleep(WATCH_INTERVAL)
             if not (self.running and IS_WIN and HAS_VISION) or self.exchanging:
                 hits = dict(clear)
+                continue
+
+            # 待ち時間が過ぎていたら、画面を見るより先に精算へ入る
+            if self.cash_at and time.monotonic() >= self.cash_at and self.pos_cash:
+                self.cash_at = 0
+                hits = dict(clear)
+                self.do_tap('cash', '精算を押した', 1.5)
                 continue
 
             play = self.tapping   # ゲーム中にだけ出る画面かどうかの目安
@@ -604,10 +623,6 @@ class MedalClicker:
                 ('menu',  self.auto_swap and self.pos_menu and self.pos_3000 and self.pos_play
                  and not (self.max_swap and self.swaps >= self.max_swap),
                  lambda: self.matches('menu', self.pos_menu), self.do_exchange, 2),
-                ('hold',  self.auto_cash and play and self.pos_hold and self.pos_cash
-                 and self.hold_base,
-                 self.hold_is_gray,
-                 lambda: self.do_tap('cash', '精算を押した', 1.5), HOLD_HITS),
             ):
                 if not ready:
                     hits[key] = 0
@@ -638,24 +653,11 @@ class MedalClicker:
                 self.note    = '精算したので連打を止めた'
             self.exchanging = False
 
-    def green_now(self, pos):
-        if not (HAS_VISION and IS_WIN):
-            return 0
-        try:
-            return count_green(pos)
-        except (OSError, ValueError):
-            return 0
-
-    def hold_is_gray(self):
-        """保留の緑が記録時よりぐっと減っていたら、玉が尽きたとみなす。"""
-        self.hold_now = self.green_now(self.pos_hold)
-        return self.hold_now < max(self.hold_base * HOLD_RATIO, HOLD_FLOOR)
-
     def do_limit(self):
         """プレイ上限の知らせを、上限数追加 → 自動追加のキャンセル でさばいて止まる。
 
         上限に達した後は投入できないので、A と D の連打はここで止める。
-        画面の見張りは続けるので、精算に進めばそのまま遊び直しの流れに乗る。
+        そのあと決めた時間だけ待ってから精算し、遊び直しの流れに乗る。
         """
         self.exchanging = True
         self.busy_text  = 'プレイ上限を処理中'
@@ -671,7 +673,9 @@ class MedalClicker:
             user32.SetCursorPos(int(keep[0]), int(keep[1]))
             self.tapping    = False
             self.exchanging = False
-            self.note       = 'プレイ上限なので連打を止めた'
+            self.limit_at   = time.monotonic()
+            self.cash_at    = self.limit_at + self.wait_min * 60
+            self.note       = f'{self.wait_min} 分待ってから精算する'
 
     def do_exchange(self):
         """100 のプルダウンを開き、3000 まで送って選び、プレイ開始を押す。"""
