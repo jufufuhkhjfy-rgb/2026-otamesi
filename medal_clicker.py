@@ -220,8 +220,8 @@ class MedalClicker:
         self.root = tk.Tk()
         self.root.title('メダル連打')
         self.root.attributes('-topmost', True)
-        self.root.geometry('340x780')
         self.build_ui()
+        self.fit_window()
 
         threading.Thread(target=self.key_loop, daemon=True).start()
         threading.Thread(target=self.watch_loop, daemon=True).start()
@@ -293,7 +293,7 @@ class MedalClicker:
     # ---------- UI ----------
     def section(self, text, value, cmd):
         """区切り線とチェックボックスを出して、その入れ物を返す。"""
-        ttk.Separator(self.root, orient='horizontal').pack(fill='x', padx=10, pady=5)
+        ttk.Separator(self.root, orient='horizontal').pack(fill='x', padx=10, pady=3)
         var = tk.BooleanVar(value=value)
         tk.Checkbutton(self.root, text=text, variable=var, command=cmd).pack()
         return var
@@ -310,6 +310,15 @@ class MedalClicker:
         lbl = tk.Label(self.root, text='', font=('', 9))
         lbl.pack()
         return lbl
+
+    def fit_window(self):
+        """中身がちょうど入る大きさにする。窓が短いとボタンが隠れるため。"""
+        self.root.update_idletasks()
+        w = self.root.winfo_reqwidth()
+        h = self.root.winfo_reqheight()
+        h = min(h, self.root.winfo_screenheight() - 80)
+        self.root.geometry(f'{w}x{h}+40+40')
+        self.root.minsize(w, 400)
 
     def build_ui(self):
         self.lbl_state = tk.Label(self.root, text='停止中', font=('', 15, 'bold'), fg='gray')
@@ -372,10 +381,12 @@ class MedalClicker:
         self.point_row([('rate', '14. レート決定', 12)])
         self.lbl_again = self.info_label()
 
-        tk.Label(self.root, text='F8 開始/停止   F10 終了',
-                 font=('', 8), fg='gray').pack(side='bottom', pady=(0, 6))
-        tk.Button(self.root, text='登録を全部消す', width=14,
-                  command=self.reset_points).pack(side='bottom', pady=(6, 2))
+        row = tk.Frame(self.root)
+        row.pack(pady=(6, 4))
+        tk.Button(row, text='登録を全部消す', width=13,
+                  command=self.reset_points).pack(side='left', padx=6)
+        tk.Label(row, text='F8 開始/停止\nF10 終了', font=('', 8), fg='gray',
+                 justify='left').pack(side='left')
 
         self.refresh()
 
