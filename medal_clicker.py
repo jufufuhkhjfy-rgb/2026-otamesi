@@ -68,7 +68,7 @@ KEYEVENTF_KEYUP      = 0x0002
 
 VK = {'A': 0x41, 'D': 0x44}
 
-VERSION = 'v15'   # 入れ替えたか分かるように、窓の題に出す
+VERSION = 'v16'   # 入れ替えたか分かるように、窓の題に出す
 
 CONFIG_PATH = Path(__file__).with_name('medal_clicker.json')
 BACKUP_PATH = Path(__file__).with_name('medal_clicker.bak.json')
@@ -105,6 +105,7 @@ LABELS = {
     'play2':  'ゲーム説明のプレイ',
     'rate':   'レート決定',
     'red':    '盤面の赤いボタン',
+    'idle':   '空押しの場所',
 }
 
 # 記録ボタンと、それをしまう変数の対応
@@ -125,6 +126,7 @@ POINTS = {
     'rate':   'pos_rate',
     'after':  'pos_after',
     'red':    'pos_red',
+    'idle':   'pos_idle',
 }
 
 MAX_PRESS   = 0.025   # キーを押している時間の上限。速度を上げると自動で短くなる
@@ -135,7 +137,7 @@ JITTER      = 0.15    # 間隔を ±15% 揺らす
 ANCHOR_SIZE = 320     # 新しく取る見本の一辺（ピクセル）
 ANCHOR_W    = ANCHOR_SIZE
 ANCHOR_H    = ANCHOR_SIZE
-MATCH_THRESHOLD = 14  # 画素差の平均がこれ未満なら「同じ画面」とみなす
+MATCH_THRESHOLD = 20  # 区画ごとの差の真ん中がこれ未満なら「同じ画面」とみなす
 GRID            = 8   # 見本を縦横この数に区切り、食い違いの大きい区画を見る
 WATCH_INTERVAL  = 0.7
 WAIT_MIN        = 30  # プレイ上限をさばいてから精算するまでの待ち時間（分）
@@ -148,6 +150,7 @@ RED_MAX         = 30  # 叩き続ける上限（秒）。見間違いで延々�
 ALIGN_PAD   = 120     # 探す範囲（上下左右にこのピクセルぶん）
 ALIGN_STEP  = 8       # 探すときの粗さ。8 なら 8 ピクセル刻みで当たりを付ける
 AIM_MAX     = 40      # 見つけた画面を押す前に直してよいずれの上限
+POKE_MIN    = 3       # 何分ごとに画面をひと押しするか
 ALIGN_TIGHT = 0.7     # 探して見つけたと認めるのは、ふだんのゆるさのこの割合まで
 ALIGN_FLAT  = 10      # のっぺりした見本は他の場所とも似るので、探す目印には使わない
 
@@ -232,6 +235,7 @@ class MedalClicker:
         self.pos_play = None    # 「プレイ開始」
         self.pos_after  = None  # プレイ開始の後に一度押す場所
         self.pos_red    = None  # 盤面に出る赤いボタン
+        self.pos_idle   = None  # 時々ひと押しする、押しても害のない場所
         self.pos_quit = None    # コンティニューチャンスの「やめる」
         self.pos_limit  = None  # プレイ上限到達の「プレイ上限数追加」
         self.pos_cancel = None  # その次の画面の「自動追加のキャンセル」
@@ -256,6 +260,8 @@ class MedalClicker:
         self.auto_cash  = True
         self.auto_again = True
         self.auto_red   = True
+        self.auto_poke  = True
+        self.poke_min   = POKE_MIN
 
         self.running    = False   # ボット全体が動いているか
         self.tapping    = False   # いま A と D を叩いてよいか
@@ -268,6 +274,8 @@ class MedalClicker:
         self.cashes     = 0
         self.replays    = 0
         self.reds       = 0
+        self.pokes      = 0
+        self.poked_at   = 0     # 最後にひと押しした時刻
         self.limit_at   = 0     # プレイ上限をさばいた時刻
         self.cash_at    = 0     # この時刻になったら精算する。0 なら待っていない
         self.anchors    = {}
@@ -307,6 +315,8 @@ class MedalClicker:
             self.auto_cash  = bool(data.get('auto_cash', self.auto_cash))
             self.auto_again = bool(data.get('auto_again', self.auto_again))
             self.auto_red   = bool(data.get('auto_red', self.auto_red))
+            self.auto_poke  = bool(data.get('auto_poke', self.auto_poke))
+            self.poke_min   = int(data.get('poke_min', self.poke_min))
             self.wait_min   = int(data.get('wait_min', self.wait_min))
             self.tol        = int(data.get('tol', self.tol))
             self.anchor_size = int(data.get('anchor_size', self.anchor_size))
@@ -326,6 +336,7 @@ class MedalClicker:
             'pos_play':  list(self.pos_play) if self.pos_play else None,
             'pos_after': list(self.pos_after) if self.pos_after else None,
             'pos_red':   list(self.pos_red)   if self.pos_red   else None,
+            'pos_idle':  list(self.pos_idle)  if self.pos_idle  else None,
             'pos_quit':   list(self.pos_quit)   if self.pos_quit   else None,
             'pos_limit':  list(self.pos_limit)  if self.pos_limit  else None,
             'pos_cancel': list(self.pos_cancel) if self.pos_cancel else None,
@@ -350,6 +361,8 @@ class MedalClicker:
             'auto_cash': self.auto_cash,
             'auto_again': self.auto_again,
             'auto_red': self.auto_red,
+            'auto_poke': self.auto_poke,
+            'poke_min': self.poke_min,
         }
         try:
             CONFIG_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
@@ -425,6 +438,18 @@ class MedalClicker:
                    command=self.on_nums).pack(side='left', padx=2)
         self.lbl_swap = self.info_label()
 
+        # 時々のひと押し
+        self.var_poke = self.section('時々どこかを押しておく', self.auto_poke, self.on_poke)
+        row = tk.Frame(self.root)
+        row.pack(pady=1)
+        self.var_pmin = tk.IntVar(value=self.poke_min)
+        tk.Spinbox(row, from_=1, to=60, width=3, textvariable=self.var_pmin,
+                   command=self.on_poke_min).pack(side='left', padx=2)
+        tk.Label(row, text='分ごとに').pack(side='left')
+        tk.Button(row, text='17. 空押しの場所', width=15,
+                  command=lambda: self.record('idle')).pack(side='left', padx=3)
+        self.lbl_poke = self.info_label()
+
         # 盤面の赤いボタン
         self.var_red = self.section('赤ボタンが出ている間は叩く', self.auto_red, self.on_red)
         self.point_row([('red', '16. 赤ボタン', 13)])
@@ -493,6 +518,17 @@ class MedalClicker:
 
     def on_keys(self):
         self.keys = self.var_keys.get()
+        self.save_config()
+
+    def on_poke(self):
+        self.auto_poke = self.var_poke.get()
+        self.save_config()
+
+    def on_poke_min(self):
+        try:
+            self.poke_min = int(self.var_pmin.get())
+        except (tk.TclError, ValueError):
+            return
         self.save_config()
 
     def on_red(self):
@@ -588,6 +624,7 @@ class MedalClicker:
         self.lbl_swap.config(text=f'登録 {marks}   交換 {self.swaps} 回 / {limit}')
 
         self.lbl_red.config(text=f'登録 {self.marks("red")}   赤 {self.reds} 回')
+        self.lbl_poke.config(text=f'登録 {self.marks("idle")}   空押し {self.pokes} 回')
 
         mark_q = self.marks('quit')
         self.lbl_quit.config(text=f'登録 {mark_q}   やめる {self.quits} 回')
@@ -693,6 +730,7 @@ class MedalClicker:
             lines.append(line)
         lines.append('')
         lines.append(f'ゆるさ {self.tol} より小さい差が一致になる')
+        lines.append('差は区画ごとの真ん中、一角は食い違いの大きい区画')
         lines.append(f'探して直すのは {self.tol * ALIGN_TIGHT:.0f} より小さいとき')
         messagebox.showinfo('判定', '\n'.join(lines))
 
@@ -816,6 +854,13 @@ class MedalClicker:
             hits.update(dict.fromkeys(hits, 0))
             return 0
 
+        # 決めた間隔でひと押し。画面が何であっても止めない
+        if self.auto_poke and self.pos_idle:
+            if not self.poked_at:
+                self.poked_at = time.monotonic()
+            elif time.monotonic() - self.poked_at >= self.poke_min * 60:
+                self.poke()
+
         # 精算待ちの間は投入できないので、連打には戻さない
         if self.cash_at:
             self.tapping = False
@@ -839,7 +884,7 @@ class MedalClicker:
                 continue
             both = self.compare(key, getattr(self, POINTS[key]))
             if both and both[0] < self.tol:
-                # 全体の差で絞り、食い違う一角の小ささで優劣を付ける
+                # 真ん中の差で絞り、食い違う一角の小ささで優劣を付ける
                 scores[key] = (both[1], both[0], order)
 
         if scores:
@@ -891,17 +936,22 @@ class MedalClicker:
             return None
 
         gap = np.abs(cur - anchor).mean(axis=2)
-        overall = float(gap.mean())
         gh = gap.shape[0] // GRID * GRID
         gw = gap.shape[1] // GRID * GRID
         if gh < GRID or gw < GRID:
+            overall = float(gap.mean())
             return overall, overall
+
         blocks = gap[:gh, :gw].reshape(GRID, gh // GRID, GRID, gw // GRID).mean(axis=(1, 3))
-        worst = float(np.sort(blocks, axis=None)[-GRID:].mean())
-        return overall, worst
+        order = np.sort(blocks, axis=None)
+        # 真ん中の区画の差で見る。平均だと絵の動く一角に引きずられ、同じ
+        # 画面でも外れてしまう。半分以上の区画が合っていれば同じ画面とみなす
+        middle = float(np.median(order))
+        worst  = float(order[-GRID:].mean())
+        return middle, worst
 
     def diff(self, key, pos):
-        """全体の差だけを返す。"""
+        """区画の真ん中の差だけを返す。"""
         both = self.compare(key, pos)
         return None if both is None else both[0]
 
@@ -1015,6 +1065,15 @@ class MedalClicker:
             return False
         self.shift_all(best[0], best[1])
         return True
+
+    def poke(self):
+        """どの画面でも、決めた間隔で害のない場所をひと押しする。"""
+        pos = self.pos_idle
+        keep = cursor_pos()
+        click_at(pos[0], pos[1], 0.03)
+        user32.SetCursorPos(int(keep[0]), int(keep[1]))
+        self.pokes += 1
+        self.poked_at = time.monotonic()
 
     def hit_red(self):
         """赤いボタンが見えている間、そこを叩き続ける。
