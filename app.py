@@ -256,10 +256,14 @@ def monitor_loop():
                     result = search_mercari(keyword)
                     items = result.get("items", [])
                     hit_count = 0
+                    auction_count = 0
 
-                    # 相場計算（フィルタ前の全件）
+                    # 相場計算（フィルタ前の全件。ただしオークションは開始価格で
+                    # 相場より安く見えるため除く）
                     all_prices = []
                     for it in items:
+                        if it.get("auction"):
+                            continue
                         p = it.get("price", 0)
                         if isinstance(p, str):
                             p = int(p.replace(",","").replace("¥","").strip() or 0)
@@ -276,6 +280,13 @@ def monitor_loop():
                             continue
 
                         checked_items.add(item_id)
+
+                        # オークション形式の出品は即決で買えないので対象外にする。
+                        # 通常の出品では auction が null で、オークションのときだけ中身が入る。
+                        # 価格欄は開始価格なので上限価格の判定もすり抜けてしまう
+                        if item.get("auction"):
+                            auction_count += 1
+                            continue
 
                         name = item.get("name", "")
                         price = item.get("price", 0)
@@ -316,6 +327,8 @@ def monitor_loop():
 
                             add_log(f"ヒット ¥{price:,} {name[:25]}")
 
+                    if auction_count:
+                        add_log(f"  オークション出品 {auction_count}件を除外")
                     if hit_count == 0:
                         add_log(f"  → {keyword}: 新着なし ({len(items)}件確認)")
 
@@ -671,7 +684,7 @@ input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 
   </span>
   <h1>MeriWatch</h1>
   <!-- 差し替えたかどうかを画面で判別できるようにする。変更するたびに上げる -->
-  <span class="app-ver">v11</span>
+  <span class="app-ver">v12</span>
   <div class="header-right">
     <div class="badge stopped" id="statusBadge">
       <span class="dot"></span>
