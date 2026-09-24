@@ -14,6 +14,11 @@ A（左）と D（右）のキーを連打し、画面を見て次の二つを�
 決まった順になぞるのではなく、毎回いまの盤面を見て手を選ぶ。どれにも
 当てはまらない画面が続いたらゲーム中とみなして連打に入るので、途中で
 止めて別の画面を触ってから戻ってきても、その場から続けられる。
+
+覚えた座標は登録したときのまま一切動かさない。ブラウザの位置やページの
+送りでゲームの枠がずれたぶんは、見本を探して割り出し、動かしている間の
+ずれとして持って押すときに足す。座標そのものを書き換えると、外した探索
+が積み重なって登録が壊れていくため。
 F8 開始/停止、F10 終了。ブラウザ側をアクティブにしておくこと。
 """
 import sys
@@ -68,7 +73,7 @@ KEYEVENTF_KEYUP      = 0x0002
 
 VK = {'A': 0x41, 'D': 0x44}
 
-VERSION = 'v16'   # 入れ替えたか分かるように、窓の題に出す
+VERSION = 'v17'   # 入れ替えたか分かるように、窓の題に出す
 
 CONFIG_PATH = Path(__file__).with_name('medal_clicker.json')
 BACKUP_PATH = Path(__file__).with_name('medal_clicker.bak.json')
@@ -276,6 +281,8 @@ class MedalClicker:
         self.reds       = 0
         self.pokes      = 0
         self.poked_at   = 0     # 最後にひと押しした時刻
+        self.offset     = (0, 0)  # ゲームの枠が登録時からどれだけ動いたか
+        self.scan_i     = 0     # 順に探す見本の番号
         self.limit_at   = 0     # プレイ上限をさばいた時刻
         self.cash_at    = 0     # この時刻になったら精算する。0 なら待っていない
         self.anchors    = {}
@@ -490,8 +497,6 @@ class MedalClicker:
         row.pack(pady=(4, 2))
         tk.Button(row, text='判定を見る', width=10,
                   command=self.check_screens).pack(side='left', padx=3)
-        tk.Button(row, text='位置合わせ', width=10,
-                  command=self.align_now).pack(side='left', padx=3)
         tk.Label(row, text='ゆるさ').pack(side='left')
         self.var_tol = tk.IntVar(value=self.tol)
         tk.Spinbox(row, from_=2, to=80, width=3, textvariable=self.var_tol,
@@ -617,6 +622,9 @@ class MedalClicker:
             self.lbl_state.config(text='停止中', fg='gray')
 
         self.lbl_cps.config(text=f'{self.cps:.0f} 回/秒')
+        if self.offset != (0, 0):
+            self.lbl_state.config(
+                text=self.lbl_state.cget('text') + f'   枠 {self.offset[0]:+d},{self.offset[1]:+d}')
         self.lbl_note.config(text=self.note)
 
         marks = self.marks('menu', '3000', 'play', 'after')
@@ -691,18 +699,11 @@ class MedalClicker:
         self.note = '手で登録した状態に戻した'
         self.root.after(3000, lambda: setattr(self, 'note', ''))
 
-    def align_now(self):
-        """手動で位置合わせをかける。"""
-        if self.realign():
-            return
-        self.note = 'ずれは見つからなかった'
-        self.root.after(2500, lambda: setattr(self, 'note', ''))
-
     def check_screens(self):
         """いま見えている画面と、覚えた見本の違いを並べて出す。"""
         lines = []
         for key in ANCHOR_PATHS:
-            pos = getattr(self, POINTS[key])
+            pos = self.at(key)
             if not pos:
                 lines.append(f'{LABELS[key]}: 未登録')
                 continue
@@ -722,16 +723,18 @@ class MedalClicker:
                 line += ' 一致'
             else:
                 # その場では合わなくても、近くにあるかもしれない
-                found = self.search(key, pos, strict=False)
+                found = self.search(key, pos)
                 if found:
-                    line += f' / 探すと {found[0]:+d},{found[1]:+d} で {found[2]:.1f}'
+                    moved = self.compare(key, (pos[0] + found[0], pos[1] + found[1]))
+                    if moved:
+                        line += f' / 探すと {found[0]:+d},{found[1]:+d} で {moved[0]:.1f}'
             if float(np.std(self.anchors[key])) < ALIGN_FLAT:
                 line += ' のっぺり'
             lines.append(line)
         lines.append('')
         lines.append(f'ゆるさ {self.tol} より小さい差が一致になる')
         lines.append('差は区画ごとの真ん中、一角は食い違いの大きい区画')
-        lines.append(f'探して直すのは {self.tol * ALIGN_TIGHT:.0f} より小さいとき')
+        lines.append(f'枠のずれ {self.offset[0]:+d},{self.offset[1]:+d} を足した場所で見ている')
         messagebox.showinfo('判定', '\n'.join(lines))
 
     def reset_points(self):
@@ -873,16 +876,18 @@ class MedalClicker:
             return idle
 
         # 赤いボタンは盤面に重なって出る。見えている間は叩き続ける
-        if self.auto_red and self.pos_red and self.matches('red', self.pos_red):
-            self.hit_red()
-            return 0
+        if self.auto_red and self.pos_red:
+            both = self.look('red')
+            if both and both[0] < self.tol:
+                self.hit_red()
+                return 0
 
         table  = self.screen_table()
         scores = {}
         for order, (key, ready, act, need) in enumerate(table):
             if not ready:
                 continue
-            both = self.compare(key, getattr(self, POINTS[key]))
+            both = self.look(key)
             if both and both[0] < self.tol:
                 # 真ん中の差で絞り、食い違う一角の小ささで優劣を付ける
                 scores[key] = (both[1], both[0], order)
@@ -910,8 +915,10 @@ class MedalClicker:
             self.tapping = True
             self.busy_text = ''
 
-        # ここで勝手に位置合わせはしない。見えている画面が分からないまま
-        # 探すと、盤面の動く絵にたまたま当たって座標を壊してしまう
+        # 枠が動いた疑いがあるので、見本を一枚だけ順に探す。見つかっても
+        # 覚えた座標は触らず、動かしている間のずれとして持つだけにする
+        if self.scan():
+            return 0
         return idle
 
     def compare(self, key, pos):
@@ -955,22 +962,18 @@ class MedalClicker:
         both = self.compare(key, pos)
         return None if both is None else both[0]
 
-    def matches(self, key, pos):
-        d = self.diff(key, pos)
-        return d is not None and d < self.tol
+    def search(self, key, center):
+        """見本を周りから探し、中心からのずれを返す。見つからなければ None。
 
-    def search(self, key, pos, strict=True):
-        """覚えた場所の周りを探して、見本が見つかった場所とのずれを返す。
-
-        strict を外すと、似ていなくても一番ましだった場所と点数を返す。
-        様子を見るときに使う。
+        粗く当たりを付けてから細かく詰める。全画素をずらしながら比べると
+        重いので、どちらの段も平均に潰した絵で見る。
         """
         anchor = self.anchors.get(key)
-        if anchor is None or not pos:
+        if anchor is None or not center:
             return None
 
         ah, aw = anchor.shape[0], anchor.shape[1]
-        ax, ay = anchor_rect(pos, aw, ah)
+        ax, ay = anchor_rect(center, aw, ah)
         sw, sh = screen_size()
         x0 = max(0, ax - ALIGN_PAD)
         y0 = max(0, ay - ALIGN_PAD)
@@ -978,97 +981,120 @@ class MedalClicker:
         y1 = min(sh, ay + ah + ALIGN_PAD)
         if x1 - x0 < aw or y1 - y0 < ah:
             return None
-
         try:
             big = np.asarray(grab(x0, y0, x1 - x0, y1 - y0).convert('RGB'), dtype=np.int16)
         except (OSError, ValueError):
             return None
 
-        # まず粗く。平均に潰してから、ずらしながらの差をまとめて出す
-        a = block_mean(anchor, ALIGN_STEP)
-        b = block_mean(big, ALIGN_STEP)
+        rough = self.best_offset(anchor, big, ALIGN_STEP, None)
+        if rough is None:
+            return None
+        fine = self.best_offset(anchor, big, 2, rough)
+        bx, by = fine if fine else rough
+        return int(x0 + bx - ax), int(y0 + by - ay)
+
+    @staticmethod
+    def best_offset(anchor, big, step, around):
+        """潰した絵どうしをずらして比べ、一番合う左上の位置を返す。
+
+        around を渡すと、その周り ALIGN_STEP ぶんだけを見る。粗い当たりを
+        細かく詰め直すときに使う。
+        """
+        a = block_mean(anchor, step)
+        b = block_mean(big, step)
         th, tw = a.shape[0], a.shape[1]
         if b.shape[0] < th or b.shape[1] < tw:
             return None
-        win = np.lib.stride_tricks.sliding_window_view(b, (th, tw, 3))
-        rough = np.abs(win - a).mean(axis=(3, 4, 5))[:, :, 0]
-        iy, ix = np.unravel_index(int(np.argmin(rough)), rough.shape)
 
-        # 次に細かく。当たりを付けた周りを一ピクセルずつ見直す
-        best, by, bx = None, 0, 0
-        for dy in range(-ALIGN_STEP, ALIGN_STEP + 1):
-            for dx in range(-ALIGN_STEP, ALIGN_STEP + 1):
-                y = iy * ALIGN_STEP + dy
-                x = ix * ALIGN_STEP + dx
-                if y < 0 or x < 0:
-                    continue
-                cut = big[y:y + ah, x:x + aw]
-                if cut.shape != anchor.shape:
-                    continue
-                d = float(np.mean(np.abs(cut - anchor)))
-                if best is None or d < best:
-                    best, by, bx = d, y, x
+        if around is None:
+            lo_y = lo_x = 0
+            hi_y, hi_x = b.shape[0] - th, b.shape[1] - tw
+        else:
+            lo_x = max(0, (around[0] - ALIGN_STEP) // step)
+            lo_y = max(0, (around[1] - ALIGN_STEP) // step)
+            hi_x = min(b.shape[1] - tw, (around[0] + ALIGN_STEP) // step)
+            hi_y = min(b.shape[0] - th, (around[1] + ALIGN_STEP) // step)
+            if hi_y < lo_y or hi_x < lo_x:
+                return None
 
-        if best is None or (strict and best >= self.tol * ALIGN_TIGHT):
+        view = b[lo_y:hi_y + th, lo_x:hi_x + tw]
+        if view.shape[0] < th or view.shape[1] < tw:
             return None
-        # numpy の数のままだと設定を保存できないので、素の int にして返す
-        return int(x0 + bx - ax), int(y0 + by - ay), best
+        win = np.lib.stride_tricks.sliding_window_view(view, (th, tw, 3))
+        gap = np.abs(win - a).mean(axis=(3, 4, 5))[:, :, 0]
+        iy, ix = np.unravel_index(int(np.argmin(gap)), gap.shape)
+        return (lo_x + ix) * step, (lo_y + iy) * step
 
-    def shift_all(self, dx, dy):
-        """ゲームの枠ごと動いたとみて、覚えた座標を全部ずらす。"""
-        for attr in POINTS.values():
-            old = getattr(self, attr)
-            if old:
-                setattr(self, attr, (int(old[0]) + dx, int(old[1]) + dy))
-        self.save_config()
-        self.note = f'位置が {dx:+d},{dy:+d} ずれていたので直した'
+    def at(self, key):
+        """いま押すべき場所。覚えた座標に、枠のずれを足したもの。
 
-    def aim(self, key):
-        """押す直前に見本を探し直して、いま押すべき場所を返す。
-
-        この画面だと見分けが付いた直後にだけ呼ぶ。それでも大きく動かすと
-        当てずっぽうの上書きになるので、直すのは少しのずれまでに限る。
+        覚えた座標そのものは触らない。触ると、外した探索が積み重なって
+        登録が壊れる。ずれは動かしているあいだだけ持つ。
         """
         pos = getattr(self, POINTS[key])
-        if key not in ANCHOR_PATHS or not pos:
-            return pos
-        found = self.search(key, pos)
-        if not found:
-            return pos
-        dx, dy, _ = found
-        if (dx or dy) and abs(dx) <= AIM_MAX and abs(dy) <= AIM_MAX:
-            self.shift_all(dx, dy)
-            pos = getattr(self, POINTS[key])
-        return pos
+        if not pos:
+            return None
+        return pos[0] + self.offset[0], pos[1] + self.offset[1]
 
-    def realign(self):
-        """一番よく合う見本を探して、そのずれぶん座標を全部動かす。
+    def look(self, key):
+        """いまの画面がその画面か見る。(真ん中の差, 一角の差) か None。"""
+        return self.compare(key, self.at(key))
 
-        見本が大きいと一枚あたり百ミリ秒近くかかる。文句なしの当たりが
-        出た時点で打ち切り、全部を探し尽くさない。
+    def refine(self, key):
+        """押す直前に見本を探し直して、枠のずれを詰める。
+
+        真ん中の差は少しの位置違いでは動かない。白い面の多い画面だと、
+        ずれたままでも同じ画面に見えてしまう。押す前にここで詰めておく。
         """
-        best = None
-        for key in ANCHOR_PATHS:
-            anchor = self.anchors.get(key)
-            pos = getattr(self, POINTS[key])
-            if anchor is None or not pos:
-                continue
-            # のっぺりした見本は、どこにでも当てはまってしまう
-            if float(np.std(anchor)) < ALIGN_FLAT:
-                continue
-            found = self.search(key, pos)
-            if found and (best is None or found[2] < best[2]):
-                best = found
-                if found[2] < self.tol * 0.35:
-                    break
-        if best is None or (best[0] == 0 and best[1] == 0):
+        if key not in ANCHOR_PATHS:
+            return
+        center = self.at(key)
+        found  = self.search(key, center)
+        if not found or found == (0, 0):
+            return
+        dx, dy = found
+        now   = self.compare(key, center)
+        moved = self.compare(key, (center[0] + dx, center[1] + dy))
+        # 食い違う一角の差で見比べる。こちらは位置がずれるとすぐ大きくなる
+        if not moved or (now and moved[1] >= now[1]):
+            return
+        self.offset = (self.offset[0] + dx, self.offset[1] + dy)
+        self.note = f'枠が {self.offset[0]:+d},{self.offset[1]:+d} 動いている'
+
+    def scan(self):
+        """見本を一枚ずつ順に探し、見つかったら枠のずれを覚え直す。
+
+        どれも当てはまらなかった巡回で一枚だけ探す。全部を毎回探すと重く、
+        連打の足を引っぱるため。
+        """
+        keys = [k for k in ANCHOR_PATHS
+                if getattr(self, POINTS[k]) and self.anchors.get(k) is not None]
+        if not keys:
             return False
-        self.shift_all(best[0], best[1])
+        key = keys[self.scan_i % len(keys)]
+        self.scan_i += 1
+
+        center = self.at(key)
+        found  = self.search(key, center)
+        if not found:
+            return False
+        dx, dy = found
+        if dx == 0 and dy == 0:
+            return False
+
+        # 探した先が本当にその画面か、細かいところまで見て確かめる
+        both = self.compare(key, (center[0] + dx, center[1] + dy))
+        if not both or both[0] >= self.tol:
+            return False
+        self.offset = (self.offset[0] + dx, self.offset[1] + dy)
+        self.note = f'枠が {self.offset[0]:+d},{self.offset[1]:+d} 動いている'
         return True
 
     def poke(self):
         """どの画面でも、決めた間隔で害のない場所をひと押しする。"""
-        pos = self.pos_idle
+        pos = self.at('idle')
+        if not pos:
+            return
         keep = cursor_pos()
         click_at(pos[0], pos[1], 0.03)
         user32.SetCursorPos(int(keep[0]), int(keep[1]))
@@ -1081,7 +1107,8 @@ class MedalClicker:
         一巡ぶんだけ叩いて戻る。消えていれば次の巡回で止まる。A と D の
         連打は止めない。投入しながら押す場面なので、どちらも要る。
         """
-        pos = self.aim('red')
+        self.refine('red')
+        pos = self.at('red')
         if not pos:
             return
         self.busy_text = '赤ボタンを叩いている'
@@ -1094,12 +1121,17 @@ class MedalClicker:
             precise_sleep(gap)
             # 消えていないか折々に見て、無くなったらすぐ止める
             n += 1
-            if n % 5 == 0 and not self.matches('red', pos):
-                break
+            if n % 5 == 0:
+                both = self.compare('red', pos)
+                if not both or both[0] >= self.tol:
+                    break
 
     def do_tap(self, key, label, wait, stop_keys=False, count=None):
         """記録した場所を一回押して、画面が変わるまで待つ。"""
-        pos = self.aim(key)
+        self.refine(key)
+        pos = self.at(key)
+        if not pos:
+            return
         self.exchanging = True
         self.busy_text  = label
         keep = cursor_pos()
@@ -1127,10 +1159,11 @@ class MedalClicker:
         keep = cursor_pos()
         try:
             time.sleep(0.2)
-            self.aim('limit')   # ずれていたら、ここで座標をまとめて直す
-            click_at(self.pos_limit[0], self.pos_limit[1], 0.03)
+            self.refine('limit')
+            limit, cancel = self.at('limit'), self.at('cancel')
+            click_at(limit[0], limit[1], 0.03)
             time.sleep(1.2)   # 次のダイアログが開くまで待つ
-            click_at(self.pos_cancel[0], self.pos_cancel[1], 0.03)
+            click_at(cancel[0], cancel[1], 0.03)
             self.limits += 1
             time.sleep(1.0)
         finally:
@@ -1148,24 +1181,27 @@ class MedalClicker:
         keep = cursor_pos()
         try:
             time.sleep(0.2)
-            self.aim('menu')   # ずれていたら、ここで座標をまとめて直す
-            click_at(self.pos_menu[0], self.pos_menu[1], 0.03)
+            self.refine('menu')
+            menu, three = self.at('menu'), self.at('3000')
+            click_at(menu[0], menu[1], 0.03)
             time.sleep(0.5)
 
             # 3000 は畳んだ状態では見えないので、その位置でホイールを回して送る
             if self.scrolls:
-                scroll_at(self.pos_3000[0], self.pos_3000[1], self.scrolls)
+                scroll_at(three[0], three[1], self.scrolls)
                 time.sleep(0.4)
 
-            click_at(self.pos_3000[0], self.pos_3000[1], 0.03)
+            click_at(three[0], three[1], 0.03)
             time.sleep(0.6)
-            click_at(self.pos_play[0], self.pos_play[1], 0.03)
+            play = self.at('play')
+            click_at(play[0], play[1], 0.03)
             self.swaps += 1
             time.sleep(2.5)   # ゲーム画面が戻るまで待つ
 
             # 台に入った直後は説明の画面が被る。どこか一度押して閉じる
-            if self.pos_after:
-                click_at(self.pos_after[0], self.pos_after[1], 0.03)
+            after = self.at('after')
+            if after:
+                click_at(after[0], after[1], 0.03)
                 time.sleep(1.5)
         finally:
             user32.SetCursorPos(int(keep[0]), int(keep[1]))
