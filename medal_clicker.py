@@ -73,7 +73,7 @@ KEYEVENTF_KEYUP      = 0x0002
 
 VK = {'A': 0x41, 'D': 0x44}
 
-VERSION = 'v18'   # 入れ替えたか分かるように、窓の題に出す
+VERSION = 'v19'   # 入れ替えたか分かるように、窓の題に出す
 
 CONFIG_PATH = Path(__file__).with_name('medal_clicker.json')
 BACKUP_PATH = Path(__file__).with_name('medal_clicker.bak.json')
@@ -90,7 +90,15 @@ ANCHOR_PATHS = {
     'play2': Path(__file__).with_name('medal_clicker_play2.png'),
     'rate':  Path(__file__).with_name('medal_clicker_rate.png'),
     'red':   Path(__file__).with_name('medal_clicker_red.png'),
+    'play':  Path(__file__).with_name('medal_clicker_play.png'),
 }
+
+# 裏取りに使う組み合わせ。同じダイアログの離れた二か所がそろって初めて
+# その画面とみなす。メダル交換は外すとコインを使ってしまうので特に固く。
+CONFIRM = {'menu': 'play'}
+
+# 続けて何回見えたら本物とみなすか。書いていない画面は二回
+NEED = {'menu': 3}
 
 # 記録ボタンの呼び名
 LABELS = {
@@ -736,6 +744,8 @@ class MedalClicker:
                         line += f' / 探すと {found[0]:+d},{found[1]:+d} で {moved[0]:.1f}'
             if float(np.std(self.anchors[key])) < ALIGN_FLAT:
                 line += ' のっぺり'
+            if key in CONFIRM:
+                line += '  裏取り' + ('○' if self.confirmed(key) else '×')
             lines.append(line)
         lines.append('')
         lines.append(f'ゆるさ {self.tol} より小さい差が一致になる')
@@ -838,7 +848,7 @@ class MedalClicker:
              self.do_limit, 2),
             ('menu',  self.auto_swap and self.pos_menu and self.pos_3000 and self.pos_play
              and not (self.max_swap and self.swaps >= self.max_swap),
-             self.do_exchange, 2),
+             self.do_exchange, NEED.get('menu', 2)),
         )
 
     def watch_loop(self):
@@ -901,7 +911,8 @@ class MedalClicker:
             # 真ん中の差だけだと、半分そろっていれば通ってしまう。どこか
             # 一角が大きく食い違うものは別の画面として弾く
             if both[0] < self.tol and both[1] < self.tol * WORST_RATIO:
-                scores[key] = (both[1], both[0], order)
+                if self.confirmed(key):
+                    scores[key] = (both[1], both[0], order)
             seen[key] = both
 
         if scores:
@@ -1056,6 +1067,14 @@ class MedalClicker:
         if not pos:
             return None
         return pos[0] + self.offset[0], pos[1] + self.offset[1]
+
+    def confirmed(self, key):
+        """裏取りが要る画面かどうかを見て、要るなら相方もそろっているか返す。"""
+        mate = CONFIRM.get(key)
+        if not mate or self.anchors.get(mate) is None or not getattr(self, POINTS[mate]):
+            return True
+        both = self.look(mate)
+        return bool(both and both[0] < self.tol and both[1] < self.tol * WORST_RATIO)
 
     def look(self, key):
         """いまの画面がその画面か見る。(真ん中の差, 一角の差) か None。"""
