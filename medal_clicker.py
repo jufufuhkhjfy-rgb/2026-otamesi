@@ -73,7 +73,7 @@ KEYEVENTF_KEYUP      = 0x0002
 
 VK = {'A': 0x41, 'D': 0x44}
 
-VERSION = 'v17'   # 入れ替えたか分かるように、窓の題に出す
+VERSION = 'v18'   # 入れ替えたか分かるように、窓の題に出す
 
 CONFIG_PATH = Path(__file__).with_name('medal_clicker.json')
 BACKUP_PATH = Path(__file__).with_name('medal_clicker.bak.json')
@@ -144,6 +144,7 @@ ANCHOR_W    = ANCHOR_SIZE
 ANCHOR_H    = ANCHOR_SIZE
 MATCH_THRESHOLD = 20  # 区画ごとの差の真ん中がこれ未満なら「同じ画面」とみなす
 GRID            = 8   # 見本を縦横この数に区切り、食い違いの大きい区画を見る
+WORST_RATIO     = 3   # 一角の差がゆるさのこの倍を超えたら、別の画面とみなす
 WATCH_INTERVAL  = 0.7
 WAIT_MIN        = 30  # プレイ上限をさばいてから精算するまでの待ち時間（分）
 IDLE_HITS       = 3   # どの画面にも当てはまらない回数。これで盤面とみなす
@@ -283,6 +284,7 @@ class MedalClicker:
         self.poked_at   = 0     # 最後にひと押しした時刻
         self.offset     = (0, 0)  # ゲームの枠が登録時からどれだけ動いたか
         self.scan_i     = 0     # 順に探す見本の番号
+        self.seen       = ''    # いま見えていると判断した画面
         self.limit_at   = 0     # プレイ上限をさばいた時刻
         self.cash_at    = 0     # この時刻になったら精算する。0 なら待っていない
         self.anchors    = {}
@@ -412,6 +414,9 @@ class MedalClicker:
 
         self.lbl_note = tk.Label(self.root, text='', font=('', 9), fg='blue')
         self.lbl_note.pack()
+
+        self.lbl_seen = tk.Label(self.root, text='', font=('', 9), fg='#555')
+        self.lbl_seen.pack()
 
         self.var_keys = tk.StringVar(value=self.keys)
         row = tk.Frame(self.root)
@@ -626,6 +631,7 @@ class MedalClicker:
             self.lbl_state.config(
                 text=self.lbl_state.cget('text') + f'   枠 {self.offset[0]:+d},{self.offset[1]:+d}')
         self.lbl_note.config(text=self.note)
+        self.lbl_seen.config(text=f'見えている: {self.seen}' if self.seen else '')
 
         marks = self.marks('menu', '3000', 'play', 'after')
         limit = '無制限' if self.max_swap == 0 else f'{self.max_swap} 回まで'
@@ -734,6 +740,7 @@ class MedalClicker:
         lines.append('')
         lines.append(f'ゆるさ {self.tol} より小さい差が一致になる')
         lines.append('差は区画ごとの真ん中、一角は食い違いの大きい区画')
+        lines.append(f'一角が {self.tol * WORST_RATIO} 以上なら別の画面として弾く')
         lines.append(f'枠のずれ {self.offset[0]:+d},{self.offset[1]:+d} を足した場所で見ている')
         messagebox.showinfo('判定', '\n'.join(lines))
 
@@ -884,16 +891,22 @@ class MedalClicker:
 
         table  = self.screen_table()
         scores = {}
+        seen   = {}
         for order, (key, ready, act, need) in enumerate(table):
             if not ready:
                 continue
             both = self.look(key)
-            if both and both[0] < self.tol:
-                # 真ん中の差で絞り、食い違う一角の小ささで優劣を付ける
+            if not both:
+                continue
+            # 真ん中の差だけだと、半分そろっていれば通ってしまう。どこか
+            # 一角が大きく食い違うものは別の画面として弾く
+            if both[0] < self.tol and both[1] < self.tol * WORST_RATIO:
                 scores[key] = (both[1], both[0], order)
+            seen[key] = both
 
         if scores:
             found = min(scores, key=scores.get)
+            self.seen = f'{LABELS[found]}  差 {seen[found][0]:.0f} 一角 {seen[found][1]:.0f}'
             for key in hits:
                 if key != found:
                     hits[key] = 0
@@ -908,6 +921,14 @@ class MedalClicker:
             return 0
 
         hits.update(dict.fromkeys(hits, 0))
+
+        # 当てはまらなかったときも、一番近かったものを出しておく。誤検知や
+        # 取りこぼしを、判定を開かずに見比べられるようにするため
+        if seen:
+            near = min(seen, key=lambda k: seen[k][0])
+            self.seen = f'なし（近い: {LABELS[near]} 差 {seen[near][0]:.0f} 一角 {seen[near][1]:.0f}）'
+        else:
+            self.seen = 'なし'
 
         # どの画面でもない。しばらく続いたら盤面とみなして連打に戻る
         idle += 1
